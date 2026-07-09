@@ -44,6 +44,23 @@ The checked-in WiX templates should not contain workstation-specific absolute
 paths. Generate package variables from the actual build output directory during
 the Windows build.
 
+On Windows, run the release build from PowerShell:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows-release-build.ps1
+```
+
+The script uses persistent Windows tool locations by default:
+
+- `C:\Tools` for Flutter and RustDesk engine artifacts
+- `C:\vcpkg` for vcpkg
+- `C:\Build\rd-cl` for clean build directories and release artifacts
+
+It clones the public repository, applies public Exantas submodule patches,
+generates Flutter Rust Bridge bindings, builds the Flutter Windows release,
+then produces both portable EXE and MSI outputs under the printed
+`ARTIFACT_DIR`.
+
 Expected production output:
 
 - `Exantas Support.exe`
