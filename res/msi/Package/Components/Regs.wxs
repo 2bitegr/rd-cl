@@ -47,29 +47,6 @@
 					<RegistryValue Type="string" Name="share_rdp" Value="" />
 
 					<!--$ArpStart$-->
-					<!--https://learn.microsoft.com/en-us/windows/win32/msi/property-reference-->
-					<RegistryValue Type="string" Name="DisplayName" Value="Exantas Support" />
-					<RegistryValue Type="string" Name="DisplayIcon" Value="[INSTALLFOLDER_INNER]Exantas Support.exe" />
-					<RegistryValue Type="string" Name="DisplayVersion" Value="1.4.9.29725349" />
-					<RegistryValue Type="string" Name="Publisher" Value="Exantas Business Solutions" />
-					<RegistryValue Type="string" Name="InstallDate" Value="20260708" />
-					<RegistryValue Type="string" Name="InstallLocation" Value="[INSTALLFOLDER_INNER]" />
-					<RegistryValue Type="string" Name="InstallSource" Value="[InstallSource]" />
-					<RegistryValue Type="integer" Name="Language" Value="[ProductLanguage]" />
-					<RegistryValue Type="integer" Name="EstimatedSize" Value="74341" />
-					<RegistryValue Type="expandable" Name="ModifyPath" Value="MsiExec.exe /X [ProductCode]" />
-					<RegistryValue Type="integer" Id="NoModify" Value="1" />
-					<RegistryValue Type="expandable" Name="UninstallString" Value="MsiExec.exe /X [ProductCode]" />
-					<RegistryValue Type="expandable" Name="QuietUninstallString" Value="MsiExec.exe /qn /X [ProductCode]" />
-					<RegistryValue Type="string" Name="Version" Value="1.4.9.29725349" />
-					<RegistryValue Type="integer" Name="VersionMajor" Value="1" />
-					<RegistryValue Type="integer" Name="VersionMinor" Value="4" />
-					<RegistryValue Type="integer" Name="VersionBuild" Value="9" />
-					<RegistryValue Type="integer" Name="WindowsInstaller" Value="1" />
-					<RegistryValue Type="string" Name="Comments" Value="!(loc.AR_Comment)" />
-					<RegistryValue Type="string" Name="Contact" Value="https://exantas.eu" />
-					<RegistryValue Type="string" Name="HelpLink" Value="https://exantas.eu" />
-					<RegistryValue Type="string" Name="ReadMe" Value="https://exantas.eu/TOS" />
 					<!--$ArpEnd$-->
 				</RegistryKey>
 			</Component>
