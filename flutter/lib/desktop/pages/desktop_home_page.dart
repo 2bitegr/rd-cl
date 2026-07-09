@@ -426,14 +426,14 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           Text(
             status?.modeLabel ?? 'Basic support mode',
             style: TextStyle(
-                fontSize: 12, color: textColor?.withValues(alpha: 0.7)),
+                fontSize: 12, color: textColor?.withOpacity(0.7)),
           ),
           if (enrolled && (status?.customerName ?? '').isNotEmpty)
             Text(
               status!.customerName,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 12, color: textColor?.withValues(alpha: 0.6)),
+                  fontSize: 12, color: textColor?.withOpacity(0.6)),
             ),
           if (technicianLoggedIn)
             Text(
@@ -442,7 +442,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                   : supportUserText,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 12, color: textColor?.withValues(alpha: 0.6)),
+                  fontSize: 12, color: textColor?.withOpacity(0.6)),
             ),
           const SizedBox(height: 8),
           Wrap(
