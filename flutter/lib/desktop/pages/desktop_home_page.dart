@@ -52,8 +52,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Timer? _updateTimer;
   bool isCardClosed = false;
   final _exantasCompanion = ExantasCompanionService();
-  ExantasCompanionStatus? _exantasStatus;
   Timer? _exantasHeartbeatTimer;
+  Timer? _exantasPendingPopupTimer;
+  bool _exantasPendingPopupOpen = false;
+  final Set<String> _exantasSnoozedSessionIds = {};
 
   final RxBool _editHover = false.obs;
   final RxBool _block = false.obs;
@@ -97,7 +99,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       buildTip(context),
       if (!isOutgoingOnly) buildIDBoard(context),
       if (!isOutgoingOnly) buildPasswordBoard(context),
-      if (!isOutgoingOnly) buildExantasCompanionCard(context),
       FutureBuilder<Widget>(
         future: Future.value(
             Obx(() => buildHelpCards(stateGlobal.updateUrl.value))),
@@ -393,257 +394,67 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
-  Widget buildExantasCompanionCard(BuildContext context) {
-    final status = _exantasStatus;
-    final enrolled = status?.enrolled == true;
-    final technicianLoggedIn = status?.technicianLoggedIn == true;
-    final textColor = Theme.of(context).textTheme.titleLarge?.color;
-    final supportUserText = status == null
-        ? ''
-        : [
-            if (status.technicianName.isNotEmpty) status.technicianName,
-            if (status.supportRole.isNotEmpty) status.supportRole,
-          ].join(' - ');
-    return Container(
-      margin: const EdgeInsets.only(left: 20, right: 16, top: 0, bottom: 12),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Exantas Office',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            status?.modeLabel ?? 'Basic support mode',
-            style: TextStyle(
-                fontSize: 12, color: textColor?.withOpacity(0.7)),
-          ),
-          if (enrolled && (status?.customerName ?? '').isNotEmpty)
-            Text(
-              status!.customerName,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 12, color: textColor?.withOpacity(0.6)),
-            ),
-          if (technicianLoggedIn)
-            Text(
-              supportUserText.isEmpty
-                  ? 'Office user logged in'
-                  : supportUserText,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 12, color: textColor?.withOpacity(0.6)),
-            ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              OutlinedButton(
-                onPressed: () => _showEnrollDialog(context),
-                child: Text(enrolled ? 'Re-enroll' : 'Enroll'),
-              ),
-              OutlinedButton(
-                onPressed: () => _showTechnicianLoginDialog(context),
-                child:
-                    Text(technicianLoggedIn ? 'Switch user' : 'Office login'),
-              ),
-              if (technicianLoggedIn)
-                OutlinedButton(
-                  onPressed: () => _showPendingSessionsDialog(context),
-                  child: const Text('Notes'),
-                ),
-              if (technicianLoggedIn)
-                OutlinedButton(
-                  onPressed: () => _runExantasAction(
-                      () => _exantasCompanion.logoutTechnician()),
-                  child: const Text('Logout'),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _refreshExantasStatus() async {
+  Future<void> _checkExantasPendingSessions({bool manual = false}) async {
+    if (_exantasPendingPopupOpen || !mounted) {
+      return;
+    }
     try {
-      final next = await _exantasCompanion.loadStatus();
-      if (!mounted) {
+      final status = await _exantasCompanion.loadStatus();
+      if (!status.technicianLoggedIn) {
         return;
       }
-      setState(() {
-        _exantasStatus = next;
-      });
-    } catch (e) {
-      debugPrint('Exantas status refresh failed: $e');
-    }
-  }
-
-  Future<void> _runExantasAction(Future<dynamic> Function() action) async {
-    try {
-      await action();
-      await _refreshExantasStatus();
-      showToast(translate('Successful'));
-    } catch (e) {
-      showToast(e.toString().replaceFirst('Exception: ', ''));
-    }
-  }
-
-  void _showEnrollDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enroll device'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Install code'),
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(translate('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final code = controller.text;
-              Navigator.of(context).pop();
-              _runExantasAction(() => _exantasCompanion.enrollDevice(code));
-            },
-            child: const Text('Enroll'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTechnicianLoginDialog(BuildContext context) {
-    final email = TextEditingController();
-    final password = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Technician login'),
-        content: SizedBox(
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: email,
-                decoration: const InputDecoration(labelText: 'Office email'),
-                keyboardType: TextInputType.emailAddress,
-                autofocus: true,
-              ),
-              TextField(
-                controller: password,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(translate('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final e = email.text;
-              final p = password.text;
-              Navigator.of(context).pop();
-              _runExantasAction(() => _exantasCompanion.loginTechnician(e, p));
-            },
-            child: const Text('Login'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPendingSessionsDialog(BuildContext context) {
-    _runExantasAction(() async {
       final sessions = await _exantasCompanion.pendingSessions();
       if (!mounted) {
         return;
       }
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Pending session notes'),
-          content: SizedBox(
-            width: 520,
-            child: sessions.isEmpty
-                ? const Text('No pending sessions.')
-                : SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: sessions
-                          .map((session) => _buildPendingSessionTile(session))
-                          .toList(),
-                    ),
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(translate('Close')),
-            ),
-          ],
-        ),
+      if (sessions.isEmpty) {
+        if (manual) {
+          showToast('Δεν υπάρχουν εκκρεμείς σημειώσεις.');
+        }
+        return;
+      }
+      final session = sessions.firstWhere(
+        (item) => !_exantasSnoozedSessionIds.contains('${item['id']}'),
+        orElse: () => manual ? sessions.first : <String, dynamic>{},
       );
-    });
+      if (session.isEmpty) {
+        return;
+      }
+      await _showExantasSessionCommentPopup(session);
+    } catch (e) {
+      debugPrint('Exantas pending session check failed: $e');
+      if (manual) {
+        showToast(e.toString().replaceFirst('Exception: ', ''));
+      }
+    }
   }
 
-  Widget _buildPendingSessionTile(Map<String, dynamic> session) {
-    final controller = TextEditingController();
-    final customer = '${session['customer_name'] ?? '-'}';
-    final peer = '${session['peer_name'] ?? session['peer_id'] ?? '-'}';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$customer - $peer',
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          TextField(
-            controller: controller,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(labelText: 'Work note'),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () async {
-                final note = controller.text.trim();
-                if (note.isEmpty) {
-                  showToast('Note is required.');
-                  return;
-                }
-                await _runExantasAction(() => _exantasCompanion
-                    .submitSessionComment('${session['id']}', note));
-              },
-              child: const Text('Submit'),
-            ),
-          ),
-        ],
-      ),
-    );
+  Future<void> _showExantasSessionCommentPopup(
+      Map<String, dynamic> session) async {
+    final sessionId = '${session['id']}';
+    if (sessionId.isEmpty) {
+      return;
+    }
+    _exantasPendingPopupOpen = true;
+    try {
+      await windowManager.show();
+      await windowManager.focus();
+      if (!mounted) {
+        return;
+      }
+      final submitted = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => _ExantasSessionCommentDialog(session: session),
+      );
+      if (submitted == true) {
+        _exantasSnoozedSessionIds.remove(sessionId);
+      } else {
+        _exantasSnoozedSessionIds.add(sessionId);
+      }
+    } finally {
+      _exantasPendingPopupOpen = false;
+    }
   }
 
   buildTip(BuildContext context) {
@@ -1002,11 +813,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       }
     });
     Get.put<RxBool>(svcStopped, tag: 'stop-service');
-    _refreshExantasStatus();
     _exantasHeartbeatTimer =
         periodic_immediate(const Duration(seconds: 60), () async {
       await _exantasCompanion.heartbeat();
-      await _refreshExantasStatus();
+    });
+    _exantasPendingPopupTimer =
+        periodic_immediate(const Duration(seconds: 15), () async {
+      await _checkExantasPendingSessions();
     });
     rustDeskWinManager.registerActiveWindowListener(onActiveWindowChanged);
 
@@ -1141,6 +954,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
     _exantasHeartbeatTimer?.cancel();
+    _exantasPendingPopupTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -1166,6 +980,123 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         ],
       ),
     );
+  }
+}
+
+class _ExantasSessionCommentDialog extends StatefulWidget {
+  const _ExantasSessionCommentDialog({required this.session});
+
+  final Map<String, dynamic> session;
+
+  @override
+  State<_ExantasSessionCommentDialog> createState() =>
+      _ExantasSessionCommentDialogState();
+}
+
+class _ExantasSessionCommentDialogState
+    extends State<_ExantasSessionCommentDialog> {
+  final _controller = TextEditingController();
+  final _companion = ExantasCompanionService();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = widget.session;
+    final customer = '${session['customer_name'] ?? 'Άγνωστος πελάτης'}';
+    final peer = '${session['peer_name'] ?? session['peer_id'] ?? '-'}';
+    final duration = _formatDuration(session['duration_seconds']);
+    final started = _formatSessionTime(session['started_at']);
+    final ended = _formatSessionTime(session['ended_at']);
+    final range =
+        started.isNotEmpty && ended.isNotEmpty ? '    $started-$ended' : '';
+    return AlertDialog(
+      title: const Text('Σημείωση RustDesk συνεδρίας'),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(customer, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text('Συσκευή: $peer    Διάρκεια: $duration$range'),
+            const SizedBox(height: 12),
+            const Text(
+                'Απλό κείμενο ή ~ κλείνει την αναφορά. # κρατά εκκρεμότητα. - αγνοεί τη συνεδρία.'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _controller,
+              minLines: 5,
+              maxLines: 8,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Σημείωση εργασίας'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed:
+              _submitting ? null : () => Navigator.of(context).pop(false),
+          child: Text(translate('Later')),
+        ),
+        ElevatedButton(
+          onPressed: _submitting ? null : _submit,
+          child: Text(_submitting ? translate('Waiting') : translate('Save')),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _submit() async {
+    final note = _controller.text.trim();
+    if (note.isEmpty) {
+      showToast('Γράψε σημείωση ή βάλε - αν δεν χρειάζεται ενέργεια.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+    });
+    try {
+      await _companion.submitSessionComment('${widget.session['id']}', note);
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(true);
+      showToast(translate('Successful'));
+    } catch (e) {
+      showToast(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
+  }
+
+  String _formatDuration(dynamic seconds) {
+    final value = int.tryParse('$seconds') ?? 0;
+    final minutes = (value <= 0 ? 1 : (value / 60).ceil());
+    return minutes == 1 ? '1 λεπτό' : '$minutes λεπτά';
+  }
+
+  String _formatSessionTime(dynamic value) {
+    if (value == null || '$value'.trim().isEmpty) {
+      return '';
+    }
+    final parsed = DateTime.tryParse('$value');
+    if (parsed == null) {
+      return '';
+    }
+    final local = parsed.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 }
 

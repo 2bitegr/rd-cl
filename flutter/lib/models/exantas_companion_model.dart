@@ -43,8 +43,9 @@ class ExantasCompanionStatus {
   final String supportRole;
   final Map<String, dynamic> policy;
 
-  String get modeLabel =>
-      enrolled ? 'Managed by Exantas Office' : 'Basic support mode';
+  String get modeLabel => enrolled
+      ? 'Διαχειριζόμενη συσκευή από Exantas Office'
+      : 'Βασική υποστήριξη';
 }
 
 class ExantasCompanionService {
@@ -142,22 +143,16 @@ class ExantasCompanionService {
     return loadStatus();
   }
 
-  Future<ExantasCompanionStatus> loginTechnician(
-      String email, String password) async {
-    final normalizedEmail = email.trim().toLowerCase();
-    if (normalizedEmail.isEmpty || password.trim().isEmpty) {
-      throw Exception('Email and password are required.');
-    }
-
-    final login = await _post('/admin/auth/login', {
-      'email': normalizedEmail,
-      'password': password,
-    });
-    final officeToken = _string(login['access_token']);
+  Future<ExantasCompanionStatus> pairTechnicianFromExistingLogin() async {
+    final officeToken = bind.mainGetLocalOption(key: 'access_token').trim();
     if (officeToken.isEmpty) {
-      throw Exception('Office login did not return a token.');
+      throw Exception('Συνδέσου πρώτα από τις ρυθμίσεις.');
     }
+    return pairTechnicianWithOfficeToken(officeToken);
+  }
 
+  Future<ExantasCompanionStatus> pairTechnicianWithOfficeToken(
+      String officeToken) async {
     final peerId = (await bind.mainGetMyId()).trim();
     if (peerId.isEmpty) {
       throw Exception('RustDesk ID is not ready yet.');
@@ -235,7 +230,7 @@ class ExantasCompanionService {
         '/rustdesk-companion/sessions/$sessionId/comment',
         {
           'comment': comment,
-          'idempotency_key': 'flutter-${DateTime.now().microsecondsSinceEpoch}',
+          'idempotency_key': _commentIdempotencyKey(sessionId, comment),
         },
         bearerToken: status.companionToken);
   }
@@ -313,5 +308,15 @@ class ExantasCompanionService {
     final random = Random.secure();
     return List.generate(20, (_) => alphabet[random.nextInt(alphabet.length)])
         .join();
+  }
+
+  String _commentIdempotencyKey(String sessionId, String comment) {
+    var hash = 0x811c9dc5;
+    for (final unit in utf8.encode('$sessionId|$comment')) {
+      hash ^= unit;
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    final safeSessionId = sessionId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+    return 'flutter_${hash.toRadixString(16).padLeft(8, '0')}_$safeSessionId';
   }
 }

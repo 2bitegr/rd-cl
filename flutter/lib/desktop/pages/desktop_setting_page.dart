@@ -14,6 +14,7 @@ import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
 import 'package:flutter_hbb/mobile/widgets/dialog.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
+import 'package:flutter_hbb/models/exantas_companion_model.dart';
 import 'package:flutter_hbb/models/printer_model.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
@@ -2071,6 +2072,31 @@ class _Account extends StatefulWidget {
 }
 
 class _AccountState extends State<_Account> {
+  final _exantasCompanion = ExantasCompanionService();
+  ExantasCompanionStatus? _exantasStatus;
+  Worker? _accountWorker;
+  bool _exantasBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshExantasStatus(pairIfLoggedIn: gFFI.userModel.isLogin);
+    _accountWorker = ever(gFFI.userModel.userName, (_) async {
+      if (gFFI.userModel.isLogin) {
+        await _refreshExantasStatus(pairIfLoggedIn: true);
+      } else {
+        await _exantasCompanion.logoutTechnician();
+        await _refreshExantasStatus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _accountWorker?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scrollController = ScrollController();
@@ -2078,6 +2104,7 @@ class _AccountState extends State<_Account> {
       controller: scrollController,
       children: [
         _Card(title: 'Account', children: [accountAction(), useInfo()]),
+        exantasOffice(),
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
   }
@@ -2143,6 +2170,181 @@ class _AccountState extends State<_Account> {
             }),
           ),
         )).marginOnly(left: 18, top: 16);
+  }
+
+  Widget exantasOffice() {
+    final status = _exantasStatus;
+    final isLoggedIn = gFFI.userModel.isLogin;
+    final children = <Widget>[
+      Text(
+        status?.modeLabel ?? 'Βασική υποστήριξη',
+        style: TextStyle(fontSize: _kContentFontSize),
+      ).marginOnly(left: _kContentHMargin),
+      if ((status?.customerName ?? '').isNotEmpty)
+        Text(
+          status!.customerName,
+          overflow: TextOverflow.ellipsis,
+        ).marginOnly(left: _kContentHMargin),
+      if ((status?.technicianName ?? '').isNotEmpty ||
+          (status?.supportRole ?? '').isNotEmpty)
+        Text(
+          [
+            if ((status?.technicianName ?? '').isNotEmpty)
+              status!.technicianName,
+            if ((status?.supportRole ?? '').isNotEmpty) status!.supportRole,
+          ].join(' - '),
+          overflow: TextOverflow.ellipsis,
+        ).marginOnly(left: _kContentHMargin),
+      _Button(
+        status?.enrolled == true ? 'Επανεγγραφή συσκευής' : 'Εγγραφή συσκευής',
+        () => _showEnrollDialog(context),
+        enabled: !_exantasBusy,
+      ),
+      if (isLoggedIn && status?.technicianLoggedIn != true)
+        Text(
+          'Το companion ενεργοποιείται αυτόματα από τη σύνδεση Account.',
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ).marginOnly(left: _kContentHMargin),
+      if (status?.technicianLoggedIn == true)
+        _Button(
+          'Σημειώσεις',
+          () => _showPendingSessionsDialog(context),
+          enabled: !_exantasBusy,
+        ),
+      if (status?.technicianLoggedIn == true)
+        _Button(
+          'Απενεργοποίηση companion',
+          () => _runExantasAction(() => _exantasCompanion.logoutTechnician()),
+          enabled: !_exantasBusy,
+        ),
+      if (!isLoggedIn)
+        Text(
+          'Για τεχνικό companion χρησιμοποίησε τη σύνδεση Account παραπάνω.',
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ).marginOnly(left: _kContentHMargin),
+    ];
+    return _Card(title: 'Exantas Office', children: children);
+  }
+
+  Future<void> _refreshExantasStatus({bool pairIfLoggedIn = false}) async {
+    try {
+      var next = await _exantasCompanion.loadStatus();
+      if (pairIfLoggedIn &&
+          gFFI.userModel.isLogin &&
+          !next.technicianLoggedIn &&
+          bind.mainGetLocalOption(key: 'access_token').trim().isNotEmpty) {
+        next = await _exantasCompanion.pairTechnicianFromExistingLogin();
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _exantasStatus = next;
+      });
+    } catch (e) {
+      debugPrint('Exantas status refresh failed: $e');
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _exantasStatus = null;
+      });
+    }
+  }
+
+  Future<void> _runExantasAction(Future<dynamic> Function() action) async {
+    if (_exantasBusy) {
+      return;
+    }
+    setState(() {
+      _exantasBusy = true;
+    });
+    try {
+      await action();
+      await _refreshExantasStatus();
+      showToast(translate('Successful'));
+    } catch (e) {
+      showToast(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exantasBusy = false;
+        });
+      }
+    }
+  }
+
+  void _showEnrollDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Εγγραφή συσκευής'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Κωδικός εγκατάστασης'),
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(translate('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final code = controller.text;
+              Navigator.of(context).pop();
+              _runExantasAction(() => _exantasCompanion.enrollDevice(code));
+            },
+            child: const Text('Εγγραφή'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPendingSessionsDialog(BuildContext context) {
+    _runExantasAction(() async {
+      final sessions = await _exantasCompanion.pendingSessions();
+      if (!mounted) {
+        return;
+      }
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Σημειώσεις συνεδριών'),
+          content: SizedBox(
+            width: 420,
+            child: sessions.isEmpty
+                ? const Text('Δεν υπάρχουν εκκρεμείς σημειώσεις.')
+                : ListView(
+                    shrinkWrap: true,
+                    children: sessions
+                        .map((session) => ListTile(
+                              title: Text(
+                                  '${session['customer_name'] ?? ''} ${session['peer_id'] ?? ''}'
+                                      .trim()),
+                              subtitle: Text('${session['started_at'] ?? ''}'),
+                            ))
+                        .toList(),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(translate('Close')),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget? _buildUserAvatar() {

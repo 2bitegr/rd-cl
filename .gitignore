@@ -21,6 +21,7 @@ src/version.rs
 *.bak
 *png
 *svg
+!flutter/assets/logo.svg
 *jpg
 sciter.dll
 **pdb

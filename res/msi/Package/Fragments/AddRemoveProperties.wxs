@@ -6,8 +6,8 @@
 
 		<Property Id="AddRemovePropertiesFile" Value="1" />
 
-		<!--STOP_SERVICE is set to 'Y'. Because the config value may be empty or 'Y'-->
-		<Property Id="STOP_SERVICE" Value="&apos;Y&apos;" />
+		<!-- Exantas Support should install and start its service on fresh installs. -->
+		<Property Id="STOP_SERVICE" Value="&apos;N&apos;" />
 
 		<Property Id="LAUNCH_TRAY_APP" Value="Y" />
 

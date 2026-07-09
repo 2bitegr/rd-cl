@@ -3760,9 +3760,9 @@ Widget loadPowered(BuildContext context) {
   ).marginOnly(top: 6);
 }
 
-const _kDefaultLogoAsset = 'assets/logo.png';
-const _kLightLogoAsset = 'assets/logo_light.png';
-const _kDarkLogoAsset = 'assets/logo_dark.png';
+const _kDefaultLogoAsset = 'assets/logo.svg';
+const _kLightLogoAsset = 'assets/logo_light.svg';
+const _kDarkLogoAsset = 'assets/logo_dark.svg';
 
 List<String> _logoAssetCandidatesForBrightness(Brightness brightness) {
   return brightness == Brightness.dark
@@ -3806,13 +3806,15 @@ class _LogoState extends State<_Logo> {
       builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
         final asset = snapshot.data;
         if (asset != null) {
-          final image = Image.asset(
-            asset,
-            fit: BoxFit.contain,
-            errorBuilder: (ctx, error, stackTrace) {
-              return Container();
-            },
-          );
+          final image = asset.endsWith('.svg')
+              ? SvgPicture.asset(asset, fit: BoxFit.contain)
+              : Image.asset(
+                  asset,
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx, error, stackTrace) {
+                    return Container();
+                  },
+                );
           return Container(
             constraints: BoxConstraints(maxWidth: 300, maxHeight: 60),
             child: image,
