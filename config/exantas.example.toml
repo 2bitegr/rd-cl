@@ -1,0 +1,30 @@
+# Example public Exantas Support client configuration.
+# This file contains no production secrets.
+
+app_name = "Exantas Support"
+source_code_url = "https://github.com/2bitegr/rd-cl"
+tos_url = "https://exantas.eu/TOS"
+
+[rustdesk]
+id_server = "desk.exantas.eu:21116"
+relay_server = "desk.exantas.eu:21117"
+api_server = "https://desk-api.exantas.eu"
+
+# RustDesk server public verification key. This is not the server private key.
+server_public_key = "3sOZOKYteACITU6W3FVN5JqcRviVKkIf+rut+P0Dt3s="
+
+[security]
+default_mode = "attended_basic_support"
+approve_mode = "password-click"
+verification_method = "use-temporary-password"
+temporary_password_length = 6
+numeric_one_time_password = true
+shared_unattended_password_allowed = false
+
+[office]
+api_base = "https://api-office.exantas.eu/api/v1"
+office_login_required_for_technicians = true
+enrollment_required_for_unattended = true
+install_link_enabled = true
+install_code_enabled = true
+native_companion_required = true

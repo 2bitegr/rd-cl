@@ -2,6 +2,18 @@
 <Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
 	<!--$PreVarsStart$-->
+	<?define Version="1.4.9.0" ?>
+	<?define Manufacturer="Exantas Business Solutions" ?>
+	<?define Product="Exantas Support" ?>
+	<?define Description="Exantas Support Installer" ?>
+	<?define ProductLower="exantas support" ?>
+	<?define RegKeyRoot=".$(var.ProductLower)" ?>
+	<?define RegKeyInstall="$(var.RegKeyRoot)\Install" ?>
+	<?define BuildDir="." ?>
+	<?define BuildDate="1970-01-01 00:00" ?>
+
+	<!-- The UpgradeCode must be consistent for each product. ! -->
+	<?define UpgradeCode = "d7f2f469-8117-5349-a26a-56f220721a30" ?>
 	<!--$PreVarsEnd$-->
 
 </Include>

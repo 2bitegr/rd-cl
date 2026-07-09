@@ -220,6 +220,7 @@ pub fn is_option_fixed(key: &str) -> bool {
             .unwrap()
             .contains_key(key)
         || config::OVERWRITE_SETTINGS.read().unwrap().contains_key(key)
+        || config::HARD_SETTINGS.read().unwrap().contains_key(key)
 }
 
 #[inline]

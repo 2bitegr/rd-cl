@@ -2084,10 +2084,12 @@ pub fn load_custom_client() {
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
+        apply_exantas_custom_client();
         return;
     }
     let Some(path) = std::env::current_exe().map_or(None, |x| x.parent().map(|x| x.to_path_buf()))
     else {
+        apply_exantas_custom_client();
         return;
     };
     #[cfg(target_os = "macos")]
@@ -2100,6 +2102,69 @@ pub fn load_custom_client() {
         };
         read_custom_client(&data.trim());
     }
+    apply_exantas_custom_client();
+}
+
+fn apply_exantas_custom_client() {
+    *config::APP_NAME.write().unwrap() = "Exantas Support".to_owned();
+
+    let mut settings = config::OVERWRITE_SETTINGS.write().unwrap();
+    settings.insert(
+        keys::OPTION_CUSTOM_RENDEZVOUS_SERVER.to_owned(),
+        "desk.exantas.eu:21116".to_owned(),
+    );
+    settings.insert(
+        keys::OPTION_RELAY_SERVER.to_owned(),
+        "desk.exantas.eu:21117".to_owned(),
+    );
+    settings.insert(
+        keys::OPTION_API_SERVER.to_owned(),
+        "https://desk-api.exantas.eu".to_owned(),
+    );
+    settings.insert(
+        keys::OPTION_KEY.to_owned(),
+        "3sOZOKYteACITU6W3FVN5JqcRviVKkIf+rut+P0Dt3s=".to_owned(),
+    );
+    settings.insert(keys::OPTION_ACCESS_MODE.to_owned(), "full".to_owned());
+    settings.insert(
+        keys::OPTION_APPROVE_MODE.to_owned(),
+        "password-click".to_owned(),
+    );
+    settings.insert(
+        keys::OPTION_ALLOW_NUMERNIC_ONE_TIME_PASSWORD.to_owned(),
+        "Y".to_owned(),
+    );
+    settings.insert(
+        keys::OPTION_TEMPORARY_PASSWORD_LENGTH.to_owned(),
+        "6".to_owned(),
+    );
+    settings.insert(keys::OPTION_ALLOW_AUTO_UPDATE.to_owned(), "N".to_owned());
+    drop(settings);
+
+    let mut default_settings = config::DEFAULT_SETTINGS.write().unwrap();
+    default_settings.insert(
+        keys::OPTION_VERIFICATION_METHOD.to_owned(),
+        "use-temporary-password".to_owned(),
+    );
+    drop(default_settings);
+
+    let mut local_settings = config::OVERWRITE_LOCAL_SETTINGS.write().unwrap();
+    local_settings.insert(keys::OPTION_ENABLE_CHECK_UPDATE.to_owned(), "N".to_owned());
+    drop(local_settings);
+
+    let mut builtin = config::BUILTIN_SETTINGS.write().unwrap();
+    builtin.insert(keys::OPTION_HIDE_SERVER_SETTINGS.to_owned(), "Y".to_owned());
+    builtin.insert(
+        keys::OPTION_ALLOW_DEEP_LINK_SERVER_SETTINGS.to_owned(),
+        "N".to_owned(),
+    );
+    builtin.insert(keys::OPTION_HIDE_POWERED_BY_ME.to_owned(), "Y".to_owned());
+    builtin.insert(
+        keys::OPTION_DISABLE_CHANGE_PERMANENT_PASSWORD.to_owned(),
+        "Y".to_owned(),
+    );
+    builtin.insert(keys::OPTION_DISABLE_CHANGE_ID.to_owned(), "Y".to_owned());
+    builtin.insert(keys::OPTION_HIDE_STOP_SERVICE.to_owned(), "Y".to_owned());
 }
 
 fn read_custom_client_advanced_settings(

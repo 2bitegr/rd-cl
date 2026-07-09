@@ -8,6 +8,36 @@
   <b>We need your help to translate this README, <a href="https://github.com/rustdesk/rustdesk/tree/master/src/lang">RustDesk UI</a> and <a href="https://github.com/rustdesk/doc.rustdesk.com">RustDesk Doc</a> to your native language</b>
 </p>
 
+## Exantas Support Distribution
+
+This repository contains the public Corresponding Source for the Exantas Support
+remote support client, a modified RustDesk distribution published for AGPLv3
+compliance at:
+
+https://github.com/2bitegr/rd-cl
+
+Exantas Support is configured for the Exantas self-hosted RustDesk service and
+Office device-management workflow. The public source intentionally contains no
+production secrets, shared unattended password, signing certificate, private
+server key, database credential, Office admin credential, webhook secret, or
+update signing key.
+
+Supported production modes:
+
+- Basic support mode: no Office enrollment is required. The customer can share
+  the displayed RustDesk ID and one-time password, or approve an attended
+  session. Unattended access is not enabled in this mode.
+- Managed support mode: Office enrollment through an install link or install
+  code associates the device with a customer, applies policy, and enables
+  per-device unattended credentials where allowed by Office policy.
+
+See:
+
+- [AGPL compliance notes](docs/agpl-compliance.md)
+- [Exantas Windows build notes](BUILDING.md)
+- [Security policy](SECURITY.md)
+- [Example public config](config/exantas.example.toml)
+
 > [!Caution]
 > **Misuse Disclaimer:** <br>
 > The developers of RustDesk do not condone or support any unethical or illegal use of this software. Misuse, such as unauthorized access, control or invasion of privacy, is strictly against our guidelines. The authors are not responsible for any misuse of the application.

@@ -4,6 +4,12 @@
 .idea
 .DS_Store
 .env
+.env.*
+*.pfx
+*.p12
+*.pem
+*.key
+*:Zone.Identifier
 libsciter-gtk.so
 src/ui/inline.rs
 extractor
@@ -12,7 +18,6 @@ src/version.rs
 *dmg
 *exe
 *tgz
-cert.pfx
 *.bak
 *png
 *svg
