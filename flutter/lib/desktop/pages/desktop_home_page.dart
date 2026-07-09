@@ -54,6 +54,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   final _exantasCompanion = ExantasCompanionService();
   Timer? _exantasHeartbeatTimer;
   Timer? _exantasPendingPopupTimer;
+  Timer? _exantasCompanionSocketReconnectTimer;
+  final List<Timer> _exantasPendingRetryTimers = [];
+  WebSocket? _exantasCompanionSocket;
+  String _exantasCompanionSocketToken = '';
+  bool _exantasCompanionSocketConnecting = false;
   bool _exantasPendingPopupOpen = false;
   final Set<String> _exantasSnoozedSessionIds = {};
 
@@ -394,15 +399,20 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
-  Future<void> _checkExantasPendingSessions({bool manual = false}) async {
+  Future<void> _checkExantasPendingSessions({
+    bool manual = false,
+    bool ignoreSnooze = false,
+  }) async {
     if (_exantasPendingPopupOpen || !mounted) {
       return;
     }
     try {
       final status = await _exantasCompanion.loadStatus();
       if (!status.technicianLoggedIn) {
+        _closeExantasCompanionWebSocket(scheduleReconnect: false);
         return;
       }
+      await _ensureExantasCompanionWebSocket(status);
       final sessions = await _exantasCompanion.pendingSessions();
       if (!mounted) {
         return;
@@ -414,7 +424,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         return;
       }
       final session = sessions.firstWhere(
-        (item) => !_exantasSnoozedSessionIds.contains('${item['id']}'),
+        (item) =>
+            ignoreSnooze ||
+            !_exantasSnoozedSessionIds.contains('${item['id']}'),
         orElse: () => manual ? sessions.first : <String, dynamic>{},
       );
       if (session.isEmpty) {
@@ -427,6 +439,112 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         showToast(e.toString().replaceFirst('Exception: ', ''));
       }
     }
+  }
+
+  void _scheduleExantasPendingSessionChecks() {
+    _cancelExantasPendingRetryTimers();
+    unawaited(_checkExantasPendingSessions(ignoreSnooze: true));
+    for (final delay in const [2, 5, 10, 20]) {
+      _exantasPendingRetryTimers.add(Timer(Duration(seconds: delay), () {
+        unawaited(_checkExantasPendingSessions(ignoreSnooze: true));
+      }));
+    }
+  }
+
+  void _cancelExantasPendingRetryTimers() {
+    for (final timer in _exantasPendingRetryTimers) {
+      timer.cancel();
+    }
+    _exantasPendingRetryTimers.clear();
+  }
+
+  Future<void> _ensureExantasCompanionWebSocket(
+      ExantasCompanionStatus status) async {
+    final token = status.companionToken.trim();
+    if (token.isEmpty || _exantasCompanionSocketConnecting) {
+      return;
+    }
+    if (_exantasCompanionSocket != null &&
+        _exantasCompanionSocketToken == token) {
+      return;
+    }
+
+    _closeExantasCompanionWebSocket(scheduleReconnect: false);
+    _exantasCompanionSocketConnecting = true;
+    try {
+      final socket = await WebSocket.connect(
+        _exantasCompanionWebSocketUrl(status.apiBase),
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+      _exantasCompanionSocket = socket;
+      _exantasCompanionSocketToken = token;
+      socket.listen(
+        (_) => _scheduleExantasPendingSessionChecks(),
+        onDone: () => _onExantasCompanionWebSocketClosed(socket),
+        onError: (Object e) {
+          debugPrint('Exantas companion websocket failed: $e');
+          _onExantasCompanionWebSocketClosed(socket);
+        },
+        cancelOnError: true,
+      );
+    } catch (e) {
+      debugPrint('Exantas companion websocket connect failed: $e');
+      _scheduleExantasCompanionWebSocketReconnect();
+    } finally {
+      _exantasCompanionSocketConnecting = false;
+    }
+  }
+
+  String _exantasCompanionWebSocketUrl(String apiBase) {
+    final apiUri = Uri.parse(apiBase);
+    final basePath = apiUri.path.replaceFirst(RegExp(r'/+$'), '');
+    return apiUri
+        .replace(
+          scheme: apiUri.scheme == 'https' ? 'wss' : 'ws',
+          path: '$basePath/rustdesk-companion/ws',
+          query: '',
+        )
+        .toString();
+  }
+
+  void _onExantasCompanionWebSocketClosed(WebSocket socket) {
+    if (_exantasCompanionSocket != socket) {
+      return;
+    }
+    _closeExantasCompanionWebSocket();
+  }
+
+  void _closeExantasCompanionWebSocket({bool scheduleReconnect = true}) {
+    final socket = _exantasCompanionSocket;
+    _exantasCompanionSocket = null;
+    _exantasCompanionSocketToken = '';
+    if (socket != null) {
+      unawaited(socket.close());
+    }
+    if (scheduleReconnect && mounted) {
+      _scheduleExantasCompanionWebSocketReconnect();
+    }
+  }
+
+  void _scheduleExantasCompanionWebSocketReconnect() {
+    if (_exantasCompanionSocketReconnectTimer != null) {
+      return;
+    }
+    _exantasCompanionSocketReconnectTimer =
+        Timer(const Duration(seconds: 10), () async {
+      _exantasCompanionSocketReconnectTimer = null;
+      if (!mounted) {
+        return;
+      }
+      try {
+        final status = await _exantasCompanion.loadStatus();
+        if (status.technicianLoggedIn) {
+          await _ensureExantasCompanionWebSocket(status);
+        }
+      } catch (e) {
+        debugPrint('Exantas companion websocket reconnect failed: $e');
+      }
+    });
   }
 
   Future<void> _showExantasSessionCommentPopup(
@@ -818,7 +936,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       await _exantasCompanion.heartbeat();
     });
     _exantasPendingPopupTimer =
-        periodic_immediate(const Duration(seconds: 15), () async {
+        periodic_immediate(const Duration(seconds: 5), () async {
       await _checkExantasPendingSessions();
     });
     rustDeskWinManager.registerActiveWindowListener(onActiveWindowChanged);
@@ -869,6 +987,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             (await window_size.getScreenList()).map(screenToMap).toList());
       } else if (call.method == kWindowActionRebuild) {
         reloadCurrentWindow();
+      } else if (call.method == kWindowExantasSessionClosed) {
+        _scheduleExantasPendingSessionChecks();
       } else if (call.method == kWindowEventShow) {
         await rustDeskWinManager.registerActiveWindow(call.arguments["id"]);
       } else if (call.method == kWindowEventHide) {
@@ -955,6 +1075,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     _updateTimer?.cancel();
     _exantasHeartbeatTimer?.cancel();
     _exantasPendingPopupTimer?.cancel();
+    _exantasCompanionSocketReconnectTimer?.cancel();
+    _cancelExantasPendingRetryTimers();
+    _closeExantasCompanionWebSocket(scheduleReconnect: false);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

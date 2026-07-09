@@ -19,6 +19,7 @@ import '../../models/input_model.dart';
 import '../../models/platform_model.dart';
 import '../../common/shared_state.dart';
 import '../../utils/image.dart';
+import '../../utils/multi_window_manager.dart';
 import '../widgets/remote_toolbar.dart';
 import '../widgets/kb_layout_type_chooser.dart';
 import '../widgets/tabbar_widget.dart';
@@ -381,6 +382,17 @@ class _RemotePageState extends State<RemotePage>
       clearWaylandKeyboardPromptSuppressedForConnection(sessionId.toString());
     }
     await _ffi.close(closeSession: closeSession);
+    if (closeSession && isDesktop) {
+      try {
+        await rustDeskWinManager.call(
+          WindowType.Main,
+          kWindowExantasSessionClosed,
+          {'peer_id': widget.id},
+        );
+      } catch (e) {
+        debugPrint('Exantas companion session-close wake-up failed: $e');
+      }
+    }
     _timer?.cancel();
     _ffi.dialogManager.dismissAll();
     if (closeSession) {

@@ -43,9 +43,8 @@ class ExantasCompanionStatus {
   final String supportRole;
   final Map<String, dynamic> policy;
 
-  String get modeLabel => enrolled
-      ? 'Διαχειριζόμενη συσκευή από Exantas Office'
-      : 'Βασική υποστήριξη';
+  String get modeLabel =>
+      enrolled ? 'Διαχειριζόμενη συσκευή από Exantas Support' : '';
 }
 
 class ExantasCompanionService {
@@ -108,10 +107,11 @@ class ExantasCompanionService {
     if (unattendedEnabled) {
       final unattendedPassword = _generatePassword();
       try {
-        final passwordSet = await bind.mainSetPermanentPasswordWithResult(
-            password: unattendedPassword);
+        final passwordSet =
+            await _setPermanentPasswordWithRetry(unattendedPassword);
         if (!passwordSet) {
-          throw Exception('Could not set per-device unattended password.');
+          throw Exception(
+              'Δεν ήταν δυνατός ο ορισμός unattended password στη συσκευή. Βεβαιώσου ότι το Exantas Support service είναι εγκατεστημένο και τρέχει.');
         }
         await bind.mainSetOption(
             key: 'verification-method', value: kUseBothPasswords);
@@ -303,11 +303,22 @@ class ExantasCompanionService {
   }
 
   String _generatePassword() {
-    const alphabet =
-        'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#%+=';
+    const alphabet = '0123456789';
     final random = Random.secure();
-    return List.generate(20, (_) => alphabet[random.nextInt(alphabet.length)])
+    return List.generate(10, (_) => alphabet[random.nextInt(alphabet.length)])
         .join();
+  }
+
+  Future<bool> _setPermanentPasswordWithRetry(String password) async {
+    for (var attempt = 0; attempt < 3; attempt++) {
+      final ok =
+          await bind.mainSetPermanentPasswordWithResult(password: password);
+      if (ok) {
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    return false;
   }
 
   String _commentIdempotencyKey(String sessionId, String comment) {

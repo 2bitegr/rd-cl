@@ -64,6 +64,7 @@ const String kWindowEventHide = "hide";
 const String kWindowEventShow = "show";
 const String kWindowConnect = "connect";
 const String kWindowBumpMouse = "bump_mouse";
+const String kWindowExantasSessionClosed = "exantas_session_closed";
 
 const String kWindowEventNewRemoteDesktop = "new_remote_desktop";
 const String kWindowEventNewFileTransfer = "new_file_transfer";

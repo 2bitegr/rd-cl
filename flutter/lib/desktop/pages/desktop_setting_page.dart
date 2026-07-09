@@ -2176,10 +2176,6 @@ class _AccountState extends State<_Account> {
     final status = _exantasStatus;
     final isLoggedIn = gFFI.userModel.isLogin;
     final children = <Widget>[
-      Text(
-        status?.modeLabel ?? 'Βασική υποστήριξη',
-        style: TextStyle(fontSize: _kContentFontSize),
-      ).marginOnly(left: _kContentHMargin),
       if ((status?.customerName ?? '').isNotEmpty)
         Text(
           status!.customerName,
@@ -2220,16 +2216,8 @@ class _AccountState extends State<_Account> {
           () => _runExantasAction(() => _exantasCompanion.logoutTechnician()),
           enabled: !_exantasBusy,
         ),
-      if (!isLoggedIn)
-        Text(
-          'Για τεχνικό companion χρησιμοποίησε τη σύνδεση Account παραπάνω.',
-          style: TextStyle(
-            fontSize: 13,
-            color: Theme.of(context).textTheme.bodySmall?.color,
-          ),
-        ).marginOnly(left: _kContentHMargin),
     ];
-    return _Card(title: 'Exantas Office', children: children);
+    return _Card(title: 'Exantas Support', children: children);
   }
 
   Future<void> _refreshExantasStatus({bool pairIfLoggedIn = false}) async {
