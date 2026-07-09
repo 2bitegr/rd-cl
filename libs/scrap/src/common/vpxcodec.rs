@@ -34,6 +34,7 @@ impl Default for VpxVideoCodecId {
 
 pub struct VpxEncoder {
     ctx: vpx_codec_ctx_t,
+    config: vpx_codec_enc_cfg,
     width: usize,
     height: usize,
     id: VpxVideoCodecId,
@@ -160,6 +161,7 @@ impl EncoderApi for VpxEncoder {
 
                 Ok(Self {
                     ctx,
+                    config: c,
                     width: config.width as _,
                     height: config.height as _,
                     id: config.codec,
@@ -201,18 +203,16 @@ impl EncoderApi for VpxEncoder {
     }
 
     fn set_quality(&mut self, ratio: f32) -> ResultType<()> {
-        let mut c = unsafe { *self.ctx.config.enc.to_owned() };
         let (q_min, q_max) = Self::calc_q_values(ratio);
-        c.rc_min_quantizer = q_min;
-        c.rc_max_quantizer = q_max;
-        c.rc_target_bitrate = Self::bitrate(self.width as _, self.height as _, ratio);
-        call_vpx!(vpx_codec_enc_config_set(&mut self.ctx, &c));
+        self.config.rc_min_quantizer = q_min;
+        self.config.rc_max_quantizer = q_max;
+        self.config.rc_target_bitrate = Self::bitrate(self.width as _, self.height as _, ratio);
+        call_vpx!(vpx_codec_enc_config_set(&mut self.ctx, &self.config));
         Ok(())
     }
 
     fn bitrate(&self) -> u32 {
-        let c = unsafe { *self.ctx.config.enc.to_owned() };
-        c.rc_target_bitrate
+        self.config.rc_target_bitrate
     }
 
     fn support_changing_quality(&self) -> bool {
