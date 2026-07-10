@@ -2148,6 +2148,10 @@ fn apply_exantas_custom_client() {
     );
     drop(default_settings);
 
+    let mut display_settings = config::DEFAULT_DISPLAY_SETTINGS.write().unwrap();
+    display_settings.insert(keys::OPTION_SHOW_REMOTE_CURSOR.to_owned(), "Y".to_owned());
+    drop(display_settings);
+
     let mut local_settings = config::OVERWRITE_LOCAL_SETTINGS.write().unwrap();
     local_settings.insert(keys::OPTION_ENABLE_CHECK_UPDATE.to_owned(), "N".to_owned());
     drop(local_settings);
