@@ -16,6 +16,14 @@ const String kExantasCompanionToken = 'exantas.office.companion_token';
 const String kExantasTechnicianName = 'exantas.office.technician_name';
 const String kExantasSupportRole = 'exantas.office.support_role';
 const String kExantasTechnicianToken = 'exantas.office.technician_token';
+const String kExantasUnattendedPasswordStatus =
+    'exantas.office.unattended_password_status';
+const String kExantasUnattendedPasswordError =
+    'exantas.office.unattended_password_error';
+
+const String kExantasUnattendedDisabled = 'disabled';
+const String kExantasUnattendedEnabled = 'enabled';
+const String kExantasUnattendedPending = 'pending';
 
 const String kDefaultExantasOfficeApiBase =
     'https://api-office.exantas.eu/api/v1';
@@ -30,6 +38,8 @@ class ExantasCompanionStatus {
     required this.customerName,
     required this.technicianName,
     required this.supportRole,
+    required this.unattendedPasswordStatus,
+    required this.unattendedPasswordError,
     required this.policy,
   });
 
@@ -41,10 +51,23 @@ class ExantasCompanionStatus {
   final String customerName;
   final String technicianName;
   final String supportRole;
+  final String unattendedPasswordStatus;
+  final String unattendedPasswordError;
   final Map<String, dynamic> policy;
 
   String get modeLabel =>
       enrolled ? 'Διαχειριζόμενη συσκευή από Exantas Support' : '';
+
+  bool get unattendedPasswordPending =>
+      enrolled &&
+      policy['unattended_enabled'] == true &&
+      unattendedPasswordStatus != kExantasUnattendedEnabled;
+
+  String get unattendedPasswordMessage => unattendedPasswordPending
+      ? unattendedPasswordError.isNotEmpty
+          ? unattendedPasswordError
+          : 'Η συσκευή γράφτηκε, αλλά η πρόσβαση χωρίς παρουσία δεν ενεργοποιήθηκε. Πάτησε «Ενεργοποίηση unattended» για νέα προσπάθεια.'
+      : '';
 }
 
 class ExantasCompanionService {
@@ -69,6 +92,10 @@ class ExantasCompanionService {
       customerName: bind.mainGetLocalOption(key: kExantasDeviceCustomerName),
       technicianName: bind.mainGetLocalOption(key: kExantasTechnicianName),
       supportRole: bind.mainGetLocalOption(key: kExantasSupportRole),
+      unattendedPasswordStatus:
+          bind.mainGetLocalOption(key: kExantasUnattendedPasswordStatus),
+      unattendedPasswordError:
+          bind.mainGetLocalOption(key: kExantasUnattendedPasswordError),
       policy: _decodeMap(policyText),
     );
   }
@@ -104,34 +131,6 @@ class ExantasCompanionService {
     final policy = _decodeMap(response['policy']);
     final unattendedEnabled = policy['unattended_enabled'] == true;
 
-    if (unattendedEnabled) {
-      final unattendedPassword = _generatePassword();
-      try {
-        final passwordSet =
-            await _setPermanentPasswordWithRetry(unattendedPassword);
-        if (!passwordSet) {
-          throw Exception(
-              'Δεν ήταν δυνατός ο ορισμός unattended password στη συσκευή. Βεβαιώσου ότι το Exantas Support service είναι εγκατεστημένο και τρέχει.');
-        }
-        await bind.mainSetOption(
-            key: 'verification-method', value: kUseBothPasswords);
-        await _post(
-            '/rustdesk-devices/credential',
-            {
-              'unattended_password': unattendedPassword,
-            },
-            bearerToken: deviceToken);
-      } catch (_) {
-        await bind.mainSetPermanentPasswordWithResult(password: '');
-        await bind.mainSetOption(
-            key: 'verification-method', value: kUseTemporaryPassword);
-        rethrow;
-      }
-    } else {
-      await bind.mainSetOption(
-          key: 'verification-method', value: kUseTemporaryPassword);
-    }
-
     await _setSecretLocalOption(kExantasDeviceToken, deviceToken);
     await bind.mainSetLocalOption(
         key: kExantasDeviceId, value: _string(device['id']));
@@ -140,6 +139,33 @@ class ExantasCompanionService {
         value: _string(device['customer_name']));
     await bind.mainSetLocalOption(
         key: kExantasDevicePolicy, value: jsonEncode(policy));
+
+    if (unattendedEnabled) {
+      await _configureUnattendedPassword(deviceToken);
+    } else {
+      await bind.mainSetOption(
+          key: 'verification-method', value: kUseTemporaryPassword);
+      await bind.mainSetLocalOption(
+          key: kExantasUnattendedPasswordStatus,
+          value: kExantasUnattendedDisabled);
+      await bind.mainSetLocalOption(
+          key: kExantasUnattendedPasswordError, value: '');
+    }
+    return loadStatus();
+  }
+
+  Future<ExantasCompanionStatus> retryUnattendedPassword() async {
+    final status = await loadStatus();
+    if (!status.enrolled) {
+      throw Exception('Η συσκευή δεν έχει εγγραφεί στο Exantas Support.');
+    }
+    if (status.policy['unattended_enabled'] != true) {
+      throw Exception(
+          'Η πρόσβαση χωρίς παρουσία δεν επιτρέπεται από το policy της συσκευής.');
+    }
+    if (!await _configureUnattendedPassword(status.deviceToken)) {
+      throw Exception((await loadStatus()).unattendedPasswordMessage);
+    }
     return loadStatus();
   }
 
@@ -309,14 +335,57 @@ class ExantasCompanionService {
         .join();
   }
 
+  Future<bool> _configureUnattendedPassword(String deviceToken) async {
+    await bind.mainSetLocalOption(
+        key: kExantasUnattendedPasswordStatus,
+        value: kExantasUnattendedPending);
+    await bind.mainSetLocalOption(
+        key: kExantasUnattendedPasswordError, value: '');
+    final unattendedPassword = _generatePassword();
+    if (!await _setPermanentPasswordWithRetry(unattendedPassword)) {
+      await bind.mainSetOption(
+          key: 'verification-method', value: kUseTemporaryPassword);
+      await bind.mainSetLocalOption(
+          key: kExantasUnattendedPasswordError,
+          value:
+              'Η συσκευή γράφτηκε, αλλά το Exantas Support service δεν δέχτηκε το unattended password. Βεβαιώσου ότι το service τρέχει και πάτησε «Ενεργοποίηση unattended».');
+      return false;
+    }
+    try {
+      await _post(
+          '/rustdesk-devices/credential',
+          {
+            'unattended_password': unattendedPassword,
+          },
+          bearerToken: deviceToken);
+      await bind.mainSetOption(
+          key: 'verification-method', value: kUseBothPasswords);
+      await bind.mainSetLocalOption(
+          key: kExantasUnattendedPasswordStatus,
+          value: kExantasUnattendedEnabled);
+      await bind.mainSetLocalOption(
+          key: kExantasUnattendedPasswordError, value: '');
+      return true;
+    } catch (_) {
+      await bind.mainSetPermanentPasswordWithResult(password: '');
+      await bind.mainSetOption(
+          key: 'verification-method', value: kUseTemporaryPassword);
+      await bind.mainSetLocalOption(
+          key: kExantasUnattendedPasswordError,
+          value:
+              'Η συσκευή γράφτηκε, αλλά το credential δεν αποθηκεύτηκε στο Exantas Support. Έλεγξε τη σύνδεση και πάτησε «Ενεργοποίηση unattended».');
+      return false;
+    }
+  }
+
   Future<bool> _setPermanentPasswordWithRetry(String password) async {
-    for (var attempt = 0; attempt < 3; attempt++) {
+    for (var attempt = 0; attempt < 5; attempt++) {
       final ok =
           await bind.mainSetPermanentPasswordWithResult(password: password);
       if (ok) {
         return true;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 750));
     }
     return false;
   }

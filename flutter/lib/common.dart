@@ -3760,14 +3760,10 @@ Widget loadPowered(BuildContext context) {
   ).marginOnly(top: 6);
 }
 
-const _kDefaultLogoAsset = 'assets/logo.svg';
-const _kLightLogoAsset = 'assets/logo_light.svg';
-const _kDarkLogoAsset = 'assets/logo_dark.svg';
+const _kDefaultLogoAsset = 'assets/logo.png';
 
-List<String> _logoAssetCandidatesForBrightness(Brightness brightness) {
-  return brightness == Brightness.dark
-      ? [_kDarkLogoAsset, _kDefaultLogoAsset]
-      : [_kLightLogoAsset, _kDefaultLogoAsset];
+List<String> _logoAssetCandidatesForBrightness(Brightness _) {
+  return [_kDefaultLogoAsset];
 }
 
 Future<String?> _resolveLogoAsset(Brightness brightness) async {
@@ -3816,7 +3812,7 @@ class _LogoState extends State<_Logo> {
                   },
                 );
           return Container(
-            constraints: BoxConstraints(maxWidth: 300, maxHeight: 60),
+            constraints: BoxConstraints(maxWidth: 300, maxHeight: 72),
             child: image,
           ).marginOnly(left: 12, right: 12, top: 12);
         }
@@ -3830,14 +3826,8 @@ class _LogoState extends State<_Logo> {
 Widget loadLogo() => const _Logo();
 
 Widget loadIcon(double size) {
-  return Image.asset('assets/icon.png',
-      width: size,
-      height: size,
-      errorBuilder: (ctx, error, stackTrace) => SvgPicture.asset(
-            'assets/icon.svg',
-            width: size,
-            height: size,
-          ));
+  return Image.asset('assets/logo.png',
+      width: size, height: size, fit: BoxFit.contain);
 }
 
 var imcomingOnlyHomeSize = Size(280, 300);

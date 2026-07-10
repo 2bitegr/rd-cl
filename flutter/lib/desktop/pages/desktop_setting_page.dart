@@ -2196,6 +2196,21 @@ class _AccountState extends State<_Account> {
         () => _showEnrollDialog(context),
         enabled: !_exantasBusy,
       ),
+      if (status?.unattendedPasswordPending == true)
+        Text(
+          status!.unattendedPasswordMessage,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.error,
+          ),
+        ).marginOnly(left: _kContentHMargin),
+      if (status?.unattendedPasswordPending == true)
+        _Button(
+          'Ενεργοποίηση unattended',
+          () => _runExantasAction(
+              () => _exantasCompanion.retryUnattendedPassword()),
+          enabled: !_exantasBusy,
+        ),
       if (isLoggedIn && status?.technicianLoggedIn != true)
         Text(
           'Το companion ενεργοποιείται αυτόματα από τη σύνδεση Account.',
@@ -2253,18 +2268,23 @@ class _AccountState extends State<_Account> {
     setState(() {
       _exantasBusy = true;
     });
+    String? error;
     try {
       await action();
-      await _refreshExantasStatus();
-      showToast(translate('Successful'));
     } catch (e) {
-      showToast(e.toString().replaceFirst('Exception: ', ''));
+      error = e.toString().replaceFirst('Exception: ', '');
     } finally {
+      await _refreshExantasStatus();
       if (mounted) {
         setState(() {
           _exantasBusy = false;
         });
       }
+    }
+    if (error != null) {
+      showToast(error);
+    } else {
+      showToast(translate('Successful'));
     }
   }
 
@@ -2289,7 +2309,12 @@ class _AccountState extends State<_Account> {
             onPressed: () {
               final code = controller.text;
               Navigator.of(context).pop();
-              _runExantasAction(() => _exantasCompanion.enrollDevice(code));
+              _runExantasAction(() async {
+                final status = await _exantasCompanion.enrollDevice(code);
+                if (status.unattendedPasswordPending) {
+                  throw Exception(status.unattendedPasswordMessage);
+                }
+              });
             },
             child: const Text('Εγγραφή'),
           ),

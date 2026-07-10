@@ -68,11 +68,16 @@ use std::cell::Cell;
 use std::os::unix::fs::PermissionsExt;
 use std::{
     collections::HashMap,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
 };
 
 // IPC actions here.
 pub const IPC_ACTION_CLOSE: &str = "close";
+const MANAGED_PERMANENT_PASSWORD_CONFIG_NAME: &str = "managed-permanent-password";
+static PERMANENT_PASSWORD_UPDATE_LOCK: Mutex<()> = Mutex::new(());
 #[cfg(target_os = "windows")]
 const PORTABLE_SERVICE_IPC_HANDSHAKE_TIMEOUT_MS: u64 = 3_000;
 #[cfg(target_os = "windows")]
@@ -885,12 +890,20 @@ async fn handle(data: Data, stream: &mut Connection) {
                     Config::set_id(&value);
                 } else if name == "temporary-password" {
                     password::update_temporary_password();
-                } else if name == "permanent-password" {
-                    if Config::is_disable_change_permanent_password() {
-                        log::warn!("Changing permanent password is disabled");
-                        updated = false;
+                } else if name == "permanent-password"
+                    || name == MANAGED_PERMANENT_PASSWORD_CONFIG_NAME
+                {
+                    let is_managed = name == MANAGED_PERMANENT_PASSWORD_CONFIG_NAME;
+                    if is_managed {
+                        updated = set_managed_permanent_password(&value);
                     } else {
-                        updated = Config::set_permanent_password(&value);
+                        let _guard = PERMANENT_PASSWORD_UPDATE_LOCK.lock().unwrap();
+                        if Config::is_disable_change_permanent_password() {
+                            log::warn!("Changing permanent password is disabled");
+                            updated = false;
+                        } else {
+                            updated = Config::set_permanent_password(&value);
+                        }
                     }
                     // Explicitly ACK/NACK permanent-password writes. This allows UIs/FFI to
                     // distinguish "accepted by daemon" vs "IPC send succeeded" without
@@ -1607,10 +1620,15 @@ pub async fn set_permanent_password_with_ack(v: String) -> ResultType<bool> {
 async fn set_permanent_password_with_ack_async(v: String) -> ResultType<bool> {
     // The daemon ACK/NACK is expected quickly since it applies the config in-process.
     let ms_timeout = 1_000;
+    let config_name = if crate::common::is_custom_client() {
+        MANAGED_PERMANENT_PASSWORD_CONFIG_NAME
+    } else {
+        "permanent-password"
+    };
     let mut c = connect(ms_timeout, "").await?;
-    c.send_config("permanent-password", v).await?;
+    c.send_config(config_name, v).await?;
     if let Some(Data::Config((name2, Some(v)))) = c.next_timeout(ms_timeout).await? {
-        if name2 == "permanent-password" {
+        if name2 == config_name {
             let v = v.trim();
             let ok = v == "Y";
             if ok {
@@ -1624,6 +1642,26 @@ async fn set_permanent_password_with_ack_async(v: String) -> ResultType<bool> {
         }
     }
     Ok(false)
+}
+
+fn set_managed_permanent_password(value: &str) -> bool {
+    if !crate::common::is_custom_client() {
+        log::warn!("Rejected managed permanent password update for a non-custom client");
+        return false;
+    }
+
+    let _guard = PERMANENT_PASSWORD_UPDATE_LOCK.lock().unwrap();
+    let key = config::keys::OPTION_DISABLE_CHANGE_PERMANENT_PASSWORD;
+    let previous = {
+        let mut settings = config::BUILTIN_SETTINGS.write().unwrap();
+        settings.remove(key)
+    };
+    let updated = Config::set_permanent_password(value);
+    let mut settings = config::BUILTIN_SETTINGS.write().unwrap();
+    if let Some(previous) = previous {
+        settings.insert(key.to_owned(), previous);
+    }
+    updated
 }
 
 #[cfg(feature = "flutter")]

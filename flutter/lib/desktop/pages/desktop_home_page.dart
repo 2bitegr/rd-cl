@@ -441,12 +441,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     }
   }
 
-  void _scheduleExantasPendingSessionChecks() {
+  void _scheduleExantasPendingSessionChecks({bool ignoreSnooze = false}) {
     _cancelExantasPendingRetryTimers();
-    unawaited(_checkExantasPendingSessions(ignoreSnooze: true));
+    unawaited(_checkExantasPendingSessions(ignoreSnooze: ignoreSnooze));
     for (final delay in const [2, 5, 10, 20]) {
       _exantasPendingRetryTimers.add(Timer(Duration(seconds: delay), () {
-        unawaited(_checkExantasPendingSessions(ignoreSnooze: true));
+        unawaited(_checkExantasPendingSessions(ignoreSnooze: ignoreSnooze));
       }));
     }
   }
@@ -988,7 +988,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       } else if (call.method == kWindowActionRebuild) {
         reloadCurrentWindow();
       } else if (call.method == kWindowExantasSessionClosed) {
-        _scheduleExantasPendingSessionChecks();
+        _scheduleExantasPendingSessionChecks(ignoreSnooze: true);
       } else if (call.method == kWindowEventShow) {
         await rustDeskWinManager.registerActiveWindow(call.arguments["id"]);
       } else if (call.method == kWindowEventHide) {

@@ -643,7 +643,8 @@ pub fn is_local_permanent_password_set() -> bool {
 }
 
 pub fn set_permanent_password_with_result(password: String) -> bool {
-    if config::Config::is_disable_change_permanent_password() {
+    if config::Config::is_disable_change_permanent_password() && !crate::common::is_custom_client()
+    {
         return false;
     }
     #[cfg(any(target_os = "android", target_os = "ios"))]
