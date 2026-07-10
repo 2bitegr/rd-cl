@@ -156,13 +156,7 @@ class ExantasCompanionService {
     final unattendedEnabled = policy['unattended_enabled'] == true;
 
     await _setSecretLocalOption(kExantasDeviceToken, deviceToken);
-    await bind.mainSetLocalOption(
-        key: kExantasDeviceId, value: _string(device['id']));
-    await bind.mainSetLocalOption(
-        key: kExantasDeviceCustomerName,
-        value: _string(device['customer_name']));
-    await bind.mainSetLocalOption(
-        key: kExantasDevicePolicy, value: jsonEncode(policy));
+    await _storeManagedDeviceState(device, policy);
 
     if (unattendedEnabled) {
       await _configureUnattendedPassword(deviceToken);
@@ -260,6 +254,28 @@ class ExantasCompanionService {
       }
       rethrow;
     }
+  }
+
+  Future<ExantasCompanionStatus> refreshManagedDeviceStatus() async {
+    final status = await loadStatus();
+    if (!status.enrolled) {
+      return status;
+    }
+    try {
+      final response = await _get(
+        '/rustdesk-devices/policy',
+        bearerToken: status.deviceToken,
+      );
+      await _storeManagedDeviceState(
+        _decodeMap(response['device']),
+        _decodeMap(response['policy']),
+      );
+    } on ExantasOfficeException catch (e) {
+      if (e.isRevokedDevice) {
+        await _clearManagedDeviceEnrollment();
+      }
+    }
+    return loadStatus();
   }
 
   Future<List<Map<String, dynamic>>> pendingSessions() async {
@@ -441,6 +457,19 @@ class ExantasCompanionService {
     await bind.mainSetOption(
         key: 'verification-method', value: kUseTemporaryPassword);
     await _setPermanentPasswordWithRetry('');
+  }
+
+  Future<void> _storeManagedDeviceState(
+    Map<String, dynamic> device,
+    Map<String, dynamic> policy,
+  ) async {
+    await bind.mainSetLocalOption(
+        key: kExantasDeviceId, value: _string(device['id']));
+    await bind.mainSetLocalOption(
+        key: kExantasDeviceCustomerName,
+        value: _string(device['customer_name']));
+    await bind.mainSetLocalOption(
+        key: kExantasDevicePolicy, value: jsonEncode(policy));
   }
 
   Future<bool> _setPermanentPasswordWithRetry(String password) async {

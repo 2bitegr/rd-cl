@@ -2237,7 +2237,7 @@ class _AccountState extends State<_Account> {
 
   Future<void> _refreshExantasStatus({bool pairIfLoggedIn = false}) async {
     try {
-      var next = await _exantasCompanion.loadStatus();
+      var next = await _exantasCompanion.refreshManagedDeviceStatus();
       if (pairIfLoggedIn &&
           gFFI.userModel.isLogin &&
           !next.technicianLoggedIn &&
