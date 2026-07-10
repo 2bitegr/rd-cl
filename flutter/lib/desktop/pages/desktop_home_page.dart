@@ -59,6 +59,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   WebSocket? _exantasCompanionSocket;
   String _exantasCompanionSocketToken = '';
   bool _exantasCompanionSocketConnecting = false;
+  bool _exantasPendingCheckInProgress = false;
   bool _exantasPendingPopupOpen = false;
   bool _exantasAutoPairInProgress = false;
   DateTime? _exantasLastAutoPairAttemptAt;
@@ -405,9 +406,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     bool manual = false,
     bool ignoreSnooze = false,
   }) async {
-    if (_exantasPendingPopupOpen || !mounted) {
+    if (_exantasPendingPopupOpen ||
+        _exantasPendingCheckInProgress ||
+        !mounted) {
       return;
     }
+    _exantasPendingCheckInProgress = true;
     try {
       final status = await _loadOrPairExantasCompanionStatus();
       if (!status.technicianLoggedIn) {
@@ -440,6 +444,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       if (manual) {
         showToast(e.toString().replaceFirst('Exception: ', ''));
       }
+    } finally {
+      _exantasPendingCheckInProgress = false;
     }
   }
 
@@ -475,7 +481,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     unawaited(_checkExantasPendingSessions(ignoreSnooze: ignoreSnooze));
     for (final delay in const [2, 5, 10, 20]) {
       _exantasPendingRetryTimers.add(Timer(Duration(seconds: delay), () {
-        unawaited(_checkExantasPendingSessions(ignoreSnooze: ignoreSnooze));
+        unawaited(_checkExantasPendingSessions());
       }));
     }
   }
@@ -579,7 +585,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Future<void> _showExantasSessionCommentPopup(
       Map<String, dynamic> session) async {
     final sessionId = '${session['id']}';
-    if (sessionId.isEmpty) {
+    if (sessionId.isEmpty || _exantasPendingPopupOpen) {
       return;
     }
     _exantasPendingPopupOpen = true;
@@ -598,6 +604,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         _exantasSnoozedSessionIds.remove(sessionId);
       } else {
         _exantasSnoozedSessionIds.add(sessionId);
+        _cancelExantasPendingRetryTimers();
       }
     } finally {
       _exantasPendingPopupOpen = false;
