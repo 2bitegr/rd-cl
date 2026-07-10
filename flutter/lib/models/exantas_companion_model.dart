@@ -187,6 +187,8 @@ class ExantasCompanionService {
     final pair = await _post('/rustdesk-companion/pair', {
       'office_access_token': officeToken,
       'rustdesk_peer_id': peerId,
+      'rustdesk_uuid': await bind.mainGetUuid(),
+      ..._rustDeskAccountIdentity(),
       'device_name': 'Exantas Support Technician',
     });
     final companionToken = _string(pair['token']);
@@ -307,6 +309,16 @@ class ExantasCompanionService {
       }
     }
     return {};
+  }
+
+  Map<String, String> _rustDeskAccountIdentity() {
+    final userInfo = _decodeMap(bind.mainGetLocalOption(key: 'user_info'));
+    return {
+      if (_string(userInfo['name']).isNotEmpty)
+        'rustdesk_user_name': _string(userInfo['name']),
+      if (_string(userInfo['email']).isNotEmpty)
+        'rustdesk_user_email': _string(userInfo['email']),
+    };
   }
 
   String _string(dynamic value) => value is String ? value.trim() : '';
