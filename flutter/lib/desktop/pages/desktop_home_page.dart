@@ -60,6 +60,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   String _exantasCompanionSocketToken = '';
   bool _exantasCompanionSocketConnecting = false;
   bool _exantasPendingPopupOpen = false;
+  bool _exantasAutoPairInProgress = false;
+  DateTime? _exantasLastAutoPairAttemptAt;
   final Set<String> _exantasSnoozedSessionIds = {};
 
   final RxBool _editHover = false.obs;
@@ -407,7 +409,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       return;
     }
     try {
-      final status = await _exantasCompanion.loadStatus();
+      final status = await _loadOrPairExantasCompanionStatus();
       if (!status.technicianLoggedIn) {
         _closeExantasCompanionWebSocket(scheduleReconnect: false);
         return;
@@ -439,6 +441,33 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         showToast(e.toString().replaceFirst('Exception: ', ''));
       }
     }
+  }
+
+  Future<ExantasCompanionStatus> _loadOrPairExantasCompanionStatus() async {
+    var status = await _exantasCompanion.loadStatus();
+    if (status.technicianLoggedIn ||
+        _exantasAutoPairInProgress ||
+        !gFFI.userModel.isLogin ||
+        bind.mainGetLocalOption(key: 'access_token').trim().isEmpty) {
+      return status;
+    }
+
+    final now = DateTime.now();
+    final lastAttempt = _exantasLastAutoPairAttemptAt;
+    if (lastAttempt != null && now.difference(lastAttempt).inSeconds < 30) {
+      return status;
+    }
+
+    _exantasLastAutoPairAttemptAt = now;
+    _exantasAutoPairInProgress = true;
+    try {
+      status = await _exantasCompanion.pairTechnicianFromExistingLogin();
+    } catch (e) {
+      debugPrint('Exantas companion auto-pair failed: $e');
+    } finally {
+      _exantasAutoPairInProgress = false;
+    }
+    return status;
   }
 
   void _scheduleExantasPendingSessionChecks({bool ignoreSnooze = false}) {
@@ -537,7 +566,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         return;
       }
       try {
-        final status = await _exantasCompanion.loadStatus();
+        final status = await _loadOrPairExantasCompanionStatus();
         if (status.technicianLoggedIn) {
           await _ensureExantasCompanionWebSocket(status);
         }
