@@ -70,6 +70,30 @@ class ExantasCompanionStatus {
       : '';
 }
 
+class ExantasOfficeException implements Exception {
+  ExantasOfficeException({
+    required this.statusCode,
+    required this.code,
+    required this.message,
+    required this.reason,
+  });
+
+  final int statusCode;
+  final String code;
+  final String message;
+  final String reason;
+
+  bool get isRevokedDevice =>
+      statusCode == 401 &&
+      code == 'access_denied' &&
+      (reason == 'device_revoked' ||
+          reason == 'customer_inactive' ||
+          reason == 'device_not_found');
+
+  @override
+  String toString() => message.isEmpty ? 'Office request failed.' : message;
+}
+
 class ExantasCompanionService {
   final ExantasSecureStore _secureStore = const ExantasSecureStore();
 
@@ -219,15 +243,23 @@ class ExantasCompanionService {
     }
     final peerId = (await bind.mainGetMyId()).trim();
     final version = await bind.mainGetVersion();
-    await _post(
-        '/rustdesk-devices/heartbeat',
-        {
-          'peer_id': peerId,
-          'client_version': version,
-          'install_mode': isRunningInPortableMode() ? 'portable' : 'msi',
-          'platform': 'windows',
-        },
-        bearerToken: status.deviceToken);
+    try {
+      await _post(
+          '/rustdesk-devices/heartbeat',
+          {
+            'peer_id': peerId,
+            'client_version': version,
+            'install_mode': isRunningInPortableMode() ? 'portable' : 'msi',
+            'platform': 'windows',
+          },
+          bearerToken: status.deviceToken);
+    } on ExantasOfficeException catch (e) {
+      if (e.isRevokedDevice) {
+        await _clearManagedDeviceEnrollment();
+        return;
+      }
+      rethrow;
+    }
   }
 
   Future<List<Map<String, dynamic>>> pendingSessions() async {
@@ -293,7 +325,13 @@ class ExantasCompanionService {
     final decoded = _decodeMap(body);
     if (statusCode < 200 || statusCode >= 300) {
       final message = _string(decoded['message']);
-      throw Exception(message.isEmpty ? 'Office request failed.' : message);
+      final details = _decodeMap(decoded['details']);
+      throw ExantasOfficeException(
+        statusCode: statusCode,
+        code: _string(decoded['code']),
+        message: message.isEmpty ? 'Office request failed.' : message,
+        reason: _string(details['reason']),
+      );
     }
     return decoded;
   }
@@ -388,6 +426,21 @@ class ExantasCompanionService {
               'Η συσκευή γράφτηκε, αλλά το credential δεν αποθηκεύτηκε στο Exantas Support. Έλεγξε τη σύνδεση και πάτησε «Ενεργοποίηση unattended».');
       return false;
     }
+  }
+
+  Future<void> _clearManagedDeviceEnrollment() async {
+    await _setSecretLocalOption(kExantasDeviceToken, '');
+    await bind.mainSetLocalOption(key: kExantasDeviceId, value: '');
+    await bind.mainSetLocalOption(key: kExantasDeviceCustomerName, value: '');
+    await bind.mainSetLocalOption(key: kExantasDevicePolicy, value: '{}');
+    await bind.mainSetLocalOption(
+        key: kExantasUnattendedPasswordStatus,
+        value: kExantasUnattendedDisabled);
+    await bind.mainSetLocalOption(
+        key: kExantasUnattendedPasswordError, value: '');
+    await bind.mainSetOption(
+        key: 'verification-method', value: kUseTemporaryPassword);
+    await _setPermanentPasswordWithRetry('');
   }
 
   Future<bool> _setPermanentPasswordWithRetry(String password) async {
