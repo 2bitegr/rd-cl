@@ -1,5 +1,37 @@
 # Exantas RustDesk Technician Companion
 
+## Office account lifecycle update
+
+The native client uses the same Office account for management and support.
+The local `codex/office-account-pairing` change calls authenticated
+`POST /rustdesk-companion/logout` before clearing local credentials. Deploy
+the compatible Office endpoint before distributing a new client. If the server
+cannot confirm logout, credentials are retained so the user can retry or revoke
+the pairing in Office. Logout does not terminate a RustDesk control session.
+The Office recovery reference PowerShell companion separately scopes offline
+reports to an Office URL/user UUID. This folder has not been synchronized with
+that reference change; do not distribute its old helper as the updated helper.
+Native Dart/Flutter build and Windows acceptance are still pending.
+
+## Artifact-only Windows acceptance build
+
+`.github/workflows/office-acceptance-windows.yml` builds only Windows x64
+and its Linux bridge/Windows helper dependencies, following the existing
+Flutter workflow at base commit `e79a8f1`. It runs on pushes to
+`codex/office-account-pairing`; it does not change the main branch or publish
+tags, releases, MSI installers, or deployments. All jobs have read-only repository
+permissions and do not receive production secrets. Artifacts expire after three days.
+This intentionally scoped copy leaves the existing multi-platform release pipeline
+unchanged; compare its toolchain/dependency steps with that pipeline before reuse.
+
+Download the `exantas-support-1.4.9-office-test-windows-x64-<run>` artifact
+from the successful run. Extract the whole archive, not just `rustdesk.exe`.
+`OFFICE-ACCEPTANCE.txt` identifies the source commit/run and `SHA256SUMS.txt`
+identifies the executable. This is an unsigned test build, not a new production
+release. Do not overwrite an existing installation. The default Office API is
+still the online service: verify/configure the test Office destination before
+running or logging in. Download/build success does not prove Windows acceptance.
+
 This folder contains the transition/reference technician-side companion source.
 
 The production target is native companion functionality inside the Exantas

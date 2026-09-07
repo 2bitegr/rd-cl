@@ -183,6 +183,13 @@ class ExantasCompanionService {
   }
 
   Future<void> logoutTechnician() async {
+    final status = await loadStatus();
+    if (status.companionToken.isNotEmpty) {
+      // Keep local credentials if Office cannot confirm the revocation.
+      // Clearing only local storage leaves a live server-side pairing interval.
+      await _post('/rustdesk-companion/logout', {},
+          bearerToken: status.companionToken);
+    }
     await _setSecretLocalOption(kExantasTechnicianToken, '');
     await _setSecretLocalOption(kExantasCompanionToken, '');
     await bind.mainSetLocalOption(key: kExantasTechnicianName, value: '');

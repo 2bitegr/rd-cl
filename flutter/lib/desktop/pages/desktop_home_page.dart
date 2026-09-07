@@ -402,7 +402,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         ? ''
         : [
             if (status.technicianName.isNotEmpty) status.technicianName,
-            if (status.supportRole.isNotEmpty) status.supportRole,
           ].join(' - ');
     return Container(
       margin: const EdgeInsets.only(left: 20, right: 16, top: 0, bottom: 12),
@@ -536,7 +535,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Technician login'),
+        title: const Text('Office login'),
         content: SizedBox(
           width: 360,
           child: Column(
