@@ -19,6 +19,7 @@ import '../../models/input_model.dart';
 import '../../models/platform_model.dart';
 import '../../common/shared_state.dart';
 import '../../utils/image.dart';
+import '../../utils/multi_window_manager.dart';
 import '../widgets/remote_toolbar.dart';
 import '../widgets/kb_layout_type_chooser.dart';
 import '../widgets/tabbar_widget.dart';
@@ -352,6 +353,12 @@ class _RemotePageState extends State<RemotePage>
   @override
   Future<void> dispose() async {
     final closeSession = closeSessionOnDispose.remove(widget.id) ?? true;
+    final closesOfficeConnection = closeSession &&
+        bind.willSessionCloseCloseSession(sessionId: sessionId);
+    final officeConnectionId = closesOfficeConnection
+        ? bind.sessionGetConnSessionId(sessionId: sessionId).toString()
+        : '';
+    final officeLocalSession = '${_ffi.id}:$officeConnectionId';
 
     // https://github.com/flutter/flutter/issues/64935
     super.dispose();
@@ -381,6 +388,16 @@ class _RemotePageState extends State<RemotePage>
       clearWaylandKeyboardPromptSuppressedForConnection(sessionId.toString());
     }
     await _ffi.close(closeSession: closeSession);
+    if (closesOfficeConnection) {
+      try {
+        await rustDeskWinManager.call(WindowType.Main, 'officeSessionEnded', {
+          'local_session': officeLocalSession,
+          'ended_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } catch (_) {
+        debugPrint('Could not persist Office session end');
+      }
+    }
     _timer?.cancel();
     _ffi.dialogManager.dismissAll();
     if (closeSession) {

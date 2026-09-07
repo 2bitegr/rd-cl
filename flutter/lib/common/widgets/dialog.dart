@@ -9,6 +9,7 @@ import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
+import 'package:flutter_hbb/models/exantas_companion_model.dart';
 import 'package:flutter_hbb/models/peer_tab_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:get/get.dart';
@@ -1594,6 +1595,11 @@ showAuditDialog(FFI ffi) async {
 }
 
 bool allowAskForNoteAtEndOfConnection(FFI? ffi, bool closedByControlling) {
+  if (isDesktop &&
+      bind.mainGetLocalOption(key: kExantasCompanionToken).isNotEmpty &&
+      bind.mainGetLocalOption(key: kExantasOfficeUserId).isNotEmpty) {
+    return false; // Office owns the durable report and its single submission.
+  }
   if (ffi == null) {
     return false;
   }

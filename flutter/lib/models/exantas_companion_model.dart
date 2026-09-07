@@ -15,6 +15,7 @@ const String kExantasDevicePolicy = 'exantas.office.device_policy';
 const String kExantasDeviceCustomerName = 'exantas.office.customer_name';
 const String kExantasCompanionToken = 'exantas.office.companion_token';
 const String kExantasTechnicianName = 'exantas.office.technician_name';
+const String kExantasOfficeUserId = 'exantas.office.user_id';
 const String kExantasSupportRole = 'exantas.office.support_role';
 const String kExantasTechnicianToken = 'exantas.office.technician_token';
 
@@ -32,9 +33,11 @@ class ExantasCompanionStatus {
     required this.technicianName,
     required this.supportRole,
     required this.policy,
+    required this.officeUserId,
   });
 
   final String apiBase;
+  final String officeUserId;
   final bool enrolled;
   final bool technicianLoggedIn;
   final String deviceToken;
@@ -63,6 +66,7 @@ class ExantasCompanionService {
     final policyText = bind.mainGetLocalOption(key: kExantasDevicePolicy);
     return ExantasCompanionStatus(
       apiBase: apiBase,
+      officeUserId: bind.mainGetLocalOption(key: kExantasOfficeUserId),
       enrolled: deviceToken.trim().isNotEmpty,
       technicianLoggedIn: companionToken.trim().isNotEmpty,
       deviceToken: deviceToken,
@@ -176,6 +180,8 @@ class ExantasCompanionService {
 
     await _setSecretLocalOption(kExantasTechnicianToken, '');
     await _setSecretLocalOption(kExantasCompanionToken, companionToken);
+    await bind.mainSetLocalOption(key: kExantasOfficeUserId,
+        value: _string(pair['office_user_id']));
     await bind.mainSetLocalOption(
         key: kExantasTechnicianName, value: _string(pair['technician_name']));
     await bind.mainSetLocalOption(
@@ -193,6 +199,7 @@ class ExantasCompanionService {
     }
     await _setSecretLocalOption(kExantasTechnicianToken, '');
     await _setSecretLocalOption(kExantasCompanionToken, '');
+    await bind.mainSetLocalOption(key: kExantasOfficeUserId, value: '');
     await bind.mainSetLocalOption(key: kExantasTechnicianName, value: '');
     await bind.mainSetLocalOption(key: kExantasSupportRole, value: '');
   }
@@ -239,10 +246,16 @@ class ExantasCompanionService {
     ExantasSessionOutcome outcome,
     String note, {
     required String idempotencyKey,
+    String? expectedOfficeUserId,
+    String? expectedApiBase,
   }) async {
     final status = await loadStatus();
     if (!status.technicianLoggedIn) {
       throw Exception('Office login is required.');
+    }
+    if ((expectedOfficeUserId != null && expectedOfficeUserId != status.officeUserId) ||
+        (expectedApiBase != null && expectedApiBase != status.apiBase)) {
+      throw Exception('Ο λογαριασμός Office άλλαξε. Η αναφορά παραμένει τοπικά.');
     }
     return _post(
       '/rustdesk-companion/sessions/$sessionId/comment',

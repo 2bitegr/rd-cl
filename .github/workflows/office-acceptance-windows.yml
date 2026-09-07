@@ -225,6 +225,14 @@ jobs:
           fi
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
         shell: bash
+      - name: Test companion report identity and outbox transitions
+        shell: pwsh
+        working-directory: flutter
+        run: |
+          flutter pub get
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          flutter test test/exantas_session_report_test.dart
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build rustdesk
         run: |
           # Windows: build RustDesk

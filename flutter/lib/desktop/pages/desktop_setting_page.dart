@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
+import 'package:flutter_hbb/models/exantas_companion_model.dart';
+import 'exantas_sessions_page.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_home_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
@@ -51,6 +53,7 @@ class _TabInfo {
 }
 
 enum SettingsTabKey {
+  supportSessions,
   general,
   safety,
   network,
@@ -63,7 +66,9 @@ enum SettingsTabKey {
 
 class DesktopSettingPage extends StatefulWidget {
   final SettingsTabKey initialTabkey;
-  static final List<SettingsTabKey> tabKeys = [
+  static List<SettingsTabKey> get tabKeys => [
+    if (bind.mainGetLocalOption(key: kExantasCompanionToken).isNotEmpty)
+      SettingsTabKey.supportSessions,
     SettingsTabKey.general,
     if (!isWeb &&
         !bind.isOutgoingOnly() &&
@@ -180,6 +185,9 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
     final List<_TabInfo> settingTabs = <_TabInfo>[];
     for (final tab in DesktopSettingPage.tabKeys) {
       switch (tab) {
+        case SettingsTabKey.supportSessions:
+          settingTabs.add(_TabInfo(tab, 'Συνεδρίες υποστήριξης', Icons.history, Icons.history));
+          break;
         case SettingsTabKey.general:
           settingTabs.add(_TabInfo(
               tab, 'General', Icons.settings_outlined, Icons.settings));
@@ -221,6 +229,9 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
     final children = List<Widget>.empty(growable: true);
     for (final tab in DesktopSettingPage.tabKeys) {
       switch (tab) {
+        case SettingsTabKey.supportSessions:
+          children.add(const ExantasSessionsPage());
+          break;
         case SettingsTabKey.general:
           children.add(const _General());
           break;

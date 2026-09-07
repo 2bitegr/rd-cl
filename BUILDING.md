@@ -99,3 +99,32 @@ scripts/apply-exantas-submodule-patches.sh
 
 Then run the relevant Rust, Flutter, and Windows packaging checks for the files
 changed in the release.
+
+## Local support report acceptance
+
+After upgrading to the local report queue, sign in to Office again in the
+Companion so the existing pairing response supplies the stable `office_user_id`.
+Remote session start/close events are handled by the main window. Closing the
+last view opens the report without waiting for Office; moving a view does not
+end the session. The main window must remain running for background retries.
+
+Reports are written individually under the application support directory in
+`office-reports`, using Windows DPAPI and flushed temporary-file replacement.
+The queue is scoped to Office API origin and Office user ID. Sign-out retains
+the files; signing back in as the same Office user resumes them. Do not remove
+these files or switch Windows users while testing recovery.
+
+Matching requires the exact RustDesk session ID (a string, never a floating
+point number), source peer, destination peer and Office technician. Ambiguous
+matches remain local. The existing pending endpoint returns up to 50 mapped
+sessions; unmapped, already processed elsewhere or older sessions outside that
+window require investigation in Office. No approximate time/peer matching is
+performed. A saved remote ID and fixed idempotency key permit retries after an
+acknowledgement is lost. A synced report does not imply email delivery.
+
+Acceptance: close a test session and check the immediate dialog; save a
+follow-up report with Office unreachable; restart and inspect Settings >
+Support sessions; restore connectivity and verify a single work item. Repeat
+with account switching, a moved/multiple-display window, and final-report
+confirmation. Automated command/identity/concurrent-update tests run in the
+Windows acceptance workflow. No Office schema/API deployment is required.

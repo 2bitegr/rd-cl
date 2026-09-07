@@ -1331,6 +1331,21 @@ class FfiModel with ChangeNotifier {
 
     _queryAuditGuid(peerId);
 
+    if (isDesktop && !isCache && parent.target?.connType == ConnType.defaultConn) {
+      try {
+        final connectionId = bind.sessionGetConnSessionId(sessionId: sessionId).toString();
+        await rustDeskWinManager.call(WindowType.Main, 'officeSessionStarted', {
+          'local_session': '$peerId:$connectionId',
+          'rustdesk_session_id': connectionId,
+          'peer_id': peerId,
+          'peer_name': evt['hostname'] ?? peerId,
+          'started_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } catch (_) {
+        debugPrint('Could not persist Office session start');
+      }
+    }
+
     // Map clone is required here, otherwise "evt" may be changed by other threads through the reference.
     // Because this function is asynchronous, there's an "await" in this function.
     cachedPeerData.peerInfo = {...evt};

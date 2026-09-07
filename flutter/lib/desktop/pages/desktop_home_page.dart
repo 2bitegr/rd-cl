@@ -17,6 +17,7 @@ import 'package:flutter_hbb/desktop/widgets/update_progress.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/exantas_companion_model.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
+import 'package:flutter_hbb/models/exantas_report_outbox.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/plugin/ui_manager.dart';
@@ -457,6 +458,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               style: TextStyle(
                   fontSize: 12, color: textColor?.withOpacity(0.6)),
             ),
+          if (technicianLoggedIn && (status?.officeUserId ?? '').isEmpty)
+            const Text('Κάνε νέα είσοδο στο Office για να ενεργοποιήσεις το τοπικό ιστορικό αναφορών.'),
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
@@ -473,7 +476,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               ),
               if (technicianLoggedIn)
                 OutlinedButton(
-                  onPressed: () => _showPendingSessionsDialog(context),
+                  onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.supportSessions),
                   child: const Text('Αναφορές'),
                 ),
               if (technicianLoggedIn)
@@ -625,6 +628,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Future<bool> _pollExantasPendingSessions() async {
+    if (_exantasStatus?.officeUserId.isNotEmpty == true) {
+      await ExantasReportOutbox.instance.sync();
+      return false;
+    }
     if (!mounted ||
         _exantasStatus?.technicianLoggedIn != true ||
         _checkingPendingSessions ||
@@ -637,12 +644,17 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     var queuedNewSession = false;
     try {
       final sessions = await _exantasCompanion.pendingSessions();
+      await ExantasReportOutbox.instance.sync();
+      final localSessions = await ExantasReportOutbox.instance.rows();
       if (!mounted) {
         return false;
       }
 
       final validSessions = sessions
-          .where((session) => _sessionId(session).isNotEmpty)
+          .where((session) => _sessionId(session).isNotEmpty &&
+              !localSessions.any((local) =>
+                  local['peer_id'].toString() == session['peer_id'].toString() &&
+                  local['rustdesk_session_id'].toString() == session['rustdesk_session_id'].toString()))
           .toList();
       if (!_pendingSessionsInitialized) {
         _pendingSessionsInitialized = true;
@@ -818,8 +830,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                         builder: (confirmationContext) => AlertDialog(
                           title: const Text('Ολοκλήρωση και αποστολή αναφοράς'),
                           content: Text(
-                            'Θα κλείσει η ανοικτή υπόθεση του πελάτη '
-                            '«${_sessionCustomer(session)}» και θα σταλεί η '
+                            'Μετά τον συγχρονισμό θα κλείσει η ανοικτή υπόθεση του πελάτη '
+                            'που αντιστοιχεί στον υπολογιστή ${session['peer_id']} και θα σταλεί η '
                             'αναφορά στο αποθηκευμένο email του. Θέλεις να '
                             'συνεχίσεις;',
                           ),
@@ -848,17 +860,24 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                   errorMessage = null;
                 });
                 try {
-                  await _exantasCompanion.submitSessionReport(
+                  if (session['local_report'] == true) {
+                    await ExantasReportOutbox.instance.save(sessionId, outcome, note);
+                    unawaited(ExantasReportOutbox.instance.sync());
+                  } else {
+                    await _exantasCompanion.submitSessionReport(
                     sessionId,
                     outcome,
                     note,
                     idempotencyKey: idempotencyKey,
                   );
+                  }
                   if (!mounted) {
                     return;
                   }
                   Navigator.of(dialogContext).pop(true);
-                  showToast(_sessionReportSuccessMessage(outcome));
+                  showToast(session['local_report'] == true
+                      ? 'Η αναφορά αποθηκεύτηκε στον υπολογιστή. Αναμονή συγχρονισμού.'
+                      : _sessionReportSuccessMessage(outcome));
                 } catch (e) {
                   if (!mounted) {
                     return;
@@ -967,7 +986,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                   ),
                   ElevatedButton(
                     onPressed: submitting ? null : submit,
-                    child: Text(_sessionSubmitLabel(outcome)),
+                    child: Text(session['local_report'] == true
+                        ? 'Αποθήκευση αναφοράς'
+                        : _sessionSubmitLabel(outcome)),
                   ),
                 ],
               );
@@ -1442,8 +1463,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     });
     Get.put<RxBool>(svcStopped, tag: 'stop-service');
     _refreshExantasStatus();
+    ExantasReportOutbox.instance.openReport = (row) async {
+      await _presentSessionReport(row);
+    };
     _exantasHeartbeatTimer =
         periodic_immediate(const Duration(seconds: 60), () async {
+      await ExantasReportOutbox.instance.sync();
       await _exantasCompanion.heartbeat();
       await _refreshExantasStatus();
       await _pollExantasPendingSessions();
@@ -1489,6 +1514,24 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     }
 
     rustDeskWinManager.setMethodHandler((call, fromWindowId) async {
+      // Process local lifecycle messages before the generic diagnostic logger.
+      if (call.method == 'officeSessionStarted') {
+        await ExantasReportOutbox.instance.started(
+            Map<String, dynamic>.from(call.arguments as Map));
+        return true;
+      }
+      if (call.method == 'officeSessionEnded') {
+        final row = await ExantasReportOutbox.instance.ended(
+            Map<String, dynamic>.from(call.arguments as Map));
+        final ownedRows = await ExantasReportOutbox.instance.rows();
+        if (row != null && mounted && ownedRows.any((item) => item['id'] == row['id'])) {
+          _pendingSessionQueue.add(row);
+          windowOnTop(null);
+          unawaited(_showNextPendingSessionReport());
+          _schedulePendingSessionPolls();
+        }
+        return true;
+      }
       if (!isChattyMethod(call.method)) {
         debugPrint(
             "[Main] call ${call.method} with args ${call.arguments} from window $fromWindowId");
@@ -1594,6 +1637,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
     _exantasHeartbeatTimer?.cancel();
+    ExantasReportOutbox.instance.openReport = null;
     _exantasPendingSessionsTimer?.cancel();
     if (identical(
         _mainTabController?.onRemoved, _exantasTabRemovedHandler)) {
