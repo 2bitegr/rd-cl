@@ -4,6 +4,8 @@ enum ExantasSessionOutcome {
   noRecord,
 }
 
+bool canPromptExantasReport(dynamic state) => state == 'active' || state == 'draft';
+
 bool matchesExantasSession(Map<String, dynamic> local, Map<String, dynamic> remote) {
   final id = local['rustdesk_session_id']?.toString() ?? '';
   return id.isNotEmpty && id != '0' &&

@@ -64,6 +64,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   bool _pendingSessionsListOpen = false;
   int _pendingSessionPollRetriesRemaining = 0;
   final Set<String> _knownPendingSessionIds = <String>{};
+  final Set<String> _locallyPromptedReportIds = <String>{};
   final List<Map<String, dynamic>> _pendingSessionQueue =
       <Map<String, dynamic>>[];
   DesktopTabController? _mainTabController;
@@ -1524,7 +1525,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         final row = await ExantasReportOutbox.instance.ended(
             Map<String, dynamic>.from(call.arguments as Map));
         final ownedRows = await ExantasReportOutbox.instance.rows();
-        if (row != null && mounted && ownedRows.any((item) => item['id'] == row['id'])) {
+        if (row != null && mounted && ownedRows.any((item) => item['id'] == row['id']) &&
+            _locallyPromptedReportIds.add(row['id'] as String)) {
           _pendingSessionQueue.add(row);
           windowOnTop(null);
           unawaited(_showNextPendingSessionReport());

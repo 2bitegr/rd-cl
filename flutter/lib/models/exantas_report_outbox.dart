@@ -94,7 +94,12 @@ class ExantasReportOutbox {
     await _starts[event['local_session']];
     await load();
     final matches = _rows.values.where((row) => row['local_session'] == event['local_session']);
-    if (matches.length != 1 || matches.single['state'] != 'active') return null;
+    if (matches.length != 1 || !canPromptExantasReport(matches.single['state'])) return null;
+    // Office can confirm a disconnect before the user closes its remaining view.
+    // That draft still needs the immediate close prompt.
+    if (matches.single['state'] == 'draft') {
+      return Map<String, dynamic>.from(matches.single);
+    }
     final row = Map<String, dynamic>.from(matches.single);
     row['ended_at'] = event['ended_at'];
     row['duration_seconds'] = DateTime.parse(row['ended_at']).difference(

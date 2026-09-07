@@ -2,6 +2,13 @@ import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('close prompts an already discovered disconnect but never a saved report', () {
+    expect(canPromptExantasReport('active'), isTrue);
+    expect(canPromptExantasReport('draft'), isTrue);
+    expect(canPromptExantasReport('queued'), isFalse);
+    expect(canPromptExantasReport('synced'), isFalse);
+    expect(canPromptExantasReport('review'), isFalse);
+  });
   test('only explicit acknowledgement confirms the submitted report', () {
     expect(confirmsExantasReport(ExantasSessionOutcome.completed, 'final'), isTrue);
     expect(confirmsExantasReport(ExantasSessionOutcome.followUp, 'pending'), isTrue);
