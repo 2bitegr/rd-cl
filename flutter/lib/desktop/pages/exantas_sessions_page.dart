@@ -82,7 +82,14 @@ class _ExantasSessionsPageState extends State<ExantasSessionsPage> {
                   await _outbox.openReport?.call(row);
                   await _refresh();
                 }, child: const Text('Καταγραφή αναφοράς'))
-              : const Text('—')),
+              : TextButton(onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Αποθηκευμένη αναφορά'),
+                    content: SelectableText(row['note'] ?? 'Δεν έχει αποθηκευτεί σχόλιο.'),
+                    actions: [TextButton(onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Κλείσιμο'))],
+                  )), child: const Text('Προβολή'))),
           ])).toList()),
         ))),
     ]),

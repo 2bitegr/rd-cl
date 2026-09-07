@@ -120,7 +120,11 @@ matches remain local. The existing pending endpoint returns up to 50 mapped
 sessions; unmapped, already processed elsewhere or older sessions outside that
 window require investigation in Office. No approximate time/peer matching is
 performed. A saved remote ID and fixed idempotency key permit retries after an
-acknowledgement is lost. A synced report does not imply email delivery.
+acknowledgement is lost. The current API returns `already_processed` for both
+same-key and conflicting submissions, so that response requires Office review;
+it must not be displayed as confirmation of this local note. The note remains
+available through View in the local history. A synced report does not imply
+email delivery.
 
 Acceptance: close a test session and check the immediate dialog; save a
 follow-up report with Office unreachable; restart and inspect Settings >

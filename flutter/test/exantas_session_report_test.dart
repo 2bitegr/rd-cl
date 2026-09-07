@@ -2,6 +2,14 @@ import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('only explicit acknowledgement confirms the submitted report', () {
+    expect(confirmsExantasReport(ExantasSessionOutcome.completed, 'final'), isTrue);
+    expect(confirmsExantasReport(ExantasSessionOutcome.followUp, 'pending'), isTrue);
+    expect(confirmsExantasReport(ExantasSessionOutcome.noRecord, 'noop'), isTrue);
+    expect(confirmsExantasReport(ExantasSessionOutcome.completed, 'already_processed'), isFalse);
+    expect(confirmsExantasReport(ExantasSessionOutcome.completed, 'pending'), isFalse);
+    expect(confirmsExantasReport(ExantasSessionOutcome.completed, null), isFalse);
+  });
   test('matches exact session, peer and Office owner without numeric rounding', () {
     final local = <String, dynamic>{'rustdesk_session_id': '18446744073709551615',
       'peer_id': '123', 'from_peer': '321', 'owner': 'owner-a'};

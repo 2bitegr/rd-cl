@@ -127,7 +127,7 @@ class ExantasReportOutbox {
       syncError = null;
       for (final snapshot in local) {
         final row = Map<String, dynamic>.from(_rows[snapshot['id']]!);
-        if (row['state'] == 'synced') continue;
+        if (row['state'] == 'synced' || row['state'] == 'review') continue;
         final matches = pending.where((remote) => matchesExantasSession(row, remote)).toList();
         if (row['remote_id'] == null && matches.length == 1) {
           final remote = matches.single;
@@ -148,13 +148,19 @@ class ExantasReportOutbox {
         final current = await _service.loadStatus();
         if (current.officeUserId != row['owner'] || current.apiBase != row['api']) continue;
         try {
-          await _service.submitSessionReport(row['remote_id'],
-              ExantasSessionOutcome.values.byName(row['outcome']), row['note'],
+          final outcome = ExantasSessionOutcome.values.byName(row['outcome']);
+          final response = await _service.submitSessionReport(row['remote_id'],
+              outcome, row['note'],
               idempotencyKey: 'local-${row['id']}',
               expectedOfficeUserId: row['owner'], expectedApiBase: row['api'])
               .timeout(const Duration(seconds: 20));
-          row['state'] = 'synced';
-          row.remove('error');
+          if (confirmsExantasReport(outcome, response['action'])) {
+            row['state'] = 'synced';
+            row.remove('error');
+          } else {
+            row['state'] = 'review';
+            row['error'] = 'Χρειάζεται έλεγχος στο Office: δεν επιβεβαιώθηκε η ίδια αναφορά. Το σχόλιο διατηρείται τοπικά.';
+          }
           await _write(row);
         } catch (_) {
           row['error'] = 'Δεν επιβεβαιώθηκε η παραλαβή. Θα γίνει νέα προσπάθεια.';

@@ -14,10 +14,18 @@ bool matchesExantasSession(Map<String, dynamic> local, Map<String, dynamic> remo
       local['owner'] == remote['technician_admin_id'];
 }
 
+bool confirmsExantasReport(ExantasSessionOutcome outcome, dynamic action) {
+  switch (outcome) {
+    case ExantasSessionOutcome.completed: return action == 'final';
+    case ExantasSessionOutcome.followUp: return action == 'pending';
+    case ExantasSessionOutcome.noRecord: return action == 'noop';
+  }
+}
+
 // A network refresh must never overwrite a report saved while it was in flight.
 Map<String, dynamic> mergeExantasReportUpdate(
     Map<String, dynamic>? current, Map<String, dynamic> incoming) {
-  const rank = {'active': 0, 'draft': 1, 'queued': 2, 'synced': 3};
+  const rank = {'active': 0, 'draft': 1, 'queued': 2, 'review': 3, 'synced': 4};
   final result = <String, dynamic>{...?current, ...incoming};
   if (current != null &&
       (rank[current['state']] ?? 0) > (rank[incoming['state']] ?? 0)) {
