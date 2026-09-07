@@ -12,9 +12,11 @@ import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
+import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/desktop/widgets/update_progress.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/exantas_companion_model.dart';
+import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/plugin/ui_manager.dart';
@@ -54,6 +56,18 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   final _exantasCompanion = ExantasCompanionService();
   ExantasCompanionStatus? _exantasStatus;
   Timer? _exantasHeartbeatTimer;
+  Timer? _exantasPendingSessionsTimer;
+  bool _checkingPendingSessions = false;
+  bool _pendingSessionsInitialized = false;
+  bool _pendingSessionDialogOpen = false;
+  bool _pendingSessionsListOpen = false;
+  int _pendingSessionPollRetriesRemaining = 0;
+  final Set<String> _knownPendingSessionIds = <String>{};
+  final List<Map<String, dynamic>> _pendingSessionQueue =
+      <Map<String, dynamic>>[];
+  DesktopTabController? _mainTabController;
+  Function(int, String)? _previousTabRemoved;
+  late final void Function(int, String) _exantasTabRemovedHandler;
 
   final RxBool _editHover = false.obs;
   final RxBool _block = false.obs;
@@ -460,7 +474,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               if (technicianLoggedIn)
                 OutlinedButton(
                   onPressed: () => _showPendingSessionsDialog(context),
-                  child: const Text('Notes'),
+                  child: const Text('Αναφορές'),
                 ),
               if (technicianLoggedIn)
                 OutlinedButton(
@@ -481,9 +495,17 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       if (!mounted) {
         return;
       }
+      final pairingChanged =
+          _exantasStatus?.companionToken != next.companionToken;
       setState(() {
         _exantasStatus = next;
       });
+      if (pairingChanged) {
+        _resetPendingSessionTracking();
+        if (next.technicianLoggedIn) {
+          unawaited(_pollExantasPendingSessions());
+        }
+      }
     } catch (e) {
       debugPrint('Exantas status refresh failed: $e');
     }
@@ -574,75 +596,493 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
+  void _resetPendingSessionTracking() {
+    _checkingPendingSessions = false;
+    _pendingSessionsInitialized = false;
+    _knownPendingSessionIds.clear();
+    _pendingSessionQueue.clear();
+  }
+
+  void _schedulePendingSessionPolls() {
+    _pendingSessionPollRetriesRemaining = 4;
+    _scheduleNextPendingSessionPoll();
+  }
+
+  void _scheduleNextPendingSessionPoll() {
+    _exantasPendingSessionsTimer?.cancel();
+    if (!mounted || _pendingSessionPollRetriesRemaining <= 0) {
+      return;
+    }
+    _exantasPendingSessionsTimer = Timer(const Duration(seconds: 12), () async {
+      final found = await _pollExantasPendingSessions();
+      if (found) {
+        _pendingSessionPollRetriesRemaining = 0;
+        return;
+      }
+      _pendingSessionPollRetriesRemaining -= 1;
+      _scheduleNextPendingSessionPoll();
+    });
+  }
+
+  Future<bool> _pollExantasPendingSessions() async {
+    if (!mounted ||
+        _exantasStatus?.technicianLoggedIn != true ||
+        _checkingPendingSessions ||
+        _pendingSessionDialogOpen ||
+        _pendingSessionsListOpen) {
+      return false;
+    }
+
+    _checkingPendingSessions = true;
+    var queuedNewSession = false;
+    try {
+      final sessions = await _exantasCompanion.pendingSessions();
+      if (!mounted) {
+        return false;
+      }
+
+      final validSessions = sessions
+          .where((session) => _sessionId(session).isNotEmpty)
+          .toList();
+      if (!_pendingSessionsInitialized) {
+        _pendingSessionsInitialized = true;
+        _knownPendingSessionIds.addAll(validSessions.map(_sessionId));
+        if (validSessions.isNotEmpty) {
+          _pendingSessionQueue.add(validSessions.first);
+          queuedNewSession = true;
+        }
+      } else {
+        final newSessions = validSessions
+            .where((session) =>
+                !_knownPendingSessionIds.contains(_sessionId(session)))
+            .toList()
+            .reversed;
+        for (final session in newSessions) {
+          _knownPendingSessionIds.add(_sessionId(session));
+          _pendingSessionQueue.add(session);
+          queuedNewSession = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('Office pending session refresh failed: $e');
+    } finally {
+      _checkingPendingSessions = false;
+    }
+
+    if (mounted && queuedNewSession) {
+      unawaited(_showNextPendingSessionReport());
+    }
+    return queuedNewSession;
+  }
+
+  Future<void> _showNextPendingSessionReport() async {
+    if (!mounted ||
+        _pendingSessionDialogOpen ||
+        _pendingSessionsListOpen ||
+        _pendingSessionQueue.isEmpty) {
+      return;
+    }
+
+    final session = _pendingSessionQueue.removeAt(0);
+    final processed = await _presentSessionReport(session);
+    if (!processed) {
+      _pendingSessionQueue.clear();
+      return;
+    }
+    if (mounted && _pendingSessionQueue.isNotEmpty) {
+      unawaited(_showNextPendingSessionReport());
+    }
+  }
+
+  Future<bool> _presentSessionReport(
+      Map<String, dynamic> session) async {
+    if (!mounted || _pendingSessionDialogOpen) {
+      return false;
+    }
+    _pendingSessionDialogOpen = true;
+    try {
+      return await _showSessionReportDialog(context, session);
+    } finally {
+      _pendingSessionDialogOpen = false;
+    }
+  }
+
   void _showPendingSessionsDialog(BuildContext context) {
-    _runExantasAction(() async {
+    unawaited(_openPendingSessionsDialog(context));
+  }
+
+  Future<void> _openPendingSessionsDialog(BuildContext ownerContext) async {
+    if (_pendingSessionsListOpen || _pendingSessionDialogOpen) {
+      return;
+    }
+    _pendingSessionsListOpen = true;
+    Map<String, dynamic>? selectedSession;
+    try {
       final sessions = await _exantasCompanion.pendingSessions();
       if (!mounted) {
         return;
       }
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Pending session notes'),
+      _knownPendingSessionIds.addAll(sessions.map(_sessionId));
+      selectedSession = await showDialog<Map<String, dynamic>>(
+        context: ownerContext,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Εκκρεμείς αναφορές υποστήριξης'),
           content: SizedBox(
-            width: 520,
+            width: 560,
             child: sessions.isEmpty
-                ? const Text('No pending sessions.')
-                : SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: sessions
-                          .map((session) => _buildPendingSessionTile(session))
-                          .toList(),
+                ? const Text('Δεν υπάρχουν εκκρεμείς αναφορές.')
+                : ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 440),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: sessions.length,
+                      separatorBuilder: (_, __) => const Divider(),
+                      itemBuilder: (_, index) {
+                        final session = sessions[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(_sessionCustomer(session)),
+                          subtitle: Text(
+                            '${_sessionDevice(session)}\n'
+                            '${_formatSessionDate(session['ended_at'])} · '
+                            '${_formatSessionDuration(session)}',
+                          ),
+                          isThreeLine: true,
+                          trailing: OutlinedButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(session),
+                            child: const Text('Καταγραφή'),
+                          ),
+                        );
+                      },
                     ),
                   ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(translate('Close')),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Κλείσιμο'),
             ),
           ],
         ),
       );
-    });
+    } catch (e) {
+      if (mounted) {
+        showToast(e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      _pendingSessionsListOpen = false;
+    }
+
+    if (mounted && selectedSession != null) {
+      await _presentSessionReport(selectedSession);
+    }
   }
 
-  Widget _buildPendingSessionTile(Map<String, dynamic> session) {
-    final controller = TextEditingController();
-    final customer = '${session['customer_name'] ?? '-'}';
-    final peer = '${session['peer_name'] ?? session['peer_id'] ?? '-'}';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$customer - $peer',
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          TextField(
-            controller: controller,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(labelText: 'Work note'),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () async {
-                final note = controller.text.trim();
-                if (note.isEmpty) {
-                  showToast('Note is required.');
+  Future<bool> _showSessionReportDialog(
+    BuildContext ownerContext,
+    Map<String, dynamic> session,
+  ) async {
+    final sessionId = _sessionId(session);
+    if (sessionId.isEmpty) {
+      showToast('Η συνεδρία δεν έχει έγκυρο αναγνωριστικό.');
+      return false;
+    }
+
+    final noteController = TextEditingController();
+    var outcome = ExantasSessionOutcome.completed;
+    var submitting = false;
+    String? errorMessage;
+    final idempotencyKey =
+        'companion-$sessionId-${DateTime.now().microsecondsSinceEpoch}';
+
+    final processed = await showDialog<bool>(
+          context: ownerContext,
+          barrierDismissible: false,
+          builder: (dialogContext) => StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              Future<void> submit() async {
+                final note = noteController.text.trim();
+                if (outcome != ExantasSessionOutcome.noRecord &&
+                    note.isEmpty) {
+                  setDialogState(() {
+                    errorMessage = 'Το σχόλιο υποστήριξης είναι υποχρεωτικό.';
+                  });
                   return;
                 }
-                await _runExantasAction(() => _exantasCompanion
-                    .submitSessionComment('${session['id']}', note));
-              },
-              child: const Text('Submit'),
+
+                if (outcome == ExantasSessionOutcome.completed) {
+                  final confirmed = await showDialog<bool>(
+                        context: dialogContext,
+                        barrierDismissible: false,
+                        builder: (confirmationContext) => AlertDialog(
+                          title: const Text('Ολοκλήρωση και αποστολή αναφοράς'),
+                          content: Text(
+                            'Θα κλείσει η ανοικτή υπόθεση του πελάτη '
+                            '«${_sessionCustomer(session)}» και θα σταλεί η '
+                            'αναφορά στο αποθηκευμένο email του. Θέλεις να '
+                            'συνεχίσεις;',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.of(confirmationContext).pop(false),
+                              child: const Text('Ακύρωση'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () =>
+                                  Navigator.of(confirmationContext).pop(true),
+                              child: const Text('Επιβεβαίωση και αποστολή'),
+                            ),
+                          ],
+                        ),
+                      ) ??
+                      false;
+                  if (!confirmed) {
+                    return;
+                  }
+                }
+
+                setDialogState(() {
+                  submitting = true;
+                  errorMessage = null;
+                });
+                try {
+                  await _exantasCompanion.submitSessionReport(
+                    sessionId,
+                    outcome,
+                    note,
+                    idempotencyKey: idempotencyKey,
+                  );
+                  if (!mounted) {
+                    return;
+                  }
+                  Navigator.of(dialogContext).pop(true);
+                  showToast(_sessionReportSuccessMessage(outcome));
+                } catch (e) {
+                  if (!mounted) {
+                    return;
+                  }
+                  setDialogState(() {
+                    submitting = false;
+                    errorMessage =
+                        e.toString().replaceFirst('Exception: ', '');
+                  });
+                }
+              }
+
+              return AlertDialog(
+                title: const Text('Καταγραφή υποστήριξης'),
+                content: SizedBox(
+                  width: 560,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Η απομακρυσμένη σύνδεση ολοκληρώθηκε. Κατάγραψε '
+                          'το αποτέλεσμα χωρίς να ανοίξεις το Office.',
+                        ),
+                        const SizedBox(height: 16),
+                        _buildSessionReportDetail(
+                            'Πελάτης', _sessionCustomer(session)),
+                        _buildSessionReportDetail(
+                            'Υπολογιστής', _sessionDevice(session)),
+                        _buildSessionReportDetail(
+                            'RustDesk ID', _stringValue(session['peer_id'])),
+                        _buildSessionReportDetail(
+                          'Συνεδρία',
+                          '${_formatSessionDate(session['ended_at'])} · '
+                              '${_formatSessionDuration(session)}',
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<ExantasSessionOutcome>(
+                          value: outcome,
+                          decoration:
+                              const InputDecoration(labelText: 'Αποτέλεσμα'),
+                          items: ExantasSessionOutcome.values
+                              .map(
+                                (value) => DropdownMenuItem(
+                                  value: value,
+                                  child: Text(_sessionOutcomeLabel(value)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: submitting
+                              ? null
+                              : (value) {
+                                  if (value == null) {
+                                    return;
+                                  }
+                                  setDialogState(() {
+                                    outcome = value;
+                                    errorMessage = null;
+                                  });
+                                },
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: noteController,
+                          enabled: !submitting &&
+                              outcome != ExantasSessionOutcome.noRecord,
+                          minLines: 3,
+                          maxLines: 6,
+                          maxLength: 2000,
+                          decoration: InputDecoration(
+                            labelText: 'Σχόλιο υποστήριξης',
+                            hintText: outcome ==
+                                    ExantasSessionOutcome.noRecord
+                                ? 'Δεν απαιτείται σχόλιο.'
+                                : 'Γράψε τι πραγματοποιήθηκε.',
+                          ),
+                        ),
+                        Text(
+                          _sessionOutcomeHelp(outcome),
+                          style: Theme.of(dialogContext).textTheme.bodySmall,
+                        ),
+                        if (errorMessage != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            errorMessage!,
+                            style: TextStyle(
+                              color: Theme.of(dialogContext).colorScheme.error,
+                            ),
+                          ),
+                        ],
+                        if (submitting) ...[
+                          const SizedBox(height: 12),
+                          const LinearProgressIndicator(),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: submitting
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Αργότερα'),
+                  ),
+                  ElevatedButton(
+                    onPressed: submitting ? null : submit,
+                    child: Text(_sessionSubmitLabel(outcome)),
+                  ),
+                ],
+              );
+            },
+          ),
+        ) ??
+        false;
+    noteController.dispose();
+    return processed;
+  }
+
+  Widget _buildSessionReportDetail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 105,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
+          Expanded(child: SelectableText(value.isEmpty ? '-' : value)),
         ],
       ),
     );
+  }
+
+  String _sessionId(Map<String, dynamic> session) =>
+      _stringValue(session['id']);
+
+  String _sessionCustomer(Map<String, dynamic> session) {
+    final value = _stringValue(session['customer_name']);
+    return value.isEmpty ? 'Άγνωστος πελάτης' : value;
+  }
+
+  String _sessionDevice(Map<String, dynamic> session) {
+    for (final value in [
+      session['customer_device_label'],
+      session['peer_name'],
+      session['peer_id'],
+    ]) {
+      final text = _stringValue(value);
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+    return 'Άγνωστος υπολογιστής';
+  }
+
+  String _formatSessionDate(dynamic value) {
+    final date = DateTime.tryParse(_stringValue(value));
+    if (date == null) {
+      return 'Άγνωστη ημερομηνία';
+    }
+    final local = date.toLocal();
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+    return '${twoDigits(local.day)}/${twoDigits(local.month)}/${local.year} '
+        '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
+  }
+
+  String _formatSessionDuration(Map<String, dynamic> session) {
+    final seconds = int.tryParse('${session['duration_seconds'] ?? 0}') ?? 0;
+    final minutes = (seconds / 60).ceil();
+    return '$minutes ${minutes == 1 ? 'λεπτό' : 'λεπτά'}';
+  }
+
+  String _stringValue(dynamic value) => '${value ?? ''}'.trim();
+
+  String _sessionOutcomeLabel(ExantasSessionOutcome outcome) {
+    switch (outcome) {
+      case ExantasSessionOutcome.completed:
+        return 'Ολοκληρώθηκε';
+      case ExantasSessionOutcome.followUp:
+        return 'Χρειάζεται συνέχεια';
+      case ExantasSessionOutcome.noRecord:
+        return 'Χωρίς καταγραφή';
+    }
+  }
+
+  String _sessionOutcomeHelp(ExantasSessionOutcome outcome) {
+    switch (outcome) {
+      case ExantasSessionOutcome.completed:
+        return 'Κλείνει την ανοικτή υπόθεση και στέλνει την αναφορά μετά '
+            'από επιβεβαίωση.';
+      case ExantasSessionOutcome.followUp:
+        return 'Προσθέτει εργασία στην ανοικτή υπόθεση χωρίς αποστολή email.';
+      case ExantasSessionOutcome.noRecord:
+        return 'Σημειώνει τη συνεδρία ως μη καταχωρισμένη και την αφαιρεί '
+            'από τις εκκρεμότητες.';
+    }
+  }
+
+  String _sessionSubmitLabel(ExantasSessionOutcome outcome) {
+    switch (outcome) {
+      case ExantasSessionOutcome.completed:
+        return 'Ολοκλήρωση και αποστολή';
+      case ExantasSessionOutcome.followUp:
+        return 'Αποθήκευση για συνέχεια';
+      case ExantasSessionOutcome.noRecord:
+        return 'Χωρίς καταγραφή';
+    }
+  }
+
+  String _sessionReportSuccessMessage(ExantasSessionOutcome outcome) {
+    switch (outcome) {
+      case ExantasSessionOutcome.completed:
+        return 'Η αναφορά καταχωρίστηκε και η αποστολή email ξεκίνησε.';
+      case ExantasSessionOutcome.followUp:
+        return 'Η εργασία προστέθηκε στην ανοικτή υπόθεση.';
+      case ExantasSessionOutcome.noRecord:
+        return 'Η συνεδρία αφαιρέθηκε από τις εκκρεμείς αναφορές.';
+    }
   }
 
   buildTip(BuildContext context) {
@@ -1006,7 +1446,21 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         periodic_immediate(const Duration(seconds: 60), () async {
       await _exantasCompanion.heartbeat();
       await _refreshExantasStatus();
+      await _pollExantasPendingSessions();
     });
+    _exantasTabRemovedHandler = (index, key) {
+      _previousTabRemoved?.call(index, key);
+      if (key != kTabLabelSettingPage) {
+        _schedulePendingSessionPolls();
+      }
+    };
+    try {
+      _mainTabController = Get.find<DesktopTabController>();
+      _previousTabRemoved = _mainTabController?.onRemoved;
+      _mainTabController?.onRemoved = _exantasTabRemovedHandler;
+    } catch (e) {
+      debugPrint('Office session close listener setup failed: $e');
+    }
     rustDeskWinManager.registerActiveWindowListener(onActiveWindowChanged);
 
     screenToMap(window_size.Screen screen) => {
@@ -1140,6 +1594,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
     _exantasHeartbeatTimer?.cancel();
+    _exantasPendingSessionsTimer?.cancel();
+    if (identical(
+        _mainTabController?.onRemoved, _exantasTabRemovedHandler)) {
+      _mainTabController?.onRemoved = _previousTabRemoved;
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

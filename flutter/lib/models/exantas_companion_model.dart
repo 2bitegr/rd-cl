@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/models/exantas_secure_store.dart';
+import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/utils/http_service.dart' as http;
@@ -233,18 +234,24 @@ class ExantasCompanionService {
     return [];
   }
 
-  Future<void> submitSessionComment(String sessionId, String comment) async {
+  Future<Map<String, dynamic>> submitSessionReport(
+    String sessionId,
+    ExantasSessionOutcome outcome,
+    String note, {
+    required String idempotencyKey,
+  }) async {
     final status = await loadStatus();
     if (!status.technicianLoggedIn) {
-      throw Exception('Technician login is required.');
+      throw Exception('Office login is required.');
     }
-    await _post(
-        '/rustdesk-companion/sessions/$sessionId/comment',
-        {
-          'comment': comment,
-          'idempotency_key': 'flutter-${DateTime.now().microsecondsSinceEpoch}',
-        },
-        bearerToken: status.companionToken);
+    return _post(
+      '/rustdesk-companion/sessions/$sessionId/comment',
+      {
+        'comment': buildExantasSessionReportCommand(outcome, note),
+        'idempotency_key': idempotencyKey,
+      },
+      bearerToken: status.companionToken,
+    );
   }
 
   Future<Map<String, dynamic>> _get(String path, {String? bearerToken}) async {
