@@ -44,6 +44,7 @@ import '../common.dart';
 import '../utils/image.dart' as img;
 import '../common/widgets/dialog.dart';
 import 'input_model.dart';
+import 'exantas_session_report.dart';
 import 'platform_model.dart';
 import 'package:flutter_hbb/utils/scale.dart';
 
@@ -1335,7 +1336,9 @@ class FfiModel with ChangeNotifier {
       try {
         final connectionId = bind.sessionGetConnSessionId(sessionId: sessionId).toString();
         await rustDeskWinManager.call(WindowType.Main, 'officeSessionStarted', {
-          'local_session': '$peerId:$connectionId',
+          // The native connection id can still be 0 while peer_info is handled.
+          // The Flutter session id remains stable, including when a tab moves.
+          'local_session': buildExantasLocalSessionKey(peerId, sessionId),
           'rustdesk_session_id': connectionId,
           'peer_id': peerId,
           'peer_name': evt['hostname'] ?? peerId,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../models/exantas_companion_model.dart';
 import '../../models/exantas_report_outbox.dart';
 
 class ExantasSessionsPage extends StatefulWidget {
@@ -10,10 +11,13 @@ class ExantasSessionsPage extends StatefulWidget {
 
 class _ExantasSessionsPageState extends State<ExantasSessionsPage> {
   final _outbox = ExantasReportOutbox.instance;
+  final _companion = ExantasCompanionService();
   List<Map<String, dynamic>> _rows = [];
   Timer? _timer;
   bool _busy = false;
   String? _error;
+  bool _loggedIn = false;
+  bool _hasStableOfficeUser = false;
 
   @override
   void initState() {
@@ -27,8 +31,14 @@ class _ExantasSessionsPageState extends State<ExantasSessionsPage> {
     setState(() => _busy = true);
     try {
       if (sync) await _outbox.sync();
+      final status = await _companion.loadStatus();
       final rows = await _outbox.rows();
-      if (mounted) setState(() { _rows = rows; _error = _outbox.syncError; });
+      if (mounted) setState(() {
+        _rows = rows;
+        _error = _outbox.syncError;
+        _loggedIn = status.technicianLoggedIn;
+        _hasStableOfficeUser = status.officeUserId.isNotEmpty;
+      });
     } catch (_) {
       if (mounted) setState(() => _error = 'Δεν ήταν δυνατή η ανάγνωση των τοπικών αναφορών.');
     } finally {
@@ -58,6 +68,11 @@ class _ExantasSessionsPageState extends State<ExantasSessionsPage> {
       const SizedBox(height: 12),
       const Text('Συνεδρίες που καταγράφηκαν από αυτό το Companion για τον συνδεδεμένο τεχνικό.'),
       const SizedBox(height: 12),
+      if (!_loggedIn)
+        const Text('Συνδέσου πρώτα στο Exantas Office από την αρχική οθόνη του Companion.'),
+      if (_loggedIn && !_hasStableOfficeUser)
+        const Text('Απαιτείται Logout και νέα είσοδος στο Exantas Office για να ενεργοποιηθεί το τοπικό ιστορικό.'),
+      if (!_loggedIn || !_hasStableOfficeUser) const SizedBox(height: 12),
       ElevatedButton(onPressed: _busy ? null : () => _refresh(sync: true),
         child: const Text('Ανανέωση και συγχρονισμός')),
       if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),

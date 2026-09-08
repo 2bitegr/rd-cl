@@ -15,6 +15,7 @@ import '../../common.dart';
 import '../../common/widgets/dialog.dart';
 import '../../common/widgets/toolbar.dart';
 import '../../models/model.dart';
+import '../../models/exantas_session_report.dart';
 import '../../models/input_model.dart';
 import '../../models/platform_model.dart';
 import '../../common/shared_state.dart';
@@ -358,7 +359,8 @@ class _RemotePageState extends State<RemotePage>
     final officeConnectionId = closesOfficeConnection
         ? bind.sessionGetConnSessionId(sessionId: sessionId).toString()
         : '';
-    final officeLocalSession = '${_ffi.id}:$officeConnectionId';
+    final officeLocalSession =
+        buildExantasLocalSessionKey(_ffi.id, sessionId);
 
     // https://github.com/flutter/flutter/issues/64935
     super.dispose();
@@ -392,6 +394,7 @@ class _RemotePageState extends State<RemotePage>
       try {
         await rustDeskWinManager.call(WindowType.Main, 'officeSessionEnded', {
           'local_session': officeLocalSession,
+          'rustdesk_session_id': officeConnectionId,
           'ended_at': DateTime.now().toUtc().toIso8601String(),
         });
       } catch (_) {

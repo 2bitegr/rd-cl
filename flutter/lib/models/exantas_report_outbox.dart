@@ -101,6 +101,11 @@ class ExantasReportOutbox {
       return Map<String, dynamic>.from(matches.single);
     }
     final row = Map<String, dynamic>.from(matches.single);
+    final finalConnectionId = resolveExantasRustDeskSessionId(
+        row['rustdesk_session_id'], event['rustdesk_session_id']);
+    if (finalConnectionId.isNotEmpty) {
+      row['rustdesk_session_id'] = finalConnectionId;
+    }
     row['ended_at'] = event['ended_at'];
     row['duration_seconds'] = DateTime.parse(row['ended_at']).difference(
         DateTime.parse(row['started_at'])).inSeconds;

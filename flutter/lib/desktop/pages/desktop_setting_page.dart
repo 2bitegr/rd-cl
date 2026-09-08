@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
-import 'package:flutter_hbb/models/exantas_companion_model.dart';
 import 'exantas_sessions_page.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_home_page.dart';
@@ -67,8 +66,9 @@ enum SettingsTabKey {
 class DesktopSettingPage extends StatefulWidget {
   final SettingsTabKey initialTabkey;
   static List<SettingsTabKey> get tabKeys => [
-    if (bind.mainGetLocalOption(key: kExantasCompanionToken).isNotEmpty)
-      SettingsTabKey.supportSessions,
+    // Keep the page set stable for the lifetime of the retained Settings tab.
+    // Login state can change while this widget and its PageController survive.
+    SettingsTabKey.supportSessions,
     SettingsTabKey.general,
     if (!isWeb &&
         !bind.isOutgoingOnly() &&

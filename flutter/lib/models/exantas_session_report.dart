@@ -6,6 +6,22 @@ enum ExantasSessionOutcome {
 
 bool canPromptExantasReport(dynamic state) => state == 'active' || state == 'draft';
 
+String buildExantasLocalSessionKey(String peerId, Object flutterSessionId) {
+  final peer = peerId.trim();
+  final session = flutterSessionId.toString().trim();
+  if (peer.isEmpty || session.isEmpty) {
+    throw ArgumentError('Peer and Flutter session identifiers are required.');
+  }
+  return '$peer:$session';
+}
+
+String resolveExantasRustDeskSessionId(dynamic started, dynamic ended) {
+  final finalId = ended?.toString().trim() ?? '';
+  return finalId.isNotEmpty && finalId != '0'
+      ? finalId
+      : started?.toString().trim() ?? '';
+}
+
 bool matchesExantasSession(Map<String, dynamic> local, Map<String, dynamic> remote) {
   final id = local['rustdesk_session_id']?.toString() ?? '';
   return id.isNotEmpty && id != '0' &&

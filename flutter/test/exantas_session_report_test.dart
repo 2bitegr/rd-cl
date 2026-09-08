@@ -2,6 +2,14 @@ import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('local lifecycle key does not depend on the delayed native session id', () {
+    const flutterSession = '25ff0f78-6f95-4be5-99fd-7c3a006d05ea';
+    expect(buildExantasLocalSessionKey('86355592', flutterSession),
+        '86355592:$flutterSession');
+    expect(resolveExantasRustDeskSessionId('0', '18446744073709551615'),
+        '18446744073709551615');
+    expect(resolveExantasRustDeskSessionId('123', '0'), '123');
+  });
   test('close prompts an already discovered disconnect but never a saved report', () {
     expect(canPromptExantasReport('active'), isTrue);
     expect(canPromptExantasReport('draft'), isTrue);
