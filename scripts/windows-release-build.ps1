@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "1.4.9",
+  [string]$Version = "1.4.10",
   [string]$RepoUrl = "https://github.com/2bitegr/rd-cl.git",
   [string]$Branch = "main",
   [string]$ToolsRoot = "C:\Tools",

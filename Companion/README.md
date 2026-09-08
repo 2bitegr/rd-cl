@@ -24,8 +24,11 @@ permissions and do not receive production secrets. Artifacts expire after three 
 This intentionally scoped copy leaves the existing multi-platform release pipeline
 unchanged; compare its toolchain/dependency steps with that pipeline before reuse.
 
-Download the `exantas-support-1.4.9-office-test-windows-x64-<run>` artifact
+Download the `exantas-support-1.4.10-office-test-windows-x64-<run>` artifact
 from the successful run. Extract the whole archive, not just `rustdesk.exe`.
+Every downloadable Companion change increments both the product version and
+the Flutter build number. The acceptance workflow rejects mismatched version
+sources before building the package.
 `OFFICE-ACCEPTANCE.txt` identifies the source commit/run and `SHA256SUMS.txt`
 identifies the executable. This is an unsigned test build, not a new production
 release. Do not overwrite an existing installation. The default Office API is

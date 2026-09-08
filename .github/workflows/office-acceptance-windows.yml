@@ -16,7 +16,7 @@ env:
   FLUTTER_VERSION: 3.24.5
   VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
   VCPKG_COMMIT_ID: 120deac3062162151622ca4860575a33844ba10b
-  VERSION: 1.4.9
+  VERSION: 1.4.10
 jobs:
   bridge:
     runs-on: ${{ matrix.job.os }}
@@ -35,6 +35,15 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+      - name: Validate Companion version
+        shell: pwsh
+        run: |
+          $cargoVersion = (Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"$').Matches[0].Groups[1].Value
+          $flutterVersion = ((Select-String -Path flutter/pubspec.yaml -Pattern '^version: ([^+]+)\+').Matches[0].Groups[1].Value)
+          $portableVersion = (Select-String -Path libs/portable/Cargo.toml -Pattern '^version = "([^"]+)"$').Matches[0].Groups[1].Value
+          if ($cargoVersion -ne $env:VERSION -or $flutterVersion -ne $env:VERSION -or $portableVersion -ne $env:VERSION) {
+            throw "Companion version mismatch: workflow=$env:VERSION cargo=$cargoVersion flutter=$flutterVersion portable=$portableVersion"
+          }
       - name: Install prerequisites
         run: |
           sudo apt-get install ca-certificates -y
@@ -283,7 +292,7 @@ jobs:
         run: |
           if (!(Test-Path ./rustdesk/rustdesk.exe)) { throw "Missing Windows executable" }
           @(
-            "Exantas Support 1.4.9 - Office acceptance build"
+            "Exantas Support $env:VERSION - Office acceptance build"
             "Source commit: $env:GITHUB_SHA"
             "Run: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
             "Unsigned test package. Not a production release."
@@ -296,7 +305,7 @@ jobs:
       - name: Upload unsigned
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: exantas-support-1.4.9-office-test-windows-x64-${{ github.run_number }}
+          name: exantas-support-${{ env.VERSION }}-office-test-windows-x64-${{ github.run_number }}
           path: rustdesk
           if-no-files-found: error
           retention-days: 3
