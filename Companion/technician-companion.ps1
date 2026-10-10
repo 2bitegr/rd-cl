@@ -17,11 +17,12 @@ if ([string]::IsNullOrWhiteSpace($ApiBaseUrl)) {
 $ApiBaseUrl = $ApiBaseUrl.TrimEnd('/')
 $PollSeconds = [Math]::Max(2, $PollSeconds)
 
-$CompanionVersion = '2026.07.07.13'
+$CompanionVersion = '2026.10.10.01'
 $AppDir = Join-Path $env:APPDATA 'Exantas\RustDeskCompanion'
 $ConfigPath = Join-Path $AppDir 'config.json'
 $LogPath = Join-Path $AppDir 'companion.log'
 $QueuePath = Join-Path $AppDir 'pending-comments.json'
+$WorkflowSuppressionPath = Join-Path $AppDir 'workflow-v2-suppression.dpapi'
 $WebSocketSignalPath = Join-Path $AppDir 'ws-signal.txt'
 $StartupShortcutName = 'Exantas RustDesk Companion.lnk'
 $StartupShortcutPath = Join-Path ([Environment]::GetFolderPath('Startup')) $StartupShortcutName
@@ -170,6 +171,8 @@ function Add-OfflineComment {
     session_id = [string]$Session.id
     customer_name = [string]$Session.customer_name
     peer_id = [string]$Session.peer_id
+    from_peer = [string]$script:CompanionConfig.RustDeskPeerId
+    rustdesk_session_id = Get-DecisionValue -Decision $Session -Name 'rustdesk_session_id'
     idempotency_key = $IdempotencyKey
     protected_comment = Protect-Text $Comment
     attempts = 0
@@ -183,6 +186,269 @@ function Add-OfflineComment {
 function Should-QueueSubmissionFailure {
   param([string]$Message)
   return !($Message -match 'validation_error|missing_recipient|access_denied|not_found|Pending session not found|Invalid companion session')
+}
+
+function Test-OfficeWorkflowV2 {
+  param([string]$Token)
+  $requestApiBase = Get-CanonicalOfficeApiBaseUrl $script:ApiBaseUrl
+  $requestPeerId = [string]$script:CompanionConfig.RustDeskPeerId
+  $capabilities = Invoke-OfficeApi -Method 'GET' -Path '/rustdesk-companion/workflow-capabilities' -Token $Token -NotFoundIsNull
+  # A transport-level 404 is the explicit compatibility signal from an older API.
+  if ($null -eq $capabilities) { return $false }
+  if ($capabilities.status -ne 'ok' -or $capabilities.enabled -isnot [bool] -or
+      $capabilities.contract_versions -isnot [System.Array]) {
+    throw 'Invalid Office workflow capabilities response.'
+  }
+  $supportsV2 = $capabilities.enabled -and (@($capabilities.contract_versions) -contains 2)
+  if ($supportsV2) {
+    $scopeChanged = Set-V2WorkflowSuppressionScopeFromCapabilities -Capabilities $capabilities `
+      -ExpectedApiBaseUrl $requestApiBase -ExpectedToken $Token -ExpectedPeerId $requestPeerId
+    if ($scopeChanged) {
+      Save-CompanionConfig -Token $script:CompanionConfig.CompanionToken `
+        -RustDeskPeerId $script:CompanionConfig.RustDeskPeerId `
+        -OfficeUserId $script:CompanionConfig.OfficeUserId -PairingId $script:CompanionConfig.PairingId `
+        -TechnicianName $script:CompanionConfig.TechnicianName `
+        -TechnicianEmail $script:CompanionConfig.TechnicianEmail
+    }
+  }
+  return $supportsV2
+}
+
+function Get-OfficeWorkContext {
+  param(
+    [object]$Session,
+    [string]$Token
+  )
+  $body = @{
+    peer_id = [string]$Session.peer_id
+    from_peer = [string]$script:CompanionConfig.RustDeskPeerId
+  }
+  $rustDeskSessionId = Get-DecisionValue -Decision $Session -Name 'rustdesk_session_id'
+  if (![string]::IsNullOrWhiteSpace($rustDeskSessionId) -and $rustDeskSessionId -ne '0') {
+    $body.rustdesk_session_id = $rustDeskSessionId
+  }
+  $context = Invoke-OfficeApi -Method 'POST' -Path '/rustdesk-companion/work-context' -Token $Token -Body $body
+  $validClassifications = @('excluded', 'unassigned', 'bound', 'pending_identity')
+  if ($context.status -ne 'ok' -or $context.contract_version -ne 2 -or
+      $context.suppress_legacy -ne $true -or
+      $validClassifications -notcontains [string]$context.classification) {
+    throw 'Invalid Office work context response.'
+  }
+  if ($context.classification -eq 'bound' -and
+      ([string]::IsNullOrWhiteSpace([string]$context.work_item_id) -or
+       [string]::IsNullOrWhiteSpace([string]$context.work_revision) -or
+       [string]::IsNullOrWhiteSpace([string]$context.remote_session_id))) {
+    throw 'Incomplete bound Office work context response.'
+  }
+  return $context
+}
+
+function Read-V2WorkflowSuppressions {
+  if (!(Test-Path -LiteralPath $WorkflowSuppressionPath)) {
+    return @()
+  }
+  try {
+    $protected = (Get-Content -LiteralPath $WorkflowSuppressionPath -Raw).Trim()
+    $json = Unprotect-Text $protected
+    if ([string]::IsNullOrWhiteSpace($json)) { return @() }
+    return @($json | ConvertFrom-Json)
+  } catch {
+    Write-CompanionLog 'Workflow suppression markers could not be read; this poll is stopped to prevent a legacy fallback.'
+    throw 'Workflow suppression markers are unavailable.'
+  }
+}
+
+function Get-CanonicalOfficeApiBaseUrl {
+  param([string]$Url)
+  if ([string]::IsNullOrWhiteSpace($Url)) { return '' }
+  $parsed = $null
+  if (![Uri]::TryCreate($Url.Trim(), [UriKind]::Absolute, [ref]$parsed) -or
+      $parsed.Scheme -notin @('http', 'https') -or
+      ![string]::IsNullOrEmpty($parsed.UserInfo) -or
+      ![string]::IsNullOrEmpty($parsed.Query) -or
+      ![string]::IsNullOrEmpty($parsed.Fragment)) {
+    return ''
+  }
+  $builder = New-Object System.UriBuilder($parsed)
+  $builder.Scheme = $parsed.Scheme.ToLowerInvariant()
+  $builder.Host = $parsed.Host.ToLowerInvariant()
+  $builder.Path = $parsed.AbsolutePath.TrimEnd('/')
+  return $builder.Uri.AbsoluteUri.TrimEnd('/')
+}
+
+function Get-V2WorkflowSuppressionScope {
+  $config = $script:CompanionConfig
+  if ($null -eq $config) { return $null }
+  $apiBase = Get-CanonicalOfficeApiBaseUrl ([string](Get-DecisionValue -Decision $config -Name 'ApiBaseUrl'))
+  $officeUserId = [string](Get-DecisionValue -Decision $config -Name 'OfficeUserId')
+  $pairingId = [string](Get-DecisionValue -Decision $config -Name 'PairingId')
+  $fromPeer = [string](Get-DecisionValue -Decision $config -Name 'RustDeskPeerId')
+  $parsedOfficeUserId = [Guid]::Empty
+  $parsedPairingId = [Guid]::Empty
+  if ([string]::IsNullOrWhiteSpace($apiBase) -or
+      [string]::IsNullOrWhiteSpace($officeUserId) -or
+      [string]::IsNullOrWhiteSpace($pairingId) -or
+      ![Guid]::TryParse($officeUserId, [ref]$parsedOfficeUserId) -or
+      ![Guid]::TryParse($pairingId, [ref]$parsedPairingId) -or
+      [string]::IsNullOrWhiteSpace($fromPeer)) {
+    return $null
+  }
+  return [pscustomobject]@{
+    api_base_url = $apiBase
+    office_user_id = $parsedOfficeUserId.ToString('D')
+    pairing_id = $parsedPairingId.ToString('D')
+    from_peer = $fromPeer
+  }
+}
+
+function Set-V2WorkflowSuppressionScopeFromCapabilities {
+  param(
+    [object]$Capabilities,
+    [string]$ExpectedApiBaseUrl,
+    [string]$ExpectedToken,
+    [string]$ExpectedPeerId
+  )
+  $apiBase = Get-CanonicalOfficeApiBaseUrl $ExpectedApiBaseUrl
+  $officeUserId = [string](Get-DecisionValue -Decision $Capabilities -Name 'office_user_id')
+  $pairingId = [string](Get-DecisionValue -Decision $Capabilities -Name 'pairing_id')
+  $currentApiBase = Get-CanonicalOfficeApiBaseUrl $script:ApiBaseUrl
+  $configuredApiBase = Get-CanonicalOfficeApiBaseUrl ([string](Get-DecisionValue -Decision $script:CompanionConfig -Name 'ApiBaseUrl'))
+  $currentToken = [string](Get-DecisionValue -Decision $script:CompanionConfig -Name 'CompanionToken')
+  $currentPeerId = [string](Get-DecisionValue -Decision $script:CompanionConfig -Name 'RustDeskPeerId')
+  if ([string]::IsNullOrWhiteSpace($apiBase) -or $apiBase -cne $currentApiBase -or
+      $apiBase -cne $configuredApiBase -or $ExpectedToken -cne $currentToken -or
+      $ExpectedPeerId -cne $currentPeerId) {
+    throw 'The Office API, token, or paired peer changed during workflow scope verification.'
+  }
+  $parsedOfficeUserId = [Guid]::Empty
+  $parsedPairingId = [Guid]::Empty
+  if (![Guid]::TryParse($officeUserId, [ref]$parsedOfficeUserId) -or
+      ![Guid]::TryParse($pairingId, [ref]$parsedPairingId)) {
+    throw 'Office workflow capabilities omitted valid stable account/pairing IDs; pair again or contact Office support.'
+  }
+  $officeUserId = $parsedOfficeUserId.ToString('D')
+  $pairingId = $parsedPairingId.ToString('D')
+  $existingOfficeUserId = [string](Get-DecisionValue -Decision $script:CompanionConfig -Name 'OfficeUserId')
+  $existingPairingId = [string](Get-DecisionValue -Decision $script:CompanionConfig -Name 'PairingId')
+  if (![string]::IsNullOrWhiteSpace($existingOfficeUserId) -and $existingOfficeUserId -cne $officeUserId) {
+    throw 'The authenticated Office principal differs from the saved workflow scope.'
+  }
+  if (![string]::IsNullOrWhiteSpace($existingPairingId) -and $existingPairingId -cne $pairingId) {
+    throw 'The authenticated pairing differs from the saved workflow scope.'
+  }
+  $changed = [string]::IsNullOrWhiteSpace($existingOfficeUserId) -or
+    [string]::IsNullOrWhiteSpace($existingPairingId)
+  $script:CompanionConfig.ApiBaseUrl = $apiBase
+  $script:CompanionConfig.OfficeUserId = $officeUserId
+  $script:CompanionConfig.PairingId = $pairingId
+  $script:ApiBaseUrl = $apiBase
+  return $changed
+}
+
+function Test-V2WorkflowMarkerScope {
+  param(
+    [object]$Marker,
+    [object]$Scope
+  )
+  if ($null -eq $Scope) { return $false }
+  if ([string](Get-DecisionValue -Decision $Marker -Name 'workflow_contract_version') -ne '2' -or
+      [string](Get-DecisionValue -Decision $Marker -Name 'workflow_classification') -notin @('bound', 'excluded', 'unassigned', 'pending_identity')) {
+    return $false
+  }
+  return (Get-CanonicalOfficeApiBaseUrl ([string](Get-DecisionValue -Decision $Marker -Name 'api_base_url'))) -ceq $Scope.api_base_url -and
+    [string](Get-DecisionValue -Decision $Marker -Name 'office_user_id') -ceq $Scope.office_user_id -and
+    [string](Get-DecisionValue -Decision $Marker -Name 'pairing_id') -ceq $Scope.pairing_id -and
+    [string](Get-DecisionValue -Decision $Marker -Name 'from_peer') -ceq $Scope.from_peer
+}
+
+function Save-V2WorkflowSuppressions {
+  param([object[]]$Markers)
+  $json = @($Markers) | ConvertTo-Json -Depth 5
+  $protected = Protect-Text $json
+  $temporaryPath = "$WorkflowSuppressionPath.tmp"
+  Set-Content -LiteralPath $temporaryPath -Value $protected -Encoding UTF8
+  Move-Item -LiteralPath $temporaryPath -Destination $WorkflowSuppressionPath -Force
+}
+
+function Add-V2WorkflowSuppression {
+  param(
+    [object]$Session,
+    [object]$Context
+  )
+  if ($Context.classification -notin @('bound', 'excluded', 'unassigned', 'pending_identity') -or
+      $Context.suppress_legacy -ne $true) {
+    return
+  }
+  $sessionId = [string]$Session.id
+  $peerId = [string]$Session.peer_id
+  $rustDeskSessionId = Get-DecisionValue -Decision $Session -Name 'rustdesk_session_id'
+  $scope = Get-V2WorkflowSuppressionScope
+  if ($null -eq $scope) {
+    throw 'The current Office account/pairing scope is unavailable; workflow suppression was not stored.'
+  }
+  if ([string]::IsNullOrWhiteSpace($sessionId) -and
+      [string]::IsNullOrWhiteSpace([string]$rustDeskSessionId)) {
+    return
+  }
+  $markers = New-Object System.Collections.Generic.List[object]
+  foreach ($marker in @(Read-V2WorkflowSuppressions)) {
+    $markers.Add($marker)
+  }
+  $alreadyStored = @($markers | Where-Object {
+    (Test-V2WorkflowMarkerScope -Marker $_ -Scope $scope) -and (
+    ([string](Get-DecisionValue -Decision $_ -Name 'session_id') -eq $sessionId -and
+     [string](Get-DecisionValue -Decision $_ -Name 'peer_id') -eq $peerId) -or
+    (![string]::IsNullOrWhiteSpace([string]$rustDeskSessionId) -and
+     [string](Get-DecisionValue -Decision $_ -Name 'rustdesk_session_id') -eq [string]$rustDeskSessionId -and
+     [string](Get-DecisionValue -Decision $_ -Name 'peer_id') -eq $peerId))
+  }).Count -gt 0
+  if ($alreadyStored) { return }
+  $markers.Add([pscustomobject]@{
+    workflow_contract_version = 2
+    api_base_url = $scope.api_base_url
+    office_user_id = $scope.office_user_id
+    pairing_id = $scope.pairing_id
+    session_id = $sessionId
+    peer_id = $peerId
+    from_peer = [string]$script:CompanionConfig.RustDeskPeerId
+    rustdesk_session_id = [string]$rustDeskSessionId
+    workflow_classification = [string]$Context.classification
+    recorded_at = (Get-Date).ToUniversalTime().ToString('o')
+  })
+  Save-V2WorkflowSuppressions -Markers $markers.ToArray()
+}
+
+function Test-V2WorkflowSuppressed {
+  param([object]$Session)
+  $sessionId = [string]$Session.id
+  $peerId = [string]$Session.peer_id
+  $rustDeskSessionId = Get-DecisionValue -Decision $Session -Name 'rustdesk_session_id'
+  $markers = @(Read-V2WorkflowSuppressions)
+  $scope = Get-V2WorkflowSuppressionScope
+  if ($null -eq $scope) {
+    $hasScopedMarker = $false
+    foreach ($marker in $markers) {
+      if ([string](Get-DecisionValue -Decision $marker -Name 'workflow_contract_version') -eq '2') {
+        $hasScopedMarker = $true
+        break
+      }
+    }
+    if ($hasScopedMarker) {
+      # Old/unscoped markers are retained encrypted for review, but cannot be
+      # assigned to whichever Office account happens to be paired now.
+      throw 'The current Office account/pairing scope is unavailable; suppression checks are held.'
+    }
+    return $false
+  }
+  foreach ($marker in $markers) {
+    if (!(Test-V2WorkflowMarkerScope -Marker $marker -Scope $scope) -or
+        [string](Get-DecisionValue -Decision $marker -Name 'peer_id') -ne $peerId) { continue }
+    if (![string]::IsNullOrWhiteSpace($sessionId) -and
+        [string](Get-DecisionValue -Decision $marker -Name 'session_id') -eq $sessionId) { return $true }
+    if (![string]::IsNullOrWhiteSpace([string]$rustDeskSessionId) -and
+        [string](Get-DecisionValue -Decision $marker -Name 'rustdesk_session_id') -eq [string]$rustDeskSessionId) { return $true }
+  }
+  return $false
 }
 
 function Protect-Token {
@@ -215,6 +481,8 @@ function Read-CompanionConfig {
     ApiBaseUrl = [string]$raw.api_base_url
     CompanionToken = Unprotect-Token ([string]$raw.protected_companion_token)
     RustDeskPeerId = [string]$raw.rustdesk_peer_id
+    OfficeUserId = [string](Get-DecisionValue -Decision $raw -Name 'office_user_id')
+    PairingId = [string](Get-DecisionValue -Decision $raw -Name 'pairing_id')
     TechnicianName = [string]$raw.technician_name
     TechnicianEmail = $technicianEmail
     DeviceName = [string]$raw.device_name
@@ -226,13 +494,25 @@ function Save-CompanionConfig {
   param(
     [string]$Token,
     [string]$RustDeskPeerId,
+    [string]$OfficeUserId,
+    [string]$PairingId,
     [string]$TechnicianName,
     [string]$TechnicianEmail
   )
+  $canonicalApiBase = Get-CanonicalOfficeApiBaseUrl $ApiBaseUrl
+  $parsedOfficeUserId = [Guid]::Empty
+  $parsedPairingId = [Guid]::Empty
+  if ([string]::IsNullOrWhiteSpace($canonicalApiBase) -or
+      ![Guid]::TryParse($OfficeUserId, [ref]$parsedOfficeUserId) -or
+      ![Guid]::TryParse($PairingId, [ref]$parsedPairingId)) {
+    throw 'A valid Office API, account, and pairing identity are required to save companion configuration.'
+  }
   $payload = [ordered]@{
-    api_base_url = $ApiBaseUrl
+    api_base_url = $canonicalApiBase
     protected_companion_token = Protect-Token $Token
     rustdesk_peer_id = $RustDeskPeerId
+    office_user_id = $parsedOfficeUserId.ToString('D')
+    pairing_id = $parsedPairingId.ToString('D')
     technician_name = $TechnicianName
     technician_email = $TechnicianEmail
     device_name = $env:COMPUTERNAME
@@ -247,7 +527,8 @@ function Invoke-OfficeApi {
     [string]$Method,
     [string]$Path,
     [object]$Body = $null,
-    [string]$Token = $null
+    [string]$Token = $null,
+    [switch]$NotFoundIsNull
   )
 
   $headers = @{}
@@ -268,6 +549,10 @@ function Invoke-OfficeApi {
   try {
     return Invoke-RestMethod @request
   } catch {
+    if ($NotFoundIsNull -and $_.Exception.Response -and
+        [int]$_.Exception.Response.StatusCode -eq 404) {
+      return $null
+    }
     $details = $_.Exception.Message
     if ($_.Exception.Response -and $_.Exception.Response.GetResponseStream()) {
       try {
@@ -505,7 +790,14 @@ function Pair-Companion {
         device_name = $env:COMPUTERNAME
         windows_user = "$env:USERDOMAIN\$env:USERNAME"
       }
-      Save-CompanionConfig -Token $pairResult.token -RustDeskPeerId $pairInput.RustDeskPeerId -TechnicianName $pairResult.technician_name -TechnicianEmail $pairInput.Email
+      $officeUserId = [string](Get-DecisionValue -Decision $pairResult -Name 'office_user_id')
+      $pairingId = [string](Get-DecisionValue -Decision $pairResult.device -Name 'id')
+      if ([string]::IsNullOrWhiteSpace($officeUserId) -or [string]::IsNullOrWhiteSpace($pairingId)) {
+        throw 'Pairing response omitted the stable Office user or pairing identity.'
+      }
+      Save-CompanionConfig -Token $pairResult.token -RustDeskPeerId $pairInput.RustDeskPeerId `
+        -OfficeUserId $officeUserId -PairingId $pairingId `
+        -TechnicianName $pairResult.technician_name -TechnicianEmail $pairInput.Email
       [System.Windows.Forms.MessageBox]::Show('Pairing completed.', 'Exantas RustDesk Companion') | Out-Null
       return Read-CompanionConfig
     } catch {
@@ -740,22 +1032,68 @@ function Sync-RustDeskSessions {
 }
 
 function Flush-OfflineQueue {
-  param([string]$Token)
+  param(
+    [string]$Token,
+    [object[]]$Sessions = @()
+  )
 
   $items = @(Read-OfflineQueue)
   if ($items.Count -eq 0) {
     return
   }
 
+  $workflowV2 = $false
+  try {
+    $workflowV2 = Test-OfficeWorkflowV2 -Token $Token
+  } catch {
+    Write-CompanionLog 'Workflow capability check failed; offline comments remain queued.'
+    return
+  }
+
   $remaining = New-Object System.Collections.Generic.List[object]
   foreach ($item in $items) {
-    $comment = ''
+    $queuedSource = [pscustomobject]@{
+      id = [string]$item.session_id
+      peer_id = [string]$item.peer_id
+      rustdesk_session_id = Get-DecisionValue -Decision $item -Name 'rustdesk_session_id'
+    }
+    if (Test-V2WorkflowSuppressed -Session $queuedSource) {
+      $item | Add-Member -NotePropertyName workflow_review -NotePropertyValue 'v2_suppressed' -Force
+      $remaining.Add($item)
+      continue
+    }
+    if (![string]::IsNullOrWhiteSpace((Get-DecisionValue -Decision $item -Name 'workflow_review'))) {
+      $remaining.Add($item)
+      continue
+    }
     try {
-      $comment = Unprotect-Text ([string]$item.protected_comment)
       $session = [pscustomobject]@{ id = [string]$item.session_id }
+      if ($workflowV2) {
+        $matches = @($Sessions | Where-Object { [string]$_.id -eq [string]$item.session_id })
+        if ($matches.Count -ne 1) {
+          # An old queue row without a current authoritative source match stays
+          # byte-for-byte unchanged; do not guess whether it belongs to v2.
+          $remaining.Add($item)
+          continue
+        }
+        $context = Get-OfficeWorkContext -Session $matches[0] -Token $Token
+        if ($context.suppress_legacy -eq $true) {
+          Add-V2WorkflowSuppression -Session $matches[0] -Context $context
+          $item | Add-Member -NotePropertyName workflow_review -NotePropertyValue ([string]$context.classification) -Force
+          $remaining.Add($item)
+          Write-CompanionLog 'An existing offline comment is held for Office review and was withheld from the legacy endpoint.'
+          continue
+        }
+      }
+      $comment = Unprotect-Text ([string]$item.protected_comment)
       [void](Submit-SessionComment -Session $session -Comment $comment -Token $Token -IdempotencyKey ([string]$item.idempotency_key))
       Write-CompanionLog "Flushed offline comment for session $($item.session_id)."
     } catch {
+      if ($workflowV2) {
+        $remaining.Add($item)
+        Write-CompanionLog 'Workflow-aware offline sync failed; the encrypted comment remains queued.'
+        continue
+      }
       if (!(Should-QueueSubmissionFailure -Message $_.Exception.Message)) {
         Write-CompanionLog "Dropping offline comment for session $($item.session_id): $($_.Exception.Message)"
         continue
@@ -857,6 +1195,15 @@ function Handle-SessionDecision {
   param([object]$Session)
 
   $sessionId = [string]$Session.id
+  if (Test-OfficeWorkflowV2 -Token $script:CompanionConfig.CompanionToken) {
+    $context = Get-OfficeWorkContext -Session $Session -Token $script:CompanionConfig.CompanionToken
+    if ($context.suppress_legacy) {
+      Add-V2WorkflowSuppression -Session $Session -Context $context
+      [void]$script:SnoozedSessionIds.Add($sessionId)
+      Write-CompanionLog "Office workflow v2 owns this session context ($($context.classification)); legacy report dialog skipped."
+      return
+    }
+  }
   $decision = Show-CommentDialog -Session $Session
   if ($null -eq $decision) {
     [void]$script:SnoozedSessionIds.Add($sessionId)
@@ -1115,8 +1462,7 @@ Start-WebSocketListener -Token $script:CompanionConfig.CompanionToken
 try {
   while (!$script:ShouldExit) {
     try {
-      Flush-OfflineQueue -Token $script:CompanionConfig.CompanionToken
-
+      $script:PendingSessions = @()
       try {
         [void](Sync-RustDeskSessions -Token $script:CompanionConfig.CompanionToken)
       } catch {
@@ -1124,8 +1470,26 @@ try {
       }
 
       $pending = Invoke-OfficeApi -Method 'GET' -Path '/rustdesk-companion/sessions/pending' -Token $script:CompanionConfig.CompanionToken
-      $items = @($pending.items)
+      $sourceItems = @($pending.items)
+      $items = $sourceItems
+      $workflowV2 = Test-OfficeWorkflowV2 -Token $script:CompanionConfig.CompanionToken
+      if ($workflowV2) {
+        $items = New-Object System.Collections.Generic.List[object]
+        foreach ($sourceSession in $sourceItems) {
+          $context = Get-OfficeWorkContext -Session $sourceSession -Token $script:CompanionConfig.CompanionToken
+          if ($context.suppress_legacy) {
+            Add-V2WorkflowSuppression -Session $sourceSession -Context $context
+          }
+          if (!$context.suppress_legacy -and !(Test-V2WorkflowSuppressed -Session $sourceSession)) {
+            $items.Add($sourceSession)
+          }
+        }
+        $items = $items.ToArray()
+      } else {
+        $items = @($sourceItems | Where-Object { !(Test-V2WorkflowSuppressed -Session $_) })
+      }
       $script:PendingSessions = $items
+      Flush-OfflineQueue -Token $script:CompanionConfig.CompanionToken -Sessions $sourceItems
       Update-NotifyText -NotifyIcon $notifyIcon -PendingCount $items.Count -QueuedCount (Get-OfflineQueueCount)
 
       foreach ($session in $items) {

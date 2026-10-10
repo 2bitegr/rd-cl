@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/models/exantas_secure_store.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
+import 'package:flutter_hbb/models/exantas_workflow_http_policy.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/utils/http_service.dart' as http;
@@ -180,8 +181,8 @@ class ExantasCompanionService {
 
     await _setSecretLocalOption(kExantasTechnicianToken, '');
     await _setSecretLocalOption(kExantasCompanionToken, companionToken);
-    await bind.mainSetLocalOption(key: kExantasOfficeUserId,
-        value: _string(pair['office_user_id']));
+    await bind.mainSetLocalOption(
+        key: kExantasOfficeUserId, value: _string(pair['office_user_id']));
     await bind.mainSetLocalOption(
         key: kExantasTechnicianName, value: _string(pair['technician_name']));
     await bind.mainSetLocalOption(
@@ -222,7 +223,9 @@ class ExantasCompanionService {
         bearerToken: status.deviceToken);
   }
 
-  Future<List<Map<String, dynamic>>> pendingSessions() async {
+  Future<List<Map<String, dynamic>>> pendingSessions({
+    bool includeLegacyQueue = false,
+  }) async {
     final status = await loadStatus();
     if (!status.technicianLoggedIn) {
       return [];
@@ -231,14 +234,221 @@ class ExantasCompanionService {
         bearerToken: status.companionToken);
     final response = await _get('/rustdesk-companion/sessions/pending',
         bearerToken: status.companionToken);
+    _requireSameCompanion(status, await loadStatus());
     final items = response['items'];
     if (items is List) {
-      return items
+      final sessions = items
           .whereType<Map>()
           .map((item) => item.cast<String, dynamic>())
           .toList();
+      final capabilities = await workflowCapabilities();
+      if (capabilities == null || !capabilities.supportsV2) return sessions;
+      final fromPeer = (await bind.mainGetMyId()).trim();
+      final result = <Map<String, dynamic>>[];
+      for (final session in sessions) {
+        final context = await lookupWorkContext(
+          peerId: _string(session['peer_id']),
+          fromPeer: fromPeer,
+          rustDeskSessionId: _string(session['rustdesk_session_id']),
+          capabilities: capabilities,
+        );
+        if (context == null || (includeLegacyQueue && !context.isV2Bound)) {
+          // Pre-v2 encrypted queue entries retain their legacy contract. A
+          // confirmed v2 binding is still never submitted through v1.
+          result.add(session);
+        }
+      }
+      _requireSameCompanion(status, await loadStatus());
+      return result;
     }
     return [];
+  }
+
+  /// Returns null only when the endpoint is absent (404), which preserves the
+  /// pre-v2 client contract. Other errors remain visible to the caller.
+  Future<ExantasWorkflowCapabilities?> workflowCapabilities() async {
+    final status = await loadStatus();
+    if (!status.technicianLoggedIn) {
+      throw Exception('Office login is required.');
+    }
+    final response = await _getOptional404(
+      '/rustdesk-companion/workflow-capabilities',
+      bearerToken: status.companionToken,
+    );
+    if (response == null) {
+      _requireSameCompanion(status, await loadStatus());
+      return null;
+    }
+    if (response['status'] != 'ok' || response['enabled'] is! bool) {
+      throw const FormatException('Invalid workflow capabilities response.');
+    }
+    final rawVersions = response['contract_versions'];
+    if (rawVersions is! List || rawVersions.any((value) => value is! int)) {
+      throw const FormatException('Invalid workflow capabilities response.');
+    }
+    final current = await loadStatus();
+    _requireSameCompanion(status, current);
+    return ExantasWorkflowCapabilities(
+      enabled: response['enabled'] as bool,
+      contractVersions: rawVersions.cast<int>().toSet(),
+    );
+  }
+
+  /// Performs an authenticated, read-only lookup using the paired technician
+  /// identity established by Office. The client never supplies an owner ID.
+  Future<ExantasWorkContext?> lookupWorkContext({
+    required String peerId,
+    required String fromPeer,
+    String? rustDeskSessionId,
+    ExantasWorkflowCapabilities? capabilities,
+  }) async {
+    final status = await loadStatus();
+    if (!status.technicianLoggedIn || status.officeUserId.isEmpty) {
+      throw Exception('Office login is required.');
+    }
+    final peer = peerId.trim();
+    final actorPeer = fromPeer.trim();
+    if (peer.isEmpty || actorPeer.isEmpty) {
+      throw ArgumentError('RustDesk peer identifiers are required.');
+    }
+    final resolvedCapabilities = capabilities ?? await workflowCapabilities();
+    if (resolvedCapabilities == null || !resolvedCapabilities.supportsV2) {
+      return null;
+    }
+    _requireSameCompanion(status, await loadStatus());
+    final body = <String, dynamic>{'peer_id': peer, 'from_peer': actorPeer};
+    final sessionId = rustDeskSessionId?.trim() ?? '';
+    if (sessionId.isNotEmpty && sessionId != '0') {
+      body['rustdesk_session_id'] = sessionId;
+    }
+    final response = await _post(
+      '/rustdesk-companion/work-context',
+      body,
+      bearerToken: status.companionToken,
+    );
+    final current = await loadStatus();
+    _requireSameCompanion(status, current);
+    return parseExantasWorkContext(response);
+  }
+
+  Future<List<Map<String, dynamic>>> workflowItems() async {
+    final status = await loadStatus();
+    if (!status.technicianLoggedIn) {
+      throw Exception('Office login is required.');
+    }
+    final capabilities = await workflowCapabilities();
+    if (capabilities == null || !capabilities.supportsV2) return [];
+    final response = await _get(
+      '/rustdesk-companion/work-items',
+      bearerToken: status.companionToken,
+    );
+    final current = await loadStatus();
+    _requireSameCompanion(status, current);
+    final items = response['items'];
+    if (items is! List) {
+      throw const FormatException('Invalid Office work items response.');
+    }
+    return items
+        .whereType<Map>()
+        .map((item) => item.cast<String, dynamic>())
+        .toList();
+  }
+
+  Future<ExantasWorkContext> claimWorkContext({
+    required String workItemId,
+    required String remoteSessionId,
+    required String expectedRevision,
+    required String idempotencyKey,
+    required String expectedOfficeUserId,
+    required String expectedApiBase,
+  }) async {
+    final status = await loadStatus();
+    _requireExpectedCompanion(status, expectedOfficeUserId, expectedApiBase);
+    if (!status.technicianLoggedIn || status.officeUserId.isEmpty) {
+      throw Exception('Office login is required.');
+    }
+    final capabilities = await workflowCapabilities();
+    if (capabilities == null || !capabilities.supportsV2) {
+      throw StateError('Office support workflow v2 is unavailable.');
+    }
+    _requireSameCompanion(status, await loadStatus());
+    final response = await _post(
+      '/rustdesk-companion/work-context/claim',
+      {
+        'work_item_id': workItemId,
+        'remote_session_id': remoteSessionId,
+        'expected_revision': expectedRevision,
+        'idempotency_key': idempotencyKey,
+      },
+      bearerToken: status.companionToken,
+    );
+    final current = await loadStatus();
+    _requireSameCompanion(status, current);
+    final context = parseExantasWorkContext(response);
+    if (!context.isV2Bound) {
+      throw const FormatException('Office did not confirm the work binding.');
+    }
+    return context;
+  }
+
+  Future<Map<String, dynamic>> saveWorkDraft({
+    required String workItemId,
+    required String remoteSessionId,
+    required String text,
+    required String expectedRevision,
+    required String idempotencyKey,
+    required String expectedOfficeUserId,
+    required String expectedApiBase,
+  }) async {
+    final status = await loadStatus();
+    _requireExpectedCompanion(status, expectedOfficeUserId, expectedApiBase);
+    if (!status.technicianLoggedIn || status.officeUserId.isEmpty) {
+      throw Exception('Office login is required.');
+    }
+    final capabilities = await workflowCapabilities();
+    if (capabilities == null || !capabilities.supportsV2) {
+      throw StateError('Office support workflow v2 is unavailable.');
+    }
+    _requireSameCompanion(status, await loadStatus());
+    final response = await _post(
+      '/rustdesk-companion/work-drafts',
+      {
+        'work_item_id': workItemId,
+        'remote_session_id': remoteSessionId,
+        'text': text,
+        'expected_revision': expectedRevision,
+        'idempotency_key': idempotencyKey,
+      },
+      bearerToken: status.companionToken,
+    );
+    final current = await loadStatus();
+    _requireSameCompanion(status, current);
+    if (response['status'] != 'ok' || response['action'] != 'draft_saved') {
+      throw const FormatException('Office did not confirm the work draft.');
+    }
+    return response;
+  }
+
+  void _requireSameCompanion(
+    ExantasCompanionStatus before,
+    ExantasCompanionStatus after,
+  ) {
+    if (before.officeUserId != after.officeUserId ||
+        before.apiBase != after.apiBase ||
+        before.companionToken != after.companionToken) {
+      throw Exception('Office account changed during the request.');
+    }
+  }
+
+  void _requireExpectedCompanion(
+    ExantasCompanionStatus status,
+    String expectedOfficeUserId,
+    String expectedApiBase,
+  ) {
+    if (status.officeUserId != expectedOfficeUserId ||
+        status.apiBase != expectedApiBase) {
+      throw Exception('Office account changed. The draft remains local.');
+    }
   }
 
   Future<Map<String, dynamic>> submitSessionReport(
@@ -253,9 +463,11 @@ class ExantasCompanionService {
     if (!status.technicianLoggedIn) {
       throw Exception('Office login is required.');
     }
-    if ((expectedOfficeUserId != null && expectedOfficeUserId != status.officeUserId) ||
+    if ((expectedOfficeUserId != null &&
+            expectedOfficeUserId != status.officeUserId) ||
         (expectedApiBase != null && expectedApiBase != status.apiBase)) {
-      throw Exception('Ο λογαριασμός Office άλλαξε. Η αναφορά παραμένει τοπικά.');
+      throw Exception(
+          'Ο λογαριασμός Office άλλαξε. Η αναφορά παραμένει τοπικά.');
     }
     return _post(
       '/rustdesk-companion/sessions/$sessionId/comment',
@@ -273,6 +485,18 @@ class ExantasCompanionService {
       headers: _headers(bearerToken),
     );
     return _decodeResponse(response.statusCode, response.body);
+  }
+
+  Future<Map<String, dynamic>?> _getOptional404(String path,
+      {String? bearerToken}) async {
+    final response = await http.get(
+      Uri.parse('$apiBase$path'),
+      headers: _headers(bearerToken),
+    );
+    return decodeExantasOptional404(
+      response.statusCode,
+      () => _decodeResponse(response.statusCode, response.body),
+    );
   }
 
   Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body,

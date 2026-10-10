@@ -8,32 +8,29 @@ The local `codex/office-account-pairing` change calls authenticated
 the compatible Office endpoint before distributing a new client. If the server
 cannot confirm logout, credentials are retained so the user can retry or revoke
 the pairing in Office. Logout does not terminate a RustDesk control session.
-The Office recovery reference PowerShell companion separately scopes offline
-reports to an Office URL/user UUID. This folder has not been synchronized with
-that reference change; do not distribute its old helper as the updated helper.
-Native Dart/Flutter build and Windows acceptance are still pending.
+The PowerShell companion now scopes encrypted v2 markers and offline queue
+holds to the canonical Office API, authenticated principal, pairing and peer.
+It hydrates existing configuration only from authenticated capabilities; missing
+scope fails closed. V2-bound/unassigned/pending/excluded rows never fall through
+to legacy report submission. Old v1 queued payloads retain their original meaning
+and remain encrypted while held for Office review. Full native Windows client
+build and physical acceptance are still pending.
 
-## Artifact-only Windows acceptance build
+## Local Windows acceptance builds
 
-`.github/workflows/office-acceptance-windows.yml` builds only Windows x64
-and its Linux bridge/Windows helper dependencies, following the existing
-Flutter workflow at base commit `e79a8f1`. It runs on pushes to
-`codex/office-account-pairing`; it does not change the main branch or publish
-tags, releases, MSI installers, or deployments. All jobs have read-only repository
-permissions and do not receive production secrets. Artifacts expire after three days.
-This intentionally scoped copy leaves the existing multi-platform release pipeline
-unchanged; compare its toolchain/dependency steps with that pipeline before reuse.
+All eleven GitHub Actions workflows are removed from this fork's source at the
+user's request (2026-10-10). Pushes and tags have no repository workflow build,
+artifact upload or release pipeline defined here. Actions were also disabled
+for `2bitegr/rd-cl` through repository settings, with a fresh API verification
+`enabled=false` on 2026-10-10. Historical runs/artifacts are retained. Workflow
+file deletions await the approved commit checkpoint; no push was performed.
 
-Download the `exantas-support-1.4.10-office-test-windows-x64-<run>` artifact
-from the successful run. Extract the whole archive, not just `rustdesk.exe`.
-Every downloadable Companion change increments both the product version and
-the Flutter build number. The acceptance workflow rejects mismatched version
-sources before building the package.
-`OFFICE-ACCEPTANCE.txt` identifies the source commit/run and `SHA256SUMS.txt`
-identifies the executable. This is an unsigned test build, not a new production
-release. Do not overwrite an existing installation. The default Office API is
-still the online service: verify/configure the test Office destination before
-running or logging in. Download/build success does not prove Windows acceptance.
+The former 1.4.10 Office acceptance artifacts are historical; they are not a
+build of this workflow-v2 source. Current source is 1.4.11+69. A local Windows
+client build and physical acceptance must be carried out separately before
+shipping a package. No installer, production release or deployment is created
+by this source change. Verify the test Office destination before any login or
+support acceptance; local unit checks do not prove real support connectivity.
 
 This folder contains the transition/reference technician-side companion source.
 
