@@ -85,6 +85,37 @@ Then translate that source into the file's target language (infer the language f
 * Do not translate brand or technical tokens: `RustDesk`, `Socks5`, `TLS`, `UAC`, `Wayland`, `X11`, `TCP`, `UDP`, `2FA`, `RDP`, `D3D`, etc.
 * Copy URL values (e.g. `doc_*` keys) verbatim from `en.rs`.
 
+## Mandatory cleanup before commit, push and release
+
+Before creating any commit and before every `git push`, run a dedicated cleanup
+agent using the shared skill below. This includes documentation-only changes and
+pushes without a new build. Wait for its completed PASS report on the current
+affected work and artifacts. Run a fresh check before push even after a pre-commit
+PASS; intervening file/artifact changes invalidate the result. A dispatched agent,
+historical PASS or skipped check is insufficient. If the agent/check is
+unavailable or BLOCKED, stop the Git operation and report why; do not bypass it.
+
+Limit cleanup to inspected, authorized task-owned disposable files. Preserve
+staged/unstaged source, index selections, active runtime data, Windows/Linux
+resources and reusable caches. The cleanup agent must not stage, commit or push.
+If nothing is disposable, record an actual completed PASS with zero removals;
+do not create a build or download dependencies just to perform this check.
+Reuse one compact current cleanup record; do not accumulate per-command reports.
+Existing approval requirements and release hooks still apply.
+
+Before preparing or handing off a release/build package, use the Office repository's
+`office-release-maintenance` skill at `.agents/skills/office-release-maintenance/SKILL.md`.
+Locate the actual Office checkout by Git remote `2bitegr/Office`; read the exact
+skill when it is not in the current registry. It covers affected applications and
+requires an explicit plan, authorized task-owned cleanup and a PASS artifact
+`verify` before delivery, alongside this repository's existing release checks.
+Preserve active source/runtime data, Windows/Linux resources and reusable caches.
+Use installed tools and local dependencies only; missing/incompatible requirements
+stop the release with an exact explanation, without downloads or reinstalls.
+If the skill or required verification is unavailable, report the gate BLOCKED;
+do not silently skip it or install tools. This does not authorize publication,
+installation, production changes or cleanup outside the reviewed task scope.
+
 ## Local artifact storage and workspace cleanliness
 
 Use the machine's verified local Windows Desktop as the persistent home for generated reports, evidence, graph indexes, logs, screenshots, temporary deliverables and application build packages. Default organized folder: `Office-Workspace-Artifacts`. Discover its actual absolute Windows path and WSL mount; do not hardcode another machine's username or assume Desktop is outside OneDrive.
@@ -93,7 +124,15 @@ Keep project source and portable source-adjacent documentation in their reposito
 
 Store persistent generated output under the Desktop hierarchy by purpose and run/application/version. Keep executable paths and graph locations in local setup metadata; avoid machine-specific paths and secrets in tracked portable skills. Never commit generated graphs, private logs, installers, dependency caches, credentials or customer data unless specifically reviewed and authorized for that repository.
 
-For existing disposable artifacts: inspect ownership, symlinks, current consumers and destination first. Copy to a unique Desktop destination preserving required structure; verify all bytes/hashes and a manifest; update local graph/report references; validate consumers; only then remove the exact verified owned source files. No broad recursive cleanup, reset/clean, retained-enrollment/database deletion or deletion of unrelated files. If live consumers cannot be validated, retain source and mark relocation pending.
+For artifact relocation: inspect ownership, symlinks, current consumers and destination first. Copy to a unique Desktop destination preserving required structure; verify all bytes/hashes and a manifest; update local graph/report references; validate consumers; only then remove the exact verified owned source files. No broad recursive cleanup, reset/clean, retained-enrollment/database deletion or deletion of unrelated files. If live consumers cannot be validated, retain source and mark relocation pending.
+
+Control disk growth as part of completing each authorized task. Before generating artifacts, inspect existing outputs and reuse installed tools, dependency caches and the current owned build workspace. Keep the latest verified delivery for each requested application/version/target with its provenance and checksums; retain older full packages only for an identified rollback, comparison or review need. Do not accumulate timestamped full payload copies, repeated source exports, preflight/negative-test directories, extracted installer payloads or redundant logs.
+
+After validating delivery bytes/hashes and current consumers, remove the exact task-owned disposable staging outputs within the authorized scope. This includes redundant `MsiPayload`/`Portable` copies and superseded test/build outputs; it does not include active source snapshots, compiler targets or reusable dependency caches. After a failure, retain a compact root-cause record and only the diagnostics/resumable state still needed. Keep one concise task summary/manifest, compress useful historical text logs when appropriate, and do not archive obsolete binaries merely to avoid deleting them. Update current artifact links when paths change.
+
+Cleanup must use an explicit inspected file/path list, reject symlinks/reparse points or unknown ownership, check active consumers, and recheck size/hash immediately before removal. Existing user cleanup authorization covers that verified scope; uncertain or unrelated files stay in place. Report retained outputs and logical bytes removed separately from measured disk-space changes. Do not create a scheduled/global purge or delete other projects' resources as routine cleanup.
+
+For rd-cl, use the existing libraries/toolchains and Cargo/Pub/vcpkg/NuGet caches without new downloads, reinstalls or upgrades. If an existing dependency is missing or incompatible, stop and notify the user. Preserve both Windows and Linux support/resources unless the user explicitly authorizes a platform-specific removal. Neither a cache name nor an old timestamp alone establishes that an item is disposable.
 
 Prefer explicit output/log/build paths on the Windows data volume. If a tool requires Linux scratch for correctness or performance, use a bounded owned temporary directory and remove it after verified export. Do not relocate installed SDKs/venvs, application data or runtime databases merely to reduce disk usage. Reassess unusually large reproducible caches separately with evidence and authorization.
 
