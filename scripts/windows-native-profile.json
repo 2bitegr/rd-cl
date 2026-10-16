@@ -1,0 +1,30 @@
+{
+  "source_commit": "5eec99577ca4faa36bfae127022af62e85377aff",
+  "version": "1.4.12+70",
+  "submodule_commit": "7e1c392c62d39c364127307cd408421dd5f8cfb0",
+  "flutter_commit": "dec2ee5c1f98f8e84a7d5380c05eb8a3d0a81668",
+  "flutter_version": "3.24.5",
+  "rust_version": "1.75.0",
+  "frb_version": "1.80.1",
+  "vcpkg_commit": "120deac3062162151622ca4860575a33844ba10b",
+  "engine_asset_id": 210168939,
+  "engine_sha256": "ec8cabf36ee4ff24c8d98de25b00e70781eb03876265aee84d0fe554a110036e",
+  "engine_provenance_note": "Immutable tag workflow used3.24.4; SDK3.24.4 and3.24.5 share Dart revision88c9758ef131d430d8ce595c6bfb4c90574d3ddd; native AOT validation remains required. Synthetic native Flutter AOT frontend/custom-gen_snapshot probe passed; product runtime remains untested. Asset payload differs from the archived tag workflow file list; an exact engine build source revision is not established. The delivery pin is immutable asset ID plus exact SHA-256.",
+  "input_sha256": {
+    "Cargo.toml": "944cb51e0515f2d30892b07853116a4fb491a36aae754668ccf0773bd83cf835",
+    "Cargo.lock": "226c17755ab8472983b97552ca38959a70b017385b84cbed2249d46a652acabb",
+    "flutter/pubspec.yaml": "8cb607e2532a79946dedcd2344b394bdb0a94472c5fdf6240d0136452e833b27",
+    "flutter/pubspec.lock": "4941773a17aa887f32c04e6c3e2f2d15aa50bdb7fb77100266df498056b7201a",
+    "vcpkg.json": "64507a425be8d92cbb28d180d33986d8c419238cd6cae960e6a365d7691bbea0",
+    ".github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff": "7663824d8d728990a49e7a43e081fd1269f536a10987b576ba8f0bb766d2c759",
+    "patches/hbb_common-exantas-config.patch": "d44716e61368e9148583cc10c1afdc7afb924c801b56aaca8e57b8eae3e619a7",
+    "flutter/lib/desktop/pages/desktop_home_page.dart": "11fc04693053357839dec8377f1fed25132639960cdacca68890348e05733183"
+  },
+  "vcpkg_override_trees": {
+    "amd-amf": "47db5211b49a66cf05a86858cddd41d2c4b5d8a9",
+    "ffnvcodec": "95b6f37a43dab098bf4be5c84e15e47a86cf7960"
+  },
+  "engine_release_tag_commit": "bc374ca81eae3f77329ebf7bc98efadfde10018e",
+  "engine_build_source_revision": null,
+  "source_repository": "https://github.com/2bitegr/rd-cl.git"
+}

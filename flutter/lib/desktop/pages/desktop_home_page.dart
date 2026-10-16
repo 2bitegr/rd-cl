@@ -55,6 +55,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Timer? _updateTimer;
   bool isCardClosed = false;
   final _exantasCompanion = ExantasCompanionService();
+  late final Future<String> _appVersion = bind.mainGetVersion();
   ExantasCompanionStatus? _exantasStatus;
   Timer? _exantasHeartbeatTimer;
   Timer? _exantasPendingSessionsTimer;
@@ -111,6 +112,20 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         child: loadLogo(),
       ),
       buildTip(context),
+      FutureBuilder<String>(
+        future: _appVersion,
+        builder: (context, snapshot) {
+          final version = snapshot.data?.trim();
+          if (version == null || version.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 12),
+            child: Text('rd-cl v$version',
+                style: Theme.of(context).textTheme.bodySmall),
+          );
+        },
+      ),
       if (!isOutgoingOnly) buildIDBoard(context),
       if (!isOutgoingOnly) buildPasswordBoard(context),
       if (!isOutgoingOnly) buildExantasCompanionCard(context),
@@ -452,6 +467,15 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             ),
           if (technicianLoggedIn)
             Text(
+              status?.supportRole == 'technician'
+                  ? 'Τεχνικός υποστήριξης'
+                  : status?.supportRole == 'admin'
+                      ? 'Διαχειριστής'
+                      : 'Συνδεδεμένος χρήστης Office',
+              style: TextStyle(fontSize: 12, color: textColor),
+            ),
+          if (technicianLoggedIn)
+            Text(
               supportUserText.isEmpty
                   ? 'Office user logged in'
                   : supportUserText,
@@ -467,13 +491,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             runSpacing: 6,
             children: [
               OutlinedButton(
-                onPressed: () => _showEnrollDialog(context),
-                child: Text(enrolled ? 'Re-enroll' : 'Enroll'),
-              ),
-              OutlinedButton(
                 onPressed: () => _showTechnicianLoginDialog(context),
                 child:
-                    Text(technicianLoggedIn ? 'Switch user' : 'Office login'),
+                    Text(technicianLoggedIn ? 'Αλλαγή χρήστη' : 'Σύνδεση'),
               ),
               if (technicianLoggedIn)
                 OutlinedButton(
@@ -484,7 +504,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                 OutlinedButton(
                   onPressed: () => _runExantasAction(
                       () => _exantasCompanion.logoutTechnician()),
-                  child: const Text('Logout'),
+                  child: const Text('Αποσύνδεση'),
                 ),
             ],
           ),
@@ -525,43 +545,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     }
   }
 
-  void _showEnrollDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enroll device'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Install code'),
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(translate('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final code = controller.text;
-              Navigator.of(context).pop();
-              _runExantasAction(() => _exantasCompanion.enrollDevice(code));
-            },
-            child: const Text('Enroll'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showTechnicianLoginDialog(BuildContext context) {
     final email = TextEditingController();
     final password = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Office login'),
+        title: const Text('Σύνδεση τεχνικού'),
         content: SizedBox(
           width: 360,
           child: Column(
@@ -569,13 +559,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             children: [
               TextField(
                 controller: email,
-                decoration: const InputDecoration(labelText: 'Office email'),
+                decoration: const InputDecoration(labelText: 'Email τεχνικού'),
                 keyboardType: TextInputType.emailAddress,
                 autofocus: true,
               ),
               TextField(
                 controller: password,
-                decoration: const InputDecoration(labelText: 'Password'),
+                decoration: const InputDecoration(labelText: 'Κωδικός'),
                 obscureText: true,
               ),
             ],
@@ -593,7 +583,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               Navigator.of(context).pop();
               _runExantasAction(() => _exantasCompanion.loginTechnician(e, p));
             },
-            child: const Text('Login'),
+            child: const Text('Σύνδεση'),
           ),
         ],
       ),
