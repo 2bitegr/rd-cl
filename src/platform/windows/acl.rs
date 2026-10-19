@@ -278,6 +278,12 @@ pub fn validate_path_for_portable_service_shmem_dir(path: &Path) -> ResultType<(
 
 #[inline]
 pub fn set_path_permission_for_portable_service_shmem_file(path: &Path) -> ResultType<()> {
+    set_private_runtime_file_permissions(path)
+}
+
+/// Protect a private runtime file before writing credentials or recovery data.
+/// Uses the established protected DACL: SYSTEM, Administrators and process user.
+pub fn set_private_runtime_file_permissions(path: &Path) -> ResultType<()> {
     set_path_permission_for_portable_service_shmem_impl(path, false)
 }
 

@@ -847,6 +847,10 @@ pub fn reset_async_job_status() {
 #[cfg(any(target_os = "android", target_os = "ios", feature = "flutter"))]
 #[inline]
 pub fn change_id(id: String) {
+    if Config::is_disable_change_id() {
+        *ASYNC_JOB_STATUS.lock().unwrap() = "Changing ID is disabled".to_owned();
+        return;
+    }
     reset_async_job_status();
     let old_id = get_id();
     std::thread::spawn(move || {

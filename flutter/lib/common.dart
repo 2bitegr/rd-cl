@@ -13,6 +13,7 @@ import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
+import 'package:flutter_hbb/models/exantas_companion_model.dart';
 import 'package:flutter_hbb/models/peer_tab_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
@@ -2540,6 +2541,12 @@ connectMainDesktop(String id,
     String? password,
     String? connToken,
     bool? isSharedPassword}) async {
+  try {
+    await ExantasCompanionService().ensureNativeReady();
+  } catch (_) {
+    showToast('Δεν επιβεβαιώθηκε η σύνδεση Office–RustDesk. Ελέγξτε τη σύνδεση τεχνικού στην αρχική οθόνη.');
+    return;
+  }
   if (isFileTransfer) {
     await rustDeskWinManager.newFileTransfer(id,
         password: password,
@@ -2741,10 +2748,11 @@ connect(BuildContext context, String id,
   }
 }
 
-Map<String, String> getHttpHeaders() {
-  return {
-    'Authorization': 'Bearer ${bind.mainGetLocalOption(key: 'access_token')}'
-  };
+Map<String, String> getHttpHeaders({bool officeNative = false}) {
+  // Only the connection-audit flow opts into the Office-derived credential.
+  // Native account/address-book consumers retain their original account scope.
+  final key = officeNative ? 'exantas.office.native_access_token' : 'access_token';
+  return {'Authorization': 'Bearer ${bind.mainGetLocalOption(key: key)}'};
 }
 
 // Simple wrapper of built-in types for reference use.

@@ -1103,7 +1103,17 @@ pub fn get_ipv6_punch_enabled() -> bool {
     )
 }
 
+pub fn native_access_token() -> String {
+    #[cfg(windows)] { crate::office_native_auth::access_token() }
+    #[cfg(not(windows))] { LocalConfig::get_option("access_token") }
+}
+
 pub fn get_local_option(key: &str) -> String {
+    if key == "exantas.office.native_access_token" { return native_access_token(); }
+    #[cfg(windows)]
+    if key == crate::office_native_auth::READY_KEY {
+        return if crate::office_native_auth::access_token().is_empty() { String::new() } else { "Y".to_owned() };
+    }
     let v = LocalConfig::get_option(key);
     if key == keys::OPTION_ENABLE_UDP_PUNCH || key == keys::OPTION_ENABLE_IPV6_PUNCH {
         if v.is_empty() {

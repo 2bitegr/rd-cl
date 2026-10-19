@@ -17,7 +17,7 @@
     "flutter/pubspec.lock": "4941773a17aa887f32c04e6c3e2f2d15aa50bdb7fb77100266df498056b7201a",
     "vcpkg.json": "64507a425be8d92cbb28d180d33986d8c419238cd6cae960e6a365d7691bbea0",
     ".github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff": "7663824d8d728990a49e7a43e081fd1269f536a10987b576ba8f0bb766d2c759",
-    "patches/hbb_common-exantas-config.patch": "d44716e61368e9148583cc10c1afdc7afb924c801b56aaca8e57b8eae3e619a7",
+    "patches/hbb_common-exantas-config.patch": "bf99166930c5e39d5916a3ff2a7323093fd0c57dacf5e14ad603d4503af3618e",
     "flutter/lib/desktop/pages/desktop_home_page.dart": "11fc04693053357839dec8377f1fed25132639960cdacca68890348e05733183"
   },
   "vcpkg_override_trees": {

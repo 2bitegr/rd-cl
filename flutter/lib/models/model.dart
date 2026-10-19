@@ -1290,7 +1290,7 @@ class FfiModel with ChangeNotifier {
         debugPrint(
             'Querying audit GUID, attempt $attempt/${retryIntervals.length}');
         try {
-          var headers = getHttpHeaders();
+          var headers = getHttpHeaders(officeNative: true);
           headers['Content-Type'] = "application/json";
 
           final response = await http.get(

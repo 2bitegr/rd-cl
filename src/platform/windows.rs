@@ -100,7 +100,7 @@ use winreg::{enums::*, RegKey};
 mod acl;
 pub(crate) use acl::current_process_user_sid_string;
 pub use acl::{
-    set_path_permission, set_path_permission_for_portable_service_shmem_dir,
+    set_private_runtime_file_permissions, set_path_permission, set_path_permission_for_portable_service_shmem_dir,
     set_path_permission_for_portable_service_shmem_file,
     validate_path_for_portable_service_shmem_dir,
 };

@@ -742,6 +742,10 @@ class RustdeskImpl {
     });
   }
 
+  Future<String> mainRegenerateOfficeId({required String request, dynamic hint}) async {
+    return '{"status":"error","code":"installed_service_required","office_signed_out":false}';
+  }
+
   Future<void> mainChangeId({required String newId, dynamic hint}) {
     throw UnimplementedError("mainChangeId");
   }

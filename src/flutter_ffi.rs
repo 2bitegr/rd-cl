@@ -941,6 +941,35 @@ pub fn main_get_login_device_info() -> SyncReturn<String> {
     SyncReturn(get_login_device_info_json())
 }
 
+/// FRB 1.80 runs this normal String-returning entry on its worker pool.
+/// Runtime creation is explicit at this synchronous boundary, never nested.
+/// The daemon independently verifies Office authority before changing identity.
+pub fn main_regenerate_office_id(request: String) -> String {
+    #[cfg(windows)] {
+        use crate::office_identity::{Outcome, Request};
+        let parsed = if request.len() <= 4096 {
+            serde_json::from_str::<Request>(&request).ok()
+        } else { None };
+        let result = match parsed {
+            None => Outcome::error("office_login_required", false),
+            Some(_) if hbb_common::tokio::runtime::Handle::try_current().is_ok() => {
+                Outcome::error("invalid_call_context", false)
+            }
+            Some(request) => {
+                match hbb_common::tokio::runtime::Builder::new_current_thread().enable_all().build() {
+                    Ok(runtime) => runtime.block_on(crate::office_identity::request(request)),
+                    Err(_) => Outcome::error("installed_service_required", false),
+                }
+            }
+        };
+        return serde_json::to_string(&result).unwrap_or_else(|_| "{\"status\":\"error\",\"code\":\"result_unconfirmed\",\"office_signed_out\":true}".into());
+    }
+    #[cfg(not(windows))] {
+        let _ = request;
+        "{\"status\":\"error\",\"code\":\"installed_service_required\",\"office_signed_out\":false}".into()
+    }
+}
+
 pub fn main_change_id(new_id: String) {
     change_id(new_id)
 }

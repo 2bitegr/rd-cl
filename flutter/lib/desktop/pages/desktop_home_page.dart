@@ -483,6 +483,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               style: TextStyle(
                   fontSize: 12, color: textColor?.withOpacity(0.6)),
             ),
+          if (technicianLoggedIn && Platform.isWindows)
+            Text(status?.nativeReady == true ? 'RustDesk: έτοιμο για σύνδεση' : 'RustDesk: απαιτείται επιβεβαίωση σύνδεσης'),
           if (technicianLoggedIn && (status?.officeUserId ?? '').isEmpty)
             const Text('Κάνε νέα είσοδο στο Office για να ενεργοποιήσεις το τοπικό ιστορικό αναφορών.'),
           const SizedBox(height: 8),
@@ -495,6 +497,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                 child:
                     Text(technicianLoggedIn ? 'Αλλαγή χρήστη' : 'Σύνδεση'),
               ),
+              if (technicianLoggedIn && Platform.isWindows && status?.nativeReady != true)
+                OutlinedButton(
+                  onPressed: () => _runExantasAction(() => _exantasCompanion.ensureNativeReady(force: true)),
+                  child: const Text('Επιβεβαίωση RustDesk'),
+                ),
               if (technicianLoggedIn)
                 OutlinedButton(
                   onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.supportSessions),
@@ -542,6 +549,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       showToast(translate('Successful'));
     } catch (e) {
       showToast(e.toString().replaceFirst('Exception: ', ''));
+      await _refreshExantasStatus();
     }
   }
 
@@ -1461,6 +1469,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         periodic_immediate(const Duration(seconds: 60), () async {
       await ExantasReportOutbox.instance.sync();
       await _exantasCompanion.heartbeat();
+      try { await _exantasCompanion.ensureNativeReady(); } catch (_) { /* A launch performs a fresh, visible check. */ }
       await _refreshExantasStatus();
       await _pollExantasPendingSessions();
     });

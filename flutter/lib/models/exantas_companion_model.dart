@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/models/exantas_secure_store.dart';
+import 'package:flutter_hbb/models/exantas_native_auth.dart';
+import 'package:flutter_hbb/models/exantas_identity.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/exantas_workflow_http_policy.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
@@ -18,6 +21,11 @@ const String kExantasCompanionToken = 'exantas.office.companion_token';
 const String kExantasTechnicianName = 'exantas.office.technician_name';
 const String kExantasOfficeUserId = 'exantas.office.user_id';
 const String kExantasSupportRole = 'exantas.office.support_role';
+const String kExantasNativeLease = 'exantas.office.native_lease';
+const String kExantasNativeReady = 'exantas.office.native_ready';
+const String kExantasNativeExpiry = 'exantas.office.native_expiry';
+const String kExantasNativeConfirm = 'exantas.office.native_confirmation_required';
+
 const String kExantasTechnicianToken = 'exantas.office.technician_token';
 
 const String kDefaultExantasOfficeApiBase =
@@ -35,8 +43,10 @@ class ExantasCompanionStatus {
     required this.supportRole,
     required this.policy,
     required this.officeUserId,
+    this.nativeReady = false,
   });
 
+  final bool nativeReady;
   final String apiBase;
   final String officeUserId;
   final bool enrolled;
@@ -52,7 +62,8 @@ class ExantasCompanionStatus {
       enrolled ? 'Managed by Exantas Office' : 'Basic support mode';
 }
 
-class ExantasCompanionService {
+class ExantasCompanionService implements ExantasIdentityActions {
+  static final _nativeFence = ExantasNativeAuthFence();
   final ExantasSecureStore _secureStore = const ExantasSecureStore();
 
   String get apiBase {
@@ -66,6 +77,8 @@ class ExantasCompanionService {
     final companionToken = await _getSecretLocalOption(kExantasCompanionToken);
     final policyText = bind.mainGetLocalOption(key: kExantasDevicePolicy);
     return ExantasCompanionStatus(
+      nativeReady: bind.mainGetLocalOption(key: kExantasNativeReady) == 'Y' &&
+          bind.mainGetLocalOption(key: kExantasNativeConfirm).isEmpty,
       apiBase: apiBase,
       officeUserId: bind.mainGetLocalOption(key: kExantasOfficeUserId),
       enrolled: deviceToken.trim().isNotEmpty,
@@ -77,6 +90,60 @@ class ExantasCompanionService {
       supportRole: bind.mainGetLocalOption(key: kExantasSupportRole),
       policy: _decodeMap(policyText),
     );
+  }
+
+  @override
+  Future<ExantasIdentityAccess?> authorizeIdentityReset() async {
+    final before = await loadStatus();
+    if (!before.technicianLoggedIn || before.officeUserId.isEmpty ||
+        !['technician', 'admin'].contains(before.supportRole) ||
+        before.apiBase.replaceFirst(RegExp(r'/+$'), '') != kDefaultExantasOfficeApiBase) return null;
+    final response = await _get('/rustdesk-companion/workflow-capabilities',
+      bearerToken: before.companionToken).timeout(const Duration(seconds: 12));
+    _requireSameCompanion(before, await loadStatus());
+    if (response['status'] != 'ok' || response['office_user_id'] != before.officeUserId ||
+        response['pairing_id'] is! String || (response['pairing_id'] as String).isEmpty) return null;
+    final id = (await bind.mainGetMyId()).trim();
+    if (!RegExp(r'^\d{6,10}$').hasMatch(id)) return null;
+    return ExantasIdentityAccess(apiBase: before.apiBase, officeUserId: before.officeUserId,
+      companionToken: before.companionToken, currentId: id);
+  }
+
+  @override
+  Future<bool> identitySessionMatches(ExantasIdentityAccess access) async {
+    final now = await loadStatus();
+    return now.technicianLoggedIn && now.companionToken == access.companionToken &&
+      now.officeUserId == access.officeUserId && now.apiBase == access.apiBase &&
+      ['technician', 'admin'].contains(now.supportRole) &&
+      (await bind.mainGetMyId()).trim() == access.currentId;
+  }
+
+  @override
+  Future<ExantasIdentityResult> regenerateIdentity(ExantasIdentityAccess access) async {
+    if (!await identitySessionMatches(access)) {
+      return const ExantasIdentityResult(success: false, code: 'office_login_required', officeSignedOut: false);
+    }
+    Map<String, dynamic> response;
+    try {
+      response = _decodeMap(await bind.mainRegenerateOfficeId(request: jsonEncode({
+        'api_base': access.apiBase, 'companion_token': access.companionToken,
+        'office_user_id': access.officeUserId, 'expected_id': access.currentId,
+      })));
+    } catch (_) {
+      // A lost bridge reply can follow a committed daemon operation. Expose the
+      // ambiguity and fence this exact local sign-in; never retry automatically.
+      response = {'status': 'error', 'code': 'result_unconfirmed', 'office_signed_out': true};
+    }
+    final signedOut = response['office_signed_out'] == true;
+    final current = await loadStatus();
+    if (signedOut && current.companionToken == access.companionToken &&
+        current.officeUserId == access.officeUserId && current.apiBase == access.apiBase) {
+      // The daemon revoked this exact pairing. Never call logout again or clear
+      // credentials belonging to a different sign-in after a delayed response.
+      await _setSecretLocalOption(kExantasCompanionToken, '');
+    }
+    return ExantasIdentityResult(success: response['status'] == 'ok', code: _string(response['code']),
+      officeSignedOut: signedOut, newId: _string(response['new_id']), backupPath: _string(response['backup_path']));
   }
 
   Future<ExantasCompanionStatus> enrollDevice(String installCode) async {
@@ -148,8 +215,15 @@ class ExantasCompanionService {
     return loadStatus();
   }
 
-  Future<ExantasCompanionStatus> loginTechnician(
+  Future<ExantasCompanionStatus> loginTechnician(String email, String password) =>
+      _nativeFence.run(() => _loginTechnician(email, password));
+
+  Future<ExantasCompanionStatus> _loginTechnician(
       String email, String password) async {
+    nativeApiOrigin(apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    if (Platform.isWindows && bind.mainGetLocalOption(key: 'access_token').isNotEmpty) {
+      throw StateError('Αποσυνδεθείτε πρώτα από τον ξεχωριστό λογαριασμό RustDesk.');
+    }
     final normalizedEmail = email.trim().toLowerCase();
     if (normalizedEmail.isEmpty || password.trim().isEmpty) {
       throw Exception('Email and password are required.');
@@ -164,6 +238,8 @@ class ExantasCompanionService {
       throw Exception('Office login did not return a token.');
     }
 
+    final old = await loadStatus();
+    if (old.technicianLoggedIn) await _logoutTechnician();
     final peerId = (await bind.mainGetMyId()).trim();
     if (peerId.isEmpty) {
       throw Exception('RustDesk ID is not ready yet.');
@@ -187,22 +263,72 @@ class ExantasCompanionService {
         key: kExantasTechnicianName, value: _string(pair['technician_name']));
     await bind.mainSetLocalOption(
         key: kExantasSupportRole, value: _string(pair['support_role']));
+    if (Platform.isWindows) await _ensureNativeReady(force: true);
     return loadStatus();
   }
 
-  Future<void> logoutTechnician() async {
+  Future<void> logoutTechnician() => _nativeFence.run(_logoutTechnician);
+
+  Future<void> _logoutTechnician() async {
     final status = await loadStatus();
     if (status.companionToken.isNotEmpty) {
       // Keep local credentials if Office cannot confirm the revocation.
       // Clearing only local storage leaves a live server-side pairing interval.
-      await _post('/rustdesk-companion/logout', {},
-          bearerToken: status.companionToken);
+      final hasLease = bind.mainGetLocalOption(key: kExantasNativeLease).isNotEmpty ||
+          bind.mainGetLocalOption(key: kExantasNativeConfirm).isNotEmpty;
+      await _post(hasLease ? '/rustdesk-companion/native-logout' : '/rustdesk-companion/logout', {},
+          bearerToken: status.companionToken).timeout(const Duration(seconds: 12));
     }
+    await _setSecretLocalOption(kExantasNativeLease, '');
+    await bind.mainSetLocalOption(key: kExantasNativeExpiry, value: '');
+    await bind.mainSetLocalOption(key: kExantasNativeConfirm, value: '');
     await _setSecretLocalOption(kExantasTechnicianToken, '');
     await _setSecretLocalOption(kExantasCompanionToken, '');
     await bind.mainSetLocalOption(key: kExantasOfficeUserId, value: '');
     await bind.mainSetLocalOption(key: kExantasTechnicianName, value: '');
     await bind.mainSetLocalOption(key: kExantasSupportRole, value: '');
+  }
+
+  Future<ExantasNativeIdentity> _nativeIdentity() async {
+    final status = await loadStatus();
+    return ExantasNativeIdentity(status.apiBase, status.officeUserId,
+        status.companionToken, (await bind.mainGetMyId()).trim());
+  }
+
+  Future<void> ensureNativeReady({bool force = false}) =>
+      _nativeFence.run(() => _ensureNativeReady(force: force));
+
+  Future<void> _ensureNativeReady({bool force = false}) async {
+    final before = await _nativeIdentity();
+    if (!Platform.isWindows || before.companion.isEmpty) return;
+    if (before.actor.isEmpty) throw StateError('Απαιτείται νέα είσοδος στο Office.');
+    if (!force && bind.mainGetLocalOption(key: kExantasNativeConfirm).isNotEmpty) {
+      throw StateError('Ελέγξτε τη σύνδεση και πατήστε Επιβεβαίωση RustDesk. Δεν έγινε αυτόματη επανάληψη.');
+    }
+    if (!Platform.isWindows) throw UnsupportedError('Απαιτείται προστασία διαπιστευτηρίων Windows.');
+    nativeApiOrigin(before.apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    final nativeApi = nativeApiOrigin(await bind.mainGetApiServer());
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final expiry = int.tryParse(bind.mainGetLocalOption(key: kExantasNativeExpiry)) ?? 0;
+    if (!force && expiry > now + 90 && bind.mainGetLocalOption(key: kExantasNativeReady) == 'Y') return;
+    // Persist the ambiguity fence before sending. A lost reply or restart must
+    // require an explicit retry instead of silently repeating an issuance.
+    await bind.mainSetLocalOption(key: kExantasNativeConfirm, value: 'Y');
+    await _nativeFence.exchange(
+      before: before, current: _nativeIdentity, nativeApi: nativeApi,
+      now: () => DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      request: () async => await _post('/rustdesk-companion/native-session',
+        {'device_uuid': await bind.mainGetUuid()}, bearerToken: before.companion)
+          .timeout(const Duration(seconds: 12)),
+      store: (lease) async {
+        await _setSecretLocalOption(kExantasNativeLease, jsonEncode(lease));
+        await bind.mainSetLocalOption(key: kExantasNativeExpiry, value: '${lease['expires_at']}');
+      },
+    );
+    if (bind.mainGetLocalOption(key: kExantasNativeReady) != 'Y') {
+      throw StateError('Το rd-cl δεν επιβεβαίωσε την ασφαλή σύνδεση RustDesk.');
+    }
+    await bind.mainSetLocalOption(key: kExantasNativeConfirm, value: '');
   }
 
   Future<void> heartbeat() async {

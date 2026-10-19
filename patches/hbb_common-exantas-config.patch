@@ -1,9 +1,304 @@
 diff --git a/src/config.rs b/src/config.rs
-index 1391ed4..3028842 100644
+index 1391ed4..061f4ad 100644
 --- a/src/config.rs
 +++ b/src/config.rs
-@@ -120,2 +120,2 @@
+@@ -22,0 +23 @@ mod permanent_password;
++mod identity_reset;
+@@ -120,2 +121,2 @@ const CHARS: &[char] = &[
 -pub const RENDEZVOUS_SERVERS: &[&str] = &["rs-ny.rustdesk.com"];
 -pub const RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";
 +pub const RENDEZVOUS_SERVERS: &[&str] = &["desk.exantas.eu:21116"];
 +pub const RS_PUB_KEY: &str = "3sOZOKYteACITU6W3FVN5JqcRviVKkIf+rut+P0Dt3s=";
+@@ -987,0 +989,24 @@ impl Config {
++    /// Rotate only the public connection ID after the caller verified Office
++    /// authority. Persist/verify before publishing the new in-memory identity.
++    pub fn reset_id_with_backup(expected_id: &str, new_id: &str, protect: impl FnOnce(&Path) -> Result<()>) -> Result<PathBuf> {
++        if new_id.len() != 10 || !new_id.bytes().all(|b| b.is_ascii_digit())
++            || !(1_000_000_000..2_000_000_000).contains(&new_id.parse::<u64>()?) {
++            return Err(anyhow!("Invalid generated identity"));
++        }
++        // Compute encryption before taking CONFIG: a missing machine identity
++        // can fall back to reading the existing key pair.
++        let encrypted = encrypt_str_or_original(new_id, PASSWORD_ENC_VERSION, ENCRYPT_MAX_LEN);
++        if encrypted == new_id || !encrypted.starts_with(PASSWORD_ENC_VERSION) {
++            return Err(anyhow!("Identity encryption unavailable"));
++        }
++        let mut config = CONFIG.write().unwrap();
++        if config.id != expected_id || new_id == expected_id {
++            return Err(anyhow!("Identity changed during maintenance"));
++        }
++        let backup = identity_reset::persist(&Self::file(), encrypted.clone(), protect)?;
++        config.id = new_id.to_owned();
++        config.enc_id = encrypted;
++        config.key_confirmed = false;
++        Ok(backup)
++    }
++
+diff --git a/src/config/identity_reset.rs b/src/config/identity_reset.rs
+new file mode 100644
+index 0000000..07f6700
+--- /dev/null
++++ b/src/config/identity_reset.rs
+@@ -0,0 +1,262 @@
++//! Checked identity-only persistence; called with the Config write lock held.
++use super::store_path;
++#[cfg(test)]
++use super::Config;
++use anyhow::{anyhow, bail, Result};
++use std::{
++    fs,
++    io::Write,
++    path::{Path, PathBuf},
++};
++
++fn ordinary_path(path: &Path) -> Result<()> {
++    for part in path.ancestors() {
++        if part.as_os_str().is_empty() {
++            continue;
++        }
++        let metadata = fs::symlink_metadata(part)?;
++        if metadata.file_type().is_symlink() {
++            bail!("Identity configuration symlink refused");
++        }
++        #[cfg(windows)]
++        {
++            use std::os::windows::fs::MetadataExt;
++            if metadata.file_attributes() & 0x400 != 0 {
++                bail!("Identity configuration reparse point refused");
++            }
++        }
++    }
++    let metadata = fs::metadata(path)?;
++    if !metadata.is_file() || metadata.len() > 1024 * 1024 {
++        bail!("Unexpected identity configuration file");
++    }
++    Ok(())
++}
++
++pub(super) fn persist(
++    path: &Path,
++    encrypted_id: String,
++    protect: impl FnOnce(&Path) -> Result<()>,
++) -> Result<PathBuf> {
++    persist_with(path, encrypted_id, protect, |path, config| {
++        store_path(path.to_owned(), config)
++    })
++}
++
++fn persist_with(
++    path: &Path,
++    encrypted_id: String,
++    protect: impl FnOnce(&Path) -> Result<()>,
++    store: impl FnOnce(&Path, &toml::Value) -> Result<()>,
++) -> Result<PathBuf> {
++    ordinary_path(path)?;
++    let original = fs::read(path)?;
++    // Preserve every non-identity value, including future fields. Loading the
++    // typed Config here would silently default malformed fields and drop unknown
++    // ones; this operation is not permission to normalize credentials/settings.
++    let mut stored: toml::Value = toml::from_str(std::str::from_utf8(&original)?)?;
++    let table = stored
++        .as_table_mut()
++        .ok_or_else(|| anyhow!("Expected configuration table"))?;
++    table.remove("id");
++    table.insert("enc_id".into(), toml::Value::String(encrypted_id));
++    table.insert("key_confirmed".into(), toml::Value::Boolean(false));
++    for field in ["password", "salt"] {
++        if !table.get(field).map_or(false, |value| value.is_str()) {
++            bail!("Invalid non-identity configuration field");
++        }
++    }
++    let keys = table
++        .get("key_pair")
++        .and_then(toml::Value::as_array)
++        .ok_or_else(|| anyhow!("Missing device keys"))?;
++    let lengths = [
++        sodiumoxide::crypto::sign::SECRETKEYBYTES,
++        sodiumoxide::crypto::sign::PUBLICKEYBYTES,
++    ];
++    if keys.len() != 2
++        || keys.iter().zip(lengths).any(|(key, length)| {
++            key.as_array().map_or(true, |bytes| {
++                bytes.len() != length
++                    || bytes.iter().any(|v| {
++                        v.as_integer()
++                            .map_or(true, |byte| !(0..=255).contains(&byte))
++                    })
++            })
++        })
++    {
++        bail!("Invalid device key storage; identity was not changed");
++    }
++    // Keep backups beside the established protected configuration, never Desktop
++    // or logs. They contain the existing encrypted secrets and private key.
++    let backup = path.with_file_name(format!("identity-backup-{}.toml", uuid::Uuid::new_v4()));
++    let mut options = fs::OpenOptions::new();
++    options.write(true).create_new(true);
++    #[cfg(unix)]
++    {
++        use std::os::unix::fs::OpenOptionsExt;
++        options.mode(0o600);
++    }
++    let mut output = options.open(&backup)?;
++    protect(&backup)?;
++    output.write_all(&original)?;
++    output.sync_all()?;
++    if fs::read(&backup)? != original {
++        bail!("Identity backup verification failed");
++    }
++    ordinary_path(path)?;
++    if fs::read(path)? != original {
++        bail!("Identity configuration changed concurrently");
++    }
++    let saved = store(path, &stored).and_then(|_| {
++        let verified: toml::Value = toml::from_str(&fs::read_to_string(path)?)?;
++        if verified != stored {
++            bail!("Identity configuration verification failed");
++        }
++        Ok(())
++    });
++    if let Err(error) = saved {
++        // Other Config writers remain blocked. Preserve the backup even if the
++        // filesystem cannot complete rollback; never claim the write succeeded.
++        ordinary_path(path)?;
++        fs::write(path, &original)
++            .map_err(|_| anyhow!("Identity rollback failed; backup: {}", backup.display()))?;
++        if fs::read(path)? != original {
++            bail!("Identity rollback verification failed");
++        }
++        return Err(error);
++    }
++    Ok(backup)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    struct Fixture(PathBuf);
++    impl Fixture {
++        fn new() -> Self {
++            let path =
++                std::env::temp_dir().join(format!("rd-cl-identity-test-{}", uuid::Uuid::new_v4()));
++            fs::create_dir(&path).unwrap();
++            Self(path)
++        }
++        fn config(&self) -> PathBuf {
++            let path = self.0.join("synthetic.toml");
++            let mut cfg = Config::default();
++            cfg.enc_id = "old-encrypted-id".into();
++            cfg.password = "synthetic-password".into();
++            cfg.salt = "synthetic-salt".into();
++            cfg.key_pair = (
++                vec![1; sodiumoxide::crypto::sign::SECRETKEYBYTES],
++                vec![2; sodiumoxide::crypto::sign::PUBLICKEYBYTES],
++            );
++            cfg.key_confirmed = true;
++            cfg.keys_confirmed.insert("synthetic-server".into(), true);
++            store_path(path.clone(), cfg).unwrap();
++            path
++        }
++    }
++    impl Drop for Fixture {
++        fn drop(&mut self) {
++            let _ = fs::remove_dir_all(&self.0);
++        }
++    }
++    #[test]
++    fn preserves_credentials_keys_and_exact_recovery_bytes() {
++        let f = Fixture::new();
++        let path = f.config();
++        let original = fs::read(&path).unwrap();
++        let before: Config = confy::load_path(&path).unwrap();
++        let backup = persist(&path, "new-encrypted-id".into(), |_| Ok(())).unwrap();
++        assert_eq!(fs::read(backup).unwrap(), original);
++        let after: Config = confy::load_path(path).unwrap();
++        let mut expected = before;
++        expected.id.clear();
++        expected.enc_id = "new-encrypted-id".into();
++        expected.key_confirmed = false;
++        assert_eq!(after, expected);
++    }
++    #[test]
++    fn preserves_unknown_non_identity_fields() {
++        let f = Fixture::new();
++        let path = f.config();
++        let mut original = fs::read_to_string(&path).unwrap();
++        original.insert_str(0, "future_field='keep'\n");
++        fs::write(&path, &original).unwrap();
++        let backup = persist(&path, "new-encrypted-id".into(), |_| Ok(())).unwrap();
++        let after: toml::Value = toml::from_str(&fs::read_to_string(path).unwrap()).unwrap();
++        assert_eq!(after["future_field"].as_str(), Some("keep"));
++        assert_eq!(fs::read(backup).unwrap(), original.as_bytes());
++    }
++    #[test]
++    fn invalid_device_key_shape_is_not_replaced() {
++        let f = Fixture::new();
++        let path = f.config();
++        let mut value: toml::Value = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
++        value["key_pair"][0] = toml::Value::Array(Vec::new());
++        store_path(path.clone(), value).unwrap();
++        let original = fs::read(&path).unwrap();
++        assert!(persist(&path, "new".into(), |_| Ok(())).is_err());
++        assert_eq!(fs::read(path).unwrap(), original);
++    }
++    #[test]
++    fn malformed_non_identity_fields_are_not_silently_defaulted() {
++        let f = Fixture::new();
++        let path = f.config();
++        let mut value: toml::Value = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
++        value["salt"] = toml::Value::Integer(123);
++        store_path(path.clone(), value).unwrap();
++        let original = fs::read(&path).unwrap();
++        assert!(persist(&path, "new".into(), |_| Ok(())).is_err());
++        assert_eq!(fs::read(path).unwrap(), original);
++    }
++    #[test]
++    fn failed_write_restores_original_and_keeps_backup() {
++        let f = Fixture::new();
++        let path = f.config();
++        let original = fs::read(&path).unwrap();
++        let result = persist_with(
++            &path,
++            "new-encrypted-id".into(),
++            |_| Ok(()),
++            |path, _| {
++                fs::write(path, "partial write")?;
++                bail!("injected write failure")
++            },
++        );
++        assert!(result.is_err());
++        assert_eq!(fs::read(&path).unwrap(), original);
++        assert_eq!(fs::read_dir(&f.0).unwrap().count(), 2);
++    }
++    #[test]
++    fn backup_permission_failure_cannot_change_the_config() {
++        let f = Fixture::new();
++        let path = f.config();
++        let original = fs::read(&path).unwrap();
++        assert!(persist(&path, "new".into(), |_| bail!("injected ACL denial")).is_err());
++        assert_eq!(fs::read(&path).unwrap(), original);
++        let backup = fs::read_dir(&f.0)
++            .unwrap()
++            .map(|x| x.unwrap().path())
++            .find(|x| *x != path)
++            .unwrap();
++        assert_eq!(fs::metadata(backup).unwrap().len(), 0);
++    }
++    #[test]
++    fn unrecognized_config_is_not_replaced() {
++        let f = Fixture::new();
++        let path = f.0.join("bad.toml");
++        fs::write(&path, "malformed = [").unwrap();
++        assert!(persist(&path, "new".into(), |_| Ok(())).is_err());
++        assert_eq!(fs::read_to_string(path).unwrap(), "malformed = [");
++    }
++    #[cfg(unix)]
++    #[test]
++    fn symlink_configuration_is_refused() {
++        let f = Fixture::new();
++        let path = f.config();
++        let link = f.0.join("link.toml");
++        std::os::unix::fs::symlink(&path, &link).unwrap();
++        assert!(persist(&link, "new".into(), |_| Ok(())).is_err());
++    }
++}

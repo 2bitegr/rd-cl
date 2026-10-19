@@ -9,6 +9,9 @@ import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'exantas_sessions_page.dart';
+import '../widgets/exantas_identity_settings.dart';
+import '../../models/exantas_companion_model.dart';
+import '../../models/exantas_report_outbox.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_home_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
@@ -888,6 +891,7 @@ class _Safety extends StatefulWidget {
 }
 
 class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
+  final _identityActions = ExantasCompanionService();
   @override
   bool get wantKeepAlive => true;
   bool locked = bind.mainIsInstalled();
@@ -910,8 +914,13 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                 permissions(context),
                 password(context),
                 _Card(title: '2FA', children: [tfa()]),
-                if (!isChangeIdDisabled())
-                  _Card(title: 'ID', children: [changeId()]),
+                ExantasIdentitySettings(
+                  actions: _identityActions, unlocked: !locked,
+                  available: isWindows && bind.mainIsInstalled(),
+                  cardBuilder: (child) => _Card(title: 'RustDesk ID', children: [child]),
+                  hasPendingReports: () async => (await ExantasReportOutbox.instance.rows())
+                    .any((row) => row['state'] != 'synced'),
+                ),
                 more(context),
               ]),
             ),
@@ -1036,15 +1045,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
     }
 
     return tmpWrapper();
-  }
-
-  Widget changeId() {
-    return ChangeNotifierProvider.value(
-        value: gFFI.serverModel,
-        child: Consumer<ServerModel>(builder: ((context, model, child) {
-          return _Button('Change ID', changeIdDialog,
-              enabled: !locked && model.connectStatus > 0);
-        })));
   }
 
   Widget permissions(context) {
