@@ -85,6 +85,20 @@ Then translate that source into the file's target language (infer the language f
 * Do not translate brand or technical tokens: `RustDesk`, `Socks5`, `TLS`, `UAC`, `Wayland`, `X11`, `TCP`, `UDP`, `2FA`, `RDP`, `D3D`, etc.
 * Copy URL values (e.g. `doc_*` keys) verbatim from `en.rs`.
 
+## Office workstation roles
+
+Development, source/version/build-tooling corrections, commits and pushes belong
+only to S1 (Windows DESKTOP-IQ8ORD5). S2 (Windows S2) pulls published source;
+its delivery-build role covers changed rd-cl only, never this API or other apps.
+S2 performs reviewed Office migrations only through a separate user-forwarded
+handoff with target, ledger, backup, ownership and locking safeguards. Verify the
+actual host before work. S2 must not author source, bump versions, commit or push;
+return corrections to S1. Missing rd-cl offline inputs mean BLOCKED, without
+downloads or fallback builds on S1. The user performs final deployment manually
+from S1 through Dokploy; report when/what to deploy and prerequisite gaps. Read
+the published Office AGENTS.md for the full shared handoff/deployment procedure.
+These roles grant no standing Git, installation, deployment or SQL permission.
+
 ## Mandatory cleanup before commit, push and release
 
 Before creating any commit and before every `git push`, run a dedicated cleanup

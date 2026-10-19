@@ -5,11 +5,45 @@ Use `scripts/windows-native-build.ps1` and its reviewed
 accepted repeatable workflow: it uses moving refs, an unlocked pub resolve,
 fixed tool paths and a suppressed SDK patch failure.
 
-The source checkpoint is `5eec99577ca4faa36bfae127022af62e85377aff`, product
-`1.4.12+70`. The reviewed profile includes the approved runtime-version and
-staff-only sign-in UI changes, product version metadata, and the separately
-approved, uncommitted Flutter lock correction. A build must disclose this delta; the commit alone
-is not the full build input.
+The current product is **1.4.13+71**, distinct from installed1.4.12+70.
+S1 publishes source/version/tooling; S2 alone performs delivery builds. Supply the
+full published commit as `-SourceCommit`; branch names are rejected. The owned
+snapshot marker and actual HEAD must match it, and the profile must be identical
+to the profile stored in that commit. This avoids a self-referential commit pin.
+The profile still checks exact input hashes, submodule/tool revisions and engine
+SHA-256. Authored tracked deltas are rejected; regenerated bridge files are the
+only allowed tracked build delta. Preserve/reproduce the approved hbb_common patch.
+The handoff must independently verify the exact commit against the live remote.
+
+## Requested EXE installer (no MSI)
+
+After successful preflight, use the published wrapper on S2:
+
+```powershell
+& .\scripts\windows-native-release.ps1 -Mode Build -WithExe `
+  -Toolchain <S2-local-toolchain.json> -SourceCommit <full-published-SHA> `
+  -OutputRoot <verified-Desktop>\Office-Workspace-Artifacts\Builds\rd-cl\1.4.13+71
+```
+
+`PackageExe` can resume packaging from the same verified build. It rejects a stale
+source/version receipt or any changed/extra runtime file, generates the existing
+`libs/portable` embedded payload and invokes pinned Cargo with `--frozen`. Installed
+Python Brotli and packer Cargo dependencies must already be cached; no pip install,
+download or fallback compiler is permitted. The packer uses the root workspace
+Cargo.lock, not the historical nested standalone lockfile.
+
+Output: `rd-cl-1.4.13+71-windows-x64-install.exe`, `EXE-INFO.json` and SHA256SUMS,
+alongside the verified runtime ZIP/provenance. The `install.exe` suffix is required
+by the existing launcher to open its interactive `--install` screen. Compilation
+never executes the product. No `-WithMsi`/`PackageMsi` is requested; existing MSI
+support remains available only for a separately requested delivery.
+
+EXE compilation, metadata/archive validation and release-maintenance PASS are
+required on S2 before delivery. Current packaging source/guard tests do not prove
+a successful EXE build, clean-PC installation, upgrade preservation of ID/config/
+enrollment, DPAPI/services, signing or a real connection. Keep those results
+NOT_RUN until actually checked; never install/run the package to test it without
+a separate authorized acceptance step. Preserve the previous verified delivery.
 
 ## Offline dependency policy
 

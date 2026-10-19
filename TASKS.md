@@ -1,15 +1,15 @@
 # rd-cl build tasks
 
-- SOURCE CHECKPOINT (2026-10-19): user-authorized commit and Git synchronization
-  of the current rd-cl branch, covering technician ID maintenance and unified
-  native sign-in source/tests. Native version remains1.4.12+70. Current native
-  auth files match the15-file tested source receipt; full native DLL/DPAPI and
-  real-session acceptance remain NOT_RUN, and the declined hbb_common test stays
-  BLOCKED. Office API/native-issuer publication and rollout are separate; the new
-  sign-in consumer is not deployment-ready until both producers are delivered.
-  Retain the dirty upstream hbb_common checkout; its reproducible local changes
-  are carried by patches/hbb_common-exantas-config.patch. No build, dependency
-  download, installation or production action belongs to this Git checkpoint.
+- PUBLICATION PREPARATION (2026-10-19): user authorized coordinated S1 commit/push
+  of rd-cl, Office and rustdesk-api. Product1.4.13+71; matching root/Flutter/packer
+  versions and reviewed input hashes. Build profile uses the exact published
+  handoff SHA and commit-owned profile. Offline EXE packaging reuses libs/portable
+  via frozen Cargo, without MSI/product execution. New source-pin/stale-payload
+  guard tests are part of the installed-only suite. S2 owns delivery builds;
+  required offline inputs were missing in its last report. EXE compilation,
+  installation/upgrade and full native DPAPI/session acceptance remain NOT_RUN.
+  Keep hbb_common dirty state represented by its tracked patch; declined storage
+  test remains BLOCKED. No downloads, installation or production changes.
 
 - SOURCE IMPLEMENTED / NATIVE ACCEPTANCE PENDING (2026-10-18): user-approved
   unified Office/native sign-in source/tests.

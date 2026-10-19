@@ -1,6 +1,6 @@
 [package]
 name = "rustdesk-portable-packer"
-version = "1.4.11"
+version = "1.4.13"
 edition = "2021"
 description = "RustDesk Remote Desktop"
 
@@ -27,10 +27,11 @@ native-windows-gui = {version = "1.0", default-features = false, features = ["an
 
 [package.metadata.winres]
 LegalCopyright = "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."
-ProductName = "RustDesk"
+ProductName = "Exantas Support"
 OriginalFilename = "rustdesk.exe"
-FileDescription = "RustDesk Remote Desktop"
-#ProductVersion = ""
+FileDescription = "Exantas Support installer"
+ProductVersion = "1.4.13.71"
+FileVersion = "1.4.13.71"
 
 [target.'cfg(target_os="windows")'.build-dependencies]
 winres = "0.1"

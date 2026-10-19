@@ -1,12 +1,15 @@
 param(
-    [ValidateSet('Preflight','Provision','Build','Package','PackageMsi')][string]$Mode = 'Build',
+    [ValidateSet('Preflight','Provision','Build','Package','PackageExe','PackageMsi')][string]$Mode = 'Build',
     [Parameter(Mandatory=$true)][string]$Toolchain,
     [Parameter(Mandatory=$true)][string]$SourceCommit,
     [Parameter(Mandatory=$true)][string]$OutputRoot,
     [switch]$ElevateProvision,
+    [switch]$WithExe,
     [switch]$WithMsi
 )
 $ErrorActionPreference = 'Stop'
+if ($WithExe -and $Mode -notin @('Build','Package')) { throw 'WithExe applies only after Build/Package.' }
+if ($WithExe -and $WithMsi) { throw 'Choose one installer format.' }
 if ($WithMsi -and $Mode -notin @('Build','Package')) { throw 'WithMsi applies only after Build/Package.' }
 if ($Mode -eq 'PackageMsi' -and $ElevateProvision) { throw 'Installer compilation does not elevate.' }
 if ($Mode -ne 'PackageMsi') {
@@ -35,4 +38,8 @@ Get-Content -LiteralPath $stdout
         Get-Content -LiteralPath $stderr
         throw "Installer packaging failed with exit $($process.ExitCode); portable build results remain separate."
     }
+}
+
+if ($WithExe) {
+    & (Join-Path $PSScriptRoot 'windows-native-build.ps1') -Mode PackageExe -Toolchain $Toolchain -SourceCommit $SourceCommit -OutputRoot $OutputRoot
 }

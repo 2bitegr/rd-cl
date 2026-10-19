@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory=$true)][ValidateSet('Preflight','Provision','Build','Package')][string]$Mode,
+    [Parameter(Mandatory=$true)][ValidateSet('Preflight','Provision','Build','Package','PackageExe')][string]$Mode,
     [Parameter(Mandatory=$true)][string]$Toolchain,
     [Parameter(Mandatory=$true)][string]$SourceCommit,
     [Parameter(Mandatory=$true)][string]$OutputRoot,

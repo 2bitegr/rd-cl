@@ -66,6 +66,17 @@ def require_files(paths):
         raise RuntimeError('Missing cached dependency; downloads are disabled: ' + ', '.join(missing))
 
 
+def require_source_pin(profile, requested, head, working_profile, committed_profile):
+    # A tracked profile cannot embed its own future commit hash. The reviewed
+    # handoff supplies that immutable SHA; never accept a branch/moving alias.
+    if not re.fullmatch(r'[0-9a-f]{40}', requested) or head != requested:
+        raise RuntimeError('SourceCommit must be the exact full snapshot HEAD')
+    if profile.get('source_commit_policy') != 'exact-published-invocation':
+        raise RuntimeError('Unknown source commit policy')
+    if working_profile != committed_profile:
+        raise RuntimeError('Build profile differs from the requested source commit')
+
+
 def report_failure(build, error):
     # A full log volume must not hide the error that stopped the build.
     print(str(error), file=sys.stderr)
@@ -269,9 +280,17 @@ class Build:
                 raise RuntimeError(f'Insufficient free space before build: {free} bytes available; '
                                    f'at least {minimum} bytes required. No dependency acquisition or build started.')
         self.require_cached_tools()
-        if self.args.source_commit != self.profile['source_commit']:
-            raise RuntimeError('SourceCommit differs from the reviewed profile')
         _, head = self.git('source-head', 'rev-parse', 'HEAD')
+        _, committed_profile = self.git('source-profile', 'show',
+            self.args.source_commit + ':scripts/windows-native-profile.json')
+        require_source_pin(self.profile, self.args.source_commit, head.strip(),
+            json.dumps(self.profile, sort_keys=True),
+            json.dumps(json.loads(committed_profile), sort_keys=True))
+        _, changed = self.git('source-delta', 'diff', '--name-only', '--ignore-submodules=all', 'HEAD')
+        generated = {'src/bridge_generated.rs', 'src/bridge_generated.io.rs',
+                     'flutter/lib/generated_bridge.dart', 'flutter/lib/generated_bridge.freezed.dart'}
+        if set(changed.splitlines()) - generated:
+            raise RuntimeError('Snapshot contains authored changes outside its published commit')
         _, submodule = self.git('submodule-head', 'rev-parse', 'HEAD', cwd=self.source / 'libs/hbb_common')
         if head.strip() != self.args.source_commit or submodule.strip() != self.profile['submodule_commit']:
             raise RuntimeError('Source or submodule revision mismatch')
@@ -502,7 +521,8 @@ class Build:
         save(self.logs / 'generated-bindings.json', {name: digest(self.source / name) for name in generated})
         self.run('dart-regressions', [*self.flutter_command('test', '--no-pub', '--concurrency=1'), 'test/exantas_session_report_test.dart',
                  'test/input_modifier_utils_test.dart', 'test/autocomplete_peer_merge_test.dart',
-                 'test/server_settings_dialog_test.dart', 'test/exantas_identity_settings_test.dart'],
+                 'test/server_settings_dialog_test.dart', 'test/exantas_identity_settings_test.dart',
+                 'test/exantas_native_auth_test.dart'],
                  cwd=self.source / 'flutter')
         self.run('cargo-metadata', [self.tools['cargo'], 'metadata', '--frozen', '--features', 'flutter,hwcodec,vram',
                                               '--format-version', '1', '--filter-platform', 'x86_64-pc-windows-msvc'])
@@ -564,6 +584,48 @@ class Build:
                            creationflags=subprocess.CREATE_NO_WINDOW)
             self.drive_created = False
 
+    def package_exe(self):
+        # Reuse the existing upstream self-extracting installer. Never execute
+        # the packaged application, install it, or invoke MSI during packaging.
+        bundle = self.source / 'flutter/build/windows/x64/runner/Release'
+        info = json.loads((self.output / 'BUILD-INFO.json').read_text(encoding='utf-8'))
+        if (info.get('status') != 'PASS' or info['source_commit'] != self.args.source_commit
+                or info['version'] != self.profile['version']):
+            raise RuntimeError('EXE requires a verified matching native build')
+        current = {str(p.relative_to(bundle)).replace('\\', '/'): digest(p)
+                   for p in bundle.rglob('*') if p.is_file()}
+        if current != info['files']:
+            raise RuntimeError('Runtime payload differs from the verified native build')
+        destination = self.output / ('rd-cl-' + self.profile['version'] + '-windows-x64-install.exe')
+        if destination.exists():
+            raise RuntimeError('Refusing to overwrite an existing installer')
+        self.run('packer-python-dependency', [self.tools['python'], '-c',
+            "import brotli; import importlib.metadata; print(importlib.metadata.version('Brotli'))"])
+        self.run('packer-generate', [self.tools['python'], self.source / 'libs/portable/generate.py',
+            '--folder', bundle, '--output', self.source / 'libs/portable', '--executable',
+            bundle / 'rustdesk.exe', '--skip-build'])
+        self.run('packer-frozen', [self.tools['cargo'], 'build', '--frozen', '--release',
+                                  '-p', 'rustdesk-portable-packer', '-j', '1'])
+        target = Path(self.env['CARGO_TARGET_DIR']) / 'release/rustdesk-portable-packer.exe'
+        with target.open('rb') as stream:
+            if stream.read(2) != b'MZ':
+                raise RuntimeError('Installer is not a Windows PE executable')
+            stream.seek(0x3c); stream.seek(struct.unpack('<I', stream.read(4))[0])
+            if stream.read(4) != b'PE\0\0' or struct.unpack('<H', stream.read(2))[0] != 0x8664:
+                raise RuntimeError('Installer architecture is not x64')
+        shutil.copy2(target, destination)
+        receipt = {'status': 'PACKAGED_NATIVE_ACCEPTANCE_PENDING',
+            'source_commit': self.args.source_commit, 'version': self.profile['version'],
+            'source_repository': self.profile['source_repository'], 'architecture': 'windows-x64',
+            'installer': str(destination), 'sha256': digest(destination),
+            'payload_sha256': current, 'toolchain_manifest': str(self.logs / 'toolchain-manifest.json'),
+            'format': 'existing self-extracting RustDesk installer; interactive --install',
+            'acceptance': 'NOT_RUN: installation, upgrade, DPAPI, services and real session',
+            'signing': 'UNSIGNED'}
+        save(self.output / 'EXE-INFO.json', receipt)
+        with (self.output / 'SHA256SUMS').open('a', encoding='utf-8') as sums:
+            sums.write(receipt['sha256'] + '  ' + destination.name + '\n')
+
     def package(self):
         bundle = self.source / 'flutter/build/windows/x64/runner/Release'
         required = ['rustdesk.exe', 'flutter_windows.dll', 'librustdesk.dll',
@@ -616,7 +678,7 @@ class Build:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--mode', choices=['Preflight', 'Provision', 'Build', 'Package'], required=True)
+    parser.add_argument('--mode', choices=['Preflight', 'Provision', 'Build', 'Package', 'PackageExe'], required=True)
     parser.add_argument('--toolchain', required=True)
     parser.add_argument('--source-commit', required=True)
     parser.add_argument('--output-root', required=True)
@@ -630,6 +692,8 @@ def main():
             build.build()
         elif args.mode == 'Package':
             build.package()
+        elif args.mode == 'PackageExe':
+            build.package_exe()
         build.close()
         save(build.logs / 'result.json', {'mode': args.mode, 'status': 'PASS'})
     except Exception as error:

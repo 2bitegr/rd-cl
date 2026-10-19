@@ -30,6 +30,44 @@ msi = load('native_msi', 'windows-native-msi.py')
 
 
 class OfflineGuards(unittest.TestCase):
+    def test_source_pin_rejects_moving_ref_wrong_head_and_modified_profile(self):
+        profile = {'source_commit_policy': 'exact-published-invocation'}
+        sha = 'a' * 40
+        build.require_source_pin(profile, sha, sha, 'same', 'same')
+        for requested, head, working, committed in [
+            ('main', sha, 'same', 'same'), (sha, 'b' * 40, 'same', 'same'),
+            (sha, sha, 'edited', 'published')]:
+            with self.subTest(requested=requested, head=head, working=working):
+                with self.assertRaises(RuntimeError):
+                    build.require_source_pin(profile, requested, head, working, committed)
+        with self.assertRaisesRegex(RuntimeError, 'Unknown source commit policy'):
+            build.require_source_pin({}, sha, sha, 'same', 'same')
+
+    def test_exe_packaging_rejects_stale_or_modified_runtime_before_compilation(self):
+        for mutation in ['source', 'version', 'payload', 'extra-file']:
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                bundle = root / 'flutter/build/windows/x64/runner/Release'
+                bundle.mkdir(parents=True)
+                exe = bundle / 'rustdesk.exe'
+                exe.write_bytes(b'original')
+                info = {'status': 'PASS', 'source_commit': 'a' * 40, 'version': '1.4.13+71',
+                        'files': {'rustdesk.exe': build.digest(exe)}}
+                if mutation == 'source': info['source_commit'] = 'b' * 40
+                if mutation == 'version': info['version'] = '1.4.12+70'
+                if mutation == 'payload': exe.write_bytes(b'changed')
+                if mutation == 'extra-file': (bundle / 'unexpected.dll').write_bytes(b'extra')
+                (root / 'BUILD-INFO.json').write_text(json.dumps(info))
+                runner = object.__new__(build.Build)
+                runner.source = runner.output = root
+                runner.args = argparse.Namespace(source_commit='a' * 40)
+                runner.profile = {'version': '1.4.13+71'}
+                runner.run = Mock()
+                with self.assertRaises(RuntimeError):
+                    runner.package_exe()
+                runner.run.assert_not_called()
+                self.assertFalse((root / 'EXE-INFO.json').exists())
+
     def test_missing_flutter_snapshot_never_bootstraps(self):
         with tempfile.TemporaryDirectory() as directory:
             runner = object.__new__(build.Build)
