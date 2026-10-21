@@ -18,6 +18,11 @@ set(VCPKG_LIBRARY_LINKAGE static)
 set(VCPKG_CRT_LINKAGE static)
 set(VCPKG_BUILD_TYPE release)
 include("${SCRIPTS}/ports.cmake")
+# ports.cmake normally initializes these only in its BUILD branch. This audit
+# deliberately executes no BUILD port, so supply the same native helper context.
+set(HOST_TRIPLET "${_HOST_TRIPLET}")
+include("${SCRIPTS}/cmake/vcpkg_common_definitions.cmake")
+set(ENV{VCPKG_COMMAND} "${VCPKG_ROOT_DIR}/vcpkg.exe")
 file(MAKE_DIRECTORY "${CURRENT_BUILDTREES_DIR}")
 set(CURRENT_HOST_INSTALLED_DIR "${_VCPKG_INSTALLED_DIR}/${_HOST_TRIPLET}")
 
