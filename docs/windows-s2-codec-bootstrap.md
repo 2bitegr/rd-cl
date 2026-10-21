@@ -71,6 +71,15 @@ Concurrent bootstrap invocations for the same root are refused by an exclusive
 lock. After an interrupted invocation, inspect its lock/state; do not force-remove
 it or silently replay compilation. A failed compilation is retained for diagnosis.
 
+Preflight's compiler detection may leave the empty directory
+`packages/detect_compiler_x64-windows-static`. Both prepared-root reuse and the
+final pre-compile guard accept this exact empty directory without deleting it.
+Compiler-check artifacts are allowed only in `buildtrees/detect_compiler`;
+codec objects/libraries in other buildtrees or installed locations remain blocked.
+Unknown package entries, any contents inside the package probe directory, and
+links/reparse points are rejected. This does not accept a previous codec build
+or a COMPILING/COMPILED ownership marker.
+
 ## Execute on S2
 
 Fill only the three machine-local paths and the full published tooling SHA below.

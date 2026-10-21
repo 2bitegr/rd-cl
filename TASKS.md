@@ -6,15 +6,17 @@
   exact CRLF release-only triplet, pinned archive/helper/plan checks precede
   compilation. Receipt requires fresh native objects/libraries/ABIs and the
   unchanged existing verifier; no S1 receipt or warm-app proof is substituted.
-  Procedure: docs/windows-s2-codec-bootstrap.md. S2 reports Preflight BLOCKED
-  importing get-vars before its local vcpkg-cmake dependency was staged in the
-  isolated audit root. Fixed helper staging order; added a CMake integration
-  fixture for the dependency chain and missing-input failure. Native S2
+  Procedure: docs/windows-s2-codec-bootstrap.md. S2 now reports helper dependency
+  regression PASS and Preflight PASS at ceeac60; Compile blocked before codecs
+  because the fresh-output guard rejected the empty detect_compiler package dir.
+  Shared guard now accepts that exact empty probe, preserving it, while rejecting
+  unknown/nonempty package state and codec artifacts. Both call sites have
+  filesystem regression coverage. Native S2
   compilation/receipt and subsequent application/EXE build remain NOT_RUN. No functional/auth,
   dependency/version, installation, Actions or production changes.
-  Validation:37 stdlib guard/verifier tests, PowerShell parser and public-release
+  Validation:40 stdlib guard/verifier tests, PowerShell parser and public-release
   hygiene PASS on Linux. New CMake integration test requires installed CMake;
-  coordinator has none, so its runtime check is SKIPPED pending S2 execution.
+  coordinator has none, so its runtime check remains SKIPPED here; S2 reported PASS.
 
 - PUBLICATION PREPARATION (2026-10-19): user authorized coordinated S1 commit/push
   of rd-cl, Office and rustdesk-api. Product1.4.13+71; matching root/Flutter/packer

@@ -284,6 +284,96 @@ endfunction()
             self.assertFalse((root / 'compiled-cache-receipt.json').exists())
             self.assertEqual(json.loads((root / '.rd-cl-codec-bootstrap.json').read_text())['phase'], 'COMPILING')
 
+    def test_empty_probe_state_is_reused_by_prepare_root_and_compile_without_deletion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / 'Tools/codec-bootstrap/prepared'
+            probe = root / 'packages/detect_compiler_x64-windows-static'
+            probe.mkdir(parents=True)
+            compiler_object = root / 'buildtrees/detect_compiler/x64/probe.obj'
+            compiler_object.parent.mkdir(parents=True)
+            compiler_object.write_bytes(b'compiler-detection-only')
+            marker = root / '.rd-cl-codec-bootstrap.json'
+            codec.native.save(marker, {'source_commit': 'a' * 40, 'machine': 'S2', 'schema': 1, 'phase': 'PREPARED'})
+            runner = object.__new__(codec.Bootstrap)
+            runner.drive_created = False
+            runner.args = argparse.Namespace(source_commit='a' * 40, codec_root=str(root))
+            runner.cfg = {'artifact_root': str(base)}
+            runner.source = base / 'Scratch/source'
+            runner.tools = {'vcpkg': base / 'existing-vcpkg'}
+            runner.output = base / 'Builds/rd-cl/report'
+            runner.git = Mock()
+            runner.codec_preflight = Mock(return_value=(root, runner.output / 'Triplets'))
+            runner.run = Mock(side_effect=RuntimeError('fixture codec compiler entered'))
+            try:
+                self.assertEqual(runner.prepare_root(), root)
+                runner.git.assert_not_called()  # Reuse prepared root, never re-clone.
+                with self.assertRaisesRegex(RuntimeError, 'fixture codec compiler entered'):
+                    runner.compile_codecs()
+                runner.run.assert_called_once()
+                self.assertTrue(probe.is_dir())
+                self.assertEqual(list(probe.iterdir()), [])
+                self.assertEqual(compiler_object.read_bytes(), b'compiler-detection-only')
+                self.assertEqual(json.loads(marker.read_text())['phase'], 'COMPILING')
+            finally:
+                runner.close()
+
+    def test_unknown_packages_nonempty_probe_and_codec_outputs_stop_before_compilation(self):
+        for relative, is_directory in [
+            ('packages/aom_x64-windows-static', True),
+            ('packages/detect_compiler_x86-windows-static', True),
+            ('packages/detect_compiler_x64-windows-static', False),
+            ('packages/detect_compiler_x64-windows-static/unexpected.txt', False),
+            ('packages/detect_compiler_x64-windows-static/probe.obj', False),
+            ('installed/x64-windows-static/lib/codec.LIB', False),
+            ('installed/x64-windows-static/share/codec/output.obj', False),
+            ('buildtrees/aom/x64-rel/source.obj', False),
+            ('buildtrees/unknown/source.o', False)]:
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                output = root / relative
+                output.parent.mkdir(parents=True, exist_ok=True)
+                if is_directory:
+                    output.mkdir()
+                else:
+                    output.write_bytes(b'preserved-existing-output')
+                before = codec.inventory(root)
+                runner = object.__new__(codec.Bootstrap)
+                runner.args = argparse.Namespace(source_commit='a' * 40)
+                runner.codec_preflight = Mock(return_value=(root, root / 'Triplets'))
+                runner.run = Mock()
+                with self.assertRaises(RuntimeError):
+                    runner.compile_codecs()
+                runner.run.assert_not_called()
+                self.assertEqual(codec.inventory(root), before)
+                self.assertFalse((root / '.rd-cl-codec-bootstrap.json').exists())
+
+    def test_prepare_root_still_rejects_existing_codec_package(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / 'Tools/codec-bootstrap/prepared'
+            package = root / 'packages/aom_x64-windows-static'
+            package.mkdir(parents=True)
+            marker = root / '.rd-cl-codec-bootstrap.json'
+            state = {'source_commit': 'a' * 40, 'machine': 'S2', 'schema': 1, 'phase': 'PREPARED'}
+            codec.native.save(marker, state)
+            runner = object.__new__(codec.Bootstrap)
+            runner.drive_created = False
+            runner.args = argparse.Namespace(source_commit='a' * 40, codec_root=str(root))
+            runner.cfg = {'artifact_root': str(base)}
+            runner.source = base / 'Scratch/source'
+            runner.tools = {'vcpkg': base / 'existing-vcpkg'}
+            runner.output = base / 'Builds/rd-cl/report'
+            runner.git = Mock()
+            try:
+                with self.assertRaisesRegex(RuntimeError, 'Existing or unknown package output'):
+                    runner.prepare_root()
+                runner.git.assert_not_called()
+                self.assertEqual(json.loads(marker.read_text()), state)
+                self.assertTrue(package.exists())
+            finally:
+                runner.close()
+
     def test_lock_is_released_before_removing_the_drive_alias(self):
         with tempfile.TemporaryDirectory() as directory:
             runner = object.__new__(codec.Bootstrap)

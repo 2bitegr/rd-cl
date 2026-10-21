@@ -134,6 +134,30 @@ def require_empty_plan(text):
         raise RuntimeError('Unknown/missing codec dependency or version in plan: ' + repr(packages))
 
 
+def require_uncompiled_outputs(root):
+    """Keep the known compiler probe without accepting previous codec outputs."""
+    for name in ['packages', 'installed', 'buildtrees']:
+        directory = root / name
+        if not directory.exists() and not directory.is_symlink():
+            continue
+        regular_tree(directory)
+        if not directory.is_dir():
+            raise RuntimeError('Expected native output directory; preserved: ' + str(directory))
+        if name == 'packages':
+            for entry in directory.iterdir():
+                if (entry.name != 'detect_compiler_x64-windows-static' or
+                        not entry.is_dir() or any(entry.iterdir())):
+                    raise RuntimeError('Existing or unknown package output; preserve it, do not replay: ' + str(entry))
+        else:
+            for path in directory.rglob('*'):
+                if path.is_file() and path.suffix.lower() in ['.obj', '.o', '.lib', '.a', '.dll', '.exe']:
+                    # Native vcpkg compiler detection may itself produce objects
+                    # here. This exact buildtree is not a codec package/build.
+                    if name == 'buildtrees' and path.relative_to(directory).parts[0] == 'detect_compiler':
+                        continue
+                    raise RuntimeError('Existing native codec output; preserve it, do not replay: ' + str(path))
+
+
 class Bootstrap(native.Build):
     def close(self):
         try:
@@ -219,8 +243,7 @@ class Bootstrap(native.Build):
             marker = json.loads((root / '.rd-cl-codec-bootstrap.json').read_text(encoding='utf-8'))
             if marker != {'source_commit': self.args.source_commit, 'machine': 'S2', 'schema': 1, 'phase': 'PREPARED'}:
                 raise RuntimeError('CodecRoot ownership/source mismatch; preserve it')
-            if list((root / 'installed').rglob('*.lib')) or list((root / 'packages').glob('*')):
-                raise RuntimeError('CodecRoot contains native outputs; preserve it, do not replay')
+            require_uncompiled_outputs(root)
             return root
         # Local-only source/object copy, not a remote clone or a binary-cache import.
         self.git('local-vcpkg-copy', 'clone', '--no-hardlinks', '--no-checkout',
@@ -339,8 +362,7 @@ class Bootstrap(native.Build):
 
     def compile_codecs(self):
         root, triplets = self.codec_preflight()  # Never trust an earlier audit.
-        if list((root / 'installed').rglob('*.lib')) or list((root / 'packages').glob('*')):
-            raise RuntimeError('Compilation must start with fresh isolated native outputs')
+        require_uncompiled_outputs(root)
         marker = root / '.rd-cl-codec-bootstrap.json'
         native.save(marker, {'source_commit': self.args.source_commit, 'machine': 'S2', 'schema': 1, 'phase': 'COMPILING'})
         started_ns = time.time_ns()
