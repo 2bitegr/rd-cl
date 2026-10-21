@@ -45,6 +45,7 @@ def offline_environment(environment):
     result.update({
         'CARGO_NET_OFFLINE': 'true', 'GIT_NO_LAZY_FETCH': '1',
         'GIT_ALLOW_PROTOCOL': 'file', 'GIT_TERMINAL_PROMPT': '0',
+        'GIT_NO_REPLACE_OBJECTS': '1',
         'X_VCPKG_ASSET_SOURCES': 'clear;x-block-origin',
         'VCPKG_BINARY_SOURCES': 'clear',
         'FLUTTER_STORAGE_BASE_URL': 'http://127.0.0.1:9',
@@ -87,13 +88,94 @@ def report_failure(build, error):
     return 1
 
 
-def require_installed_vcpkg_plan(text):
+def require_installed_vcpkg_plan(text, ports=None):
     # This pinned manifest is nonempty. Accept only the known no-action plan;
     # an unfamiliar plan or any install/rebuild/removal requires investigation.
     headings = re.findall(r'^The following packages[^\r\n]*', text, re.MULTILINE)
     if headings != ['The following packages are already installed:']:
         raise RuntimeError('vcpkg requires missing/changed libraries or returned an unknown plan; '
                            'existing installations are preserved and downloads are disabled. See vcpkg-plan logs.')
+    if ports is not None:
+        entries = re.findall(r'^\s*(?:\*\s+)?([a-z0-9-]+)(?:\[[^\]]+\])?:([a-z0-9-]+)@([^\s]+)',
+                             text, re.MULTILINE)
+        expected = {name: pin['baseline'] + ('#' + str(pin['port-version']) if pin['port-version'] else '')
+                    for name, pin in ports.items()}
+        if ({name: version for name, triplet, version in entries} != expected or
+                len(entries) != len(expected) or
+                any(triplet != 'x64-windows-static' for name, triplet, version in entries)):
+            raise RuntimeError('Installed vcpkg plan differs from the reviewed codec dependency closure')
+
+
+def require_vcpkg_objects(git, profile, ports, overlays=None):
+    """Audit the builtin registry's selected snapshots, never commit ancestry.
+
+    git is the offline, logged runner bound to the vcpkg root. Git show resolves
+    the baseline commit/path; version databases select trees; ls-tree/read-tree
+    need those trees and every descendant blob, not their introducing commits.
+    """
+    baseline = profile['vcpkg_commit']
+    if not re.fullmatch(r'[0-9a-f]{40}', baseline) or not ports:
+        raise RuntimeError('Invalid pinned vcpkg object audit inputs')
+    _, head = git('vcpkg-object-head', 'rev-parse', 'HEAD')
+    if head.strip() != baseline:
+        raise RuntimeError('Vcpkg checkout mismatch during object audit')
+    _, kind = git('vcpkg-baseline-commit', 'cat-file', '-t', baseline)
+    if kind.strip() != 'commit':
+        raise RuntimeError('Pinned vcpkg baseline is not a commit')
+    _, raw = git('vcpkg-baseline', 'show', baseline + ':versions/baseline.json')
+    versions = json.loads(raw)['default']
+    # vcpkg reads versions files from disk. Do not audit committed metadata while
+    # allowing different working recipes/metadata/scripts/triplets to be used.
+    git('vcpkg-object-worktree', 'diff', '--exit-code', 'HEAD', '--',
+        'versions', 'ports', 'scripts', 'triplets')
+    overlays = overlays or {}
+    if not set(overlays).issubset(ports) or set(overlays).intersection(profile.get('vcpkg_override_trees', {})):
+        raise RuntimeError('Unexpected overlay in the pinned dependency closure')
+    trees = {}
+    for name, pin in sorted(ports.items()):
+        if not re.fullmatch(r'[a-z0-9][a-z0-9-]*', name):
+            raise RuntimeError('Invalid pinned port name')
+        if name in overlays:
+            overlay = overlays[name]
+            if (overlay.get('name') != name or overlay.get('port-version', 0) != pin['port-version'] or
+                    not any(overlay.get(key) == pin['baseline'] for key in
+                            ['version', 'version-semver', 'version-date', 'version-string'])):
+                raise RuntimeError('Pinned overlay version differs: ' + name)
+            # vcpkg overlays bypass builtin registry recipe/version selection.
+            # Their bytes were checked by the unchanged codec receipt verifier.
+            continue
+        if name not in profile.get('vcpkg_override_trees', {}) and versions.get(name) != pin:
+            raise RuntimeError('Pinned baseline version differs: ' + name)
+        _, raw = git('port-' + name + '-versions', 'show',
+                     baseline + ':versions/' + name[0] + '-/' + name + '.json')
+        matches = [entry for entry in json.loads(raw)['versions']
+                   if entry.get('port-version', 0) == pin['port-version'] and
+                   any(entry.get(key) == pin['baseline'] for key in
+                       ['version', 'version-semver', 'version-date', 'version-string'])]
+        if len(matches) != 1:
+            raise RuntimeError('Missing/ambiguous pinned port version: ' + name)
+        tree = matches[0]['git-tree']
+        if (not re.fullmatch(r'[0-9a-f]{40}', tree) or
+                (name in profile.get('vcpkg_override_trees', {}) and
+                 tree != profile['vcpkg_override_trees'][name])):
+            raise RuntimeError('Pinned override tree mismatch: ' + name)
+        _, kind = git('port-' + name + '-root', 'cat-file', '-t', tree)
+        if kind.strip() != 'tree':
+            raise RuntimeError('Pinned port root is not a tree: ' + name)
+        _, listing = git('port-' + name + '-tree', 'ls-tree', '-r', '-t', tree)
+        if not listing.strip():
+            raise RuntimeError('Empty pinned port tree: ' + name)
+        for index, entry in enumerate(listing.splitlines()):
+            mode, kind, oid = entry.split('\t', 1)[0].split()
+            if kind not in ['tree', 'blob'] or not re.fullmatch(r'[0-9a-f]{40}', oid):
+                raise RuntimeError('Invalid pinned port object: ' + name)
+            _, actual = git('port-' + name + '-object-' + str(index), 'cat-file', '-t', oid)
+            if actual.strip() != kind:
+                raise RuntimeError('Pinned port object type mismatch: ' + name)
+        trees[name] = tree
+    if not set(profile.get('vcpkg_override_trees', {})).issubset(trees):
+        raise RuntimeError('Unaudited pinned override')
+    return trees
 
 
 class Build:
@@ -358,18 +440,22 @@ class Build:
 
     def provision(self):
         self.developer_environment()
-        _, shallow = self.git('vcpkg-history-check', 'rev-parse', '--is-shallow-repository', cwd=self.tools['vcpkg'])
-        if shallow.strip() == 'true':
-            raise RuntimeError('Pinned vcpkg history is missing; downloads/fetch are disabled')
-        # Verify pinned override objects locally. GIT_NO_LAZY_FETCH and the
-        # file-only Git protocol policy prevent partial-clone network hydration.
-        for name, tree in self.profile.get('vcpkg_override_trees', {}).items():
-            _, entries = self.git('port-' + name + '-tree', 'ls-tree', '-r', tree, cwd=self.tools['vcpkg'])
-            for index, entry in enumerate(entries.splitlines()):
-                object_id = entry.split()[2]
-                if not re.fullmatch(r'[0-9a-f]{40}', object_id):
-                    raise RuntimeError('Invalid pinned port object')
-                self.git('port-' + name + '-blob-' + str(index), 'cat-file', '-e', object_id, cwd=self.tools['vcpkg'])
+        # A shallow boundary alone says nothing about the selected objects.
+        # Retain the same compiler/ABI proof before any provisioning side effect.
+        self.env = offline_environment(self.env)
+        self.require_verified_codecs()
+        _, pins = self.git('codec-closure-pins', 'show', self.args.source_commit +
+                           ':scripts/windows-codec-bootstrap-inputs.json')
+        self.codec_ports = json.loads(pins)['ports']
+        overlays = {p.parent.name: json.loads(p.read_text(encoding='utf-8'))
+                    for p in (self.source / 'res/vcpkg').glob('*/vcpkg.json')}
+        trees = require_vcpkg_objects(
+            lambda label, *args: self.git(label, *args, cwd=self.tools['vcpkg']),
+            self.profile, self.codec_ports, overlays)
+        save(self.logs / 'vcpkg-objects.json', {'status': 'PASS',
+             'baseline': self.profile['vcpkg_commit'], 'port_trees': trees,
+             'receipt_verified_overlays': sorted(overlays),
+             'policy': 'local objects only; no ancestry walk, fetch or codec rebuild'})
         archive = self.tools['engine_archive']
         if digest(archive) != self.profile['engine_sha256']:
             raise RuntimeError('Custom engine archive checksum mismatch')
@@ -546,7 +632,7 @@ class Build:
                  '--overlay-triplets=' + str(triplets),
                  '--x-install-root=' + str(self.tools['vcpkg'] / 'installed'),
                  '--no-downloads', '--only-binarycaching'], env=codec_env)
-        require_installed_vcpkg_plan(plan)
+        require_installed_vcpkg_plan(plan, self.codec_ports)
         self.run('cargo-virtual-display', [self.tools['cargo'], 'build', '--frozen',
                                           '--release', '-p', 'dylib_virtual_display', '-j', '1'])
         self.run('cargo-release', [self.tools['cargo'], 'build', '--frozen', '--features',
