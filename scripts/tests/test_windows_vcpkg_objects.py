@@ -66,7 +66,11 @@ class ObjectClosure(unittest.TestCase):
         return 0, self.command(*args)
 
     def remove_object(self, oid):
-        (self.root / '.git/objects' / oid[:2] / oid[2:]).unlink()
+        path = self.root / '.git/objects' / oid[:2] / oid[2:]
+        # Git for Windows may mark loose objects read-only. This fixture owns
+        # this exact disposable object; never change real cache permissions.
+        path.chmod(0o600)
+        path.unlink()
 
     def audit(self):
         return native.require_vcpkg_objects(self.git, self.profile, self.ports)
@@ -93,7 +97,7 @@ class ObjectClosure(unittest.TestCase):
                 oid = self.command('rev-parse', expression).strip()
                 path = self.root / '.git/objects' / oid[:2] / oid[2:]
                 original = path.read_bytes()
-                path.unlink()
+                self.remove_object(oid)
                 try:
                     with self.assertRaises((RuntimeError, KeyError, ValueError)):
                         self.audit()
