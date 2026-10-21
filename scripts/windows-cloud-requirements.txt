@@ -1,0 +1,2 @@
+# CPython 3.11 Windows x64 wheel, pinned from PyPI's Brotli 1.1.0 metadata.
+Brotli==1.1.0 --hash=sha256:aac0411d20e345dc0920bdec5548e438e999ff68d77564d5e9463a7ca9d3e7b1
