@@ -1,5 +1,17 @@
 # rd-cl build tasks
 
+- REVIEWED TOOLING / S2 EXECUTION PENDING (2026-10-21): user requested an offline
+  codec bootstrap for1.4.13+71, base1be7642b56af58d3fb27c400e52a78200505e39b.
+  Isolated codec root preserves installed codecs/caches/previous delivery;
+  exact CRLF release-only triplet, pinned archive/helper/plan checks precede
+  compilation. Receipt requires fresh native objects/libraries/ABIs and the
+  unchanged existing verifier; no S1 receipt or warm-app proof is substituted.
+  Procedure: docs/windows-s2-codec-bootstrap.md. Native S2 compilation/receipt
+  and subsequent application/EXE build remain NOT_RUN. No functional/auth,
+  dependency/version, installation, Actions or production changes.
+  Validation:37 stdlib guard/verifier tests, PowerShell parser and public-release
+  hygiene PASS on Linux. Native helper/preflight/compile remain NOT_RUN on S2.
+
 - PUBLICATION PREPARATION (2026-10-19): user authorized coordinated S1 commit/push
   of rd-cl, Office and rustdesk-api. Product1.4.13+71; matching root/Flutter/packer
   versions and reviewed input hashes. Build profile uses the exact published

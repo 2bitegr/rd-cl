@@ -47,6 +47,11 @@ a separate authorized acceptance step. Preserve the previous verified delivery.
 
 ## Offline dependency policy
 
+For S2's missing compiled-cache receipt or mismatched old triplet, use the
+separate [offline codec bootstrap](windows-s2-codec-bootstrap.md). It compiles
+codecs from pinned local inputs in an isolated root and produces evidence for
+the existing verifier. It does not relax this workflow's installed-only guards.
+
 The native wrapper uses **existing local tools and caches only** in every mode.
 There is no automatic download/online fallback. Reuse the reviewed toolchain JSON,
 owned NTFS source snapshot, Cargo target, Pub cache, installed vcpkg codecs and
