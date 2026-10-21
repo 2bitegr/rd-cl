@@ -36,7 +36,7 @@ to keep in source:
 The server private key, Office credentials, signing certificate, update signing
 keys, and per-device unattended credentials are not public build inputs.
 
-## Windows MSI
+## Windows cloud build (portable EXE and MSI)
 
 The Windows MSI packaging lives in `res/msi`.
 
@@ -44,27 +44,62 @@ The checked-in WiX templates should not contain workstation-specific absolute
 paths. Generate package variables from the actual build output directory during
 the Windows build.
 
-On Windows, run the release build from PowerShell:
+Run **Windows cloud build** manually from GitHub Actions on the desired source
+ref after the workflow is present on the default branch. It uses a native
+`windows-2022` x64 cloud runner; the Linux Codex environment coordinates the job.
+No S2 machine, signing secret, production credentials or Dokploy deployment is
+required. The workflow has no push, schedule or deployment trigger.
+
+For the same build on an existing Windows runner, use PowerShell 7.4 or later:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows-release-build.ps1
+pwsh -NoProfile -File .\scripts\windows-cloud-build.ps1 -SourceDir . -BuildBase "$env:RUNNER_TEMP\rd-cl-build"
 ```
 
-The script uses persistent Windows tool locations by default:
+The build uses the selected checkout without cloning a moving branch. It discovers
+Visual Studio C++ tools with `vswhere`, derives the app version from matching
+Cargo/Flutter manifests, and preserves dependency lockfiles. Pins for Flutter,
+Rust, the RustDesk custom engine, bridge generator and vcpkg live in
+`scripts/windows-cloud-build.json`; the engine SHA-256 is pinned to the upstream
+archive retrieved over verified HTTPS. The packer's Windows CPython 3.11 Brotli
+wheel is pinned by version and SHA-256 in `scripts/windows-cloud-requirements.txt`.
+Missing build prerequisites may be downloaded for this authorized cloud workflow.
+Use existing runner C++/Windows SDK, LLVM, CMake, NuGet, Git, Python and Rustup.
 
-- `C:\Tools` for Flutter and RustDesk engine artifacts
-- `C:\vcpkg` for vcpkg
-- `C:\Build\rd-cl` for clean build directories and release artifacts
+SDKs, Pub/Cargo/NuGet and vcpkg/native build state are cached between runs.
+The workflow limits native build parallelism to two jobs. Build logs and artifacts
+use runner-local temporary directories; the coordinator retains downloaded
+evidence outside source checkouts. No workstation-specific `C:\Tools`, `C:\vcpkg`
+or Desktop path is required. `windows-release-build.ps1` delegates to this same
+implementation for compatibility; its old clone/version override parameters
+have been removed to prevent building or labeling a different source revision.
 
-It clones the public repository, applies public Exantas submodule patches,
-generates Flutter Rust Bridge bindings, builds the Flutter Windows release,
-then produces both portable EXE and MSI outputs under the printed
-`ARTIFACT_DIR`.
+The script applies the public Exantas submodule/Flutter SDK patches, generates
+bindings, builds the Flutter/Rust client, and packages both outputs under the
+printed `ARTIFACT_DIR`. A failing native command aborts the run; patch failures
+are not ignored. Checks cover EXE x64 PE headers, MSI architecture/ProductVersion,
+unchanged dependency lockfiles and output SHA-256. Runtime acceptance on the new
+computer remains a separate check.
 
-Expected production output:
+The run's `ExantasSupport-windows-x64-<commit>` artifact contains:
 
-- `Exantas Support.exe`
-- `Exantas Support.msi`
+- `ExantasSupport-<version>-x86_64-portable.exe`
+- `ExantasInstaller-<version>-x86_64.msi`
+- `SHA256SUMS` and `BUILD-INFO.json` with exact source, toolchain and checksums
+
+Artifacts are retained for seven days; failure logs are retained separately.
+These are build outputs, not a deployment or GitHub Release. Before final release
+handoff, the coordinator verifies downloaded bytes and the shared artifact
+maintenance plan/apply/verify gate. The workflow must complete successfully before
+an EXE/MSI is described as built or tested.
+
+The input and failure-handling guards can be tested on Linux or Windows without
+downloading native prerequisites:
+
+```powershell
+pwsh -NoProfile -File ./scripts/tests/windows-cloud-build.tests.ps1
+pwsh -NoProfile -File ./scripts/windows-cloud-build.ps1 -ValidateOnly
+```
 
 Unsigned development builds are allowed until a code-signing certificate is
 available. Release notes must state that unsigned builds can trigger SmartScreen.

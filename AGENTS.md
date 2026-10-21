@@ -1,5 +1,30 @@
 # RustDesk Guide
 
+## Build host: current Codex cloud environment
+
+Coordinate rd-cl builds here in the cloud and compile Windows packages on the
+Windows x64 runner in `.github/workflows/office-acceptance-windows.yml`. This replaces
+the former S2 assignment; do not generate an S2 build prompt. Use the selected checkout and record
+the exact commit, dirty-source caveat, version, target, toolchain and build result.
+Verify cloud OS/architecture, target-compatible Flutter/Rust/native codec tools
+and caches first. A cloud host assignment does not prove Windows packaging or
+cross-compilation support. Prepare the declared prerequisites on the Windows runner.
+
+The user has authorized cloud build adaptation and prerequisite installation.
+For this cloud workflow, download/cache the declared pinned SDKs and dependencies
+with normal TLS, Git, package-integrity and checksum verification. This exception
+supersedes the installed-only/no-download rule below and in the shared maintenance
+skill for cloud rd-cl build prerequisites. It does not permit application dependency
+upgrades or disabling verification. Use owned output/log directories under `/workspace/.cloud-setup/build/rd-cl`
+and `/workspace/.cloud-setup/logs/rd-cl`, outside this checkout, instead of the Windows
+Desktop/data-volume paths for cloud builds. Preserve existing Windows resources.
+On Windows runners use owned directories under RUNNER_TEMP; retain SDK/dependency
+caches and upload packages, source provenance and SHA-256 for coordinator validation.
+Cloud build tooling/workflow corrections may be authored here for the requested
+build; S1-only source-authoring rules do not block this scoped preparation.
+Build-host changes do not authorize automatic builds, installation or publication.
+Deployment remains manual by the user through Dokploy, with AutoDeploy OFF.
+
 ## Project Layout
 
 ### Directory Structure
@@ -110,8 +135,8 @@ skill when it is not in the current registry. It covers affected applications an
 requires an explicit plan, authorized task-owned cleanup and a PASS artifact
 `verify` before delivery, alongside this repository's existing release checks.
 Preserve active source/runtime data, Windows/Linux resources and reusable caches.
-Use installed tools and local dependencies only; missing/incompatible requirements
-stop the release with an exact explanation, without downloads or reinstalls.
+Reuse installed tools and cached dependencies. The authorized cloud-build exception
+above permits preparing missing pinned prerequisites; report genuine setup failures.
 If the skill or required verification is unavailable, report the gate BLOCKED;
 do not silently skip it or install tools. This does not authorize publication,
 installation, production changes or cleanup outside the reviewed task scope.
@@ -132,7 +157,7 @@ After validating delivery bytes/hashes and current consumers, remove the exact t
 
 Cleanup must use an explicit inspected file/path list, reject symlinks/reparse points or unknown ownership, check active consumers, and recheck size/hash immediately before removal. Existing user cleanup authorization covers that verified scope; uncertain or unrelated files stay in place. Report retained outputs and logical bytes removed separately from measured disk-space changes. Do not create a scheduled/global purge or delete other projects' resources as routine cleanup.
 
-For rd-cl, use the existing libraries/toolchains and Cargo/Pub/vcpkg/NuGet caches without new downloads, reinstalls or upgrades. If an existing dependency is missing or incompatible, stop and notify the user. Preserve both Windows and Linux support/resources unless the user explicitly authorizes a platform-specific removal. Neither a cache name nor an old timestamp alone establishes that an item is disposable.
+For rd-cl, reuse libraries/toolchains and Cargo/Pub/vcpkg/NuGet caches. Cloud builds may install the pinned prerequisites under the exception above; other offline workflows remain installed-only. Preserve both Windows and Linux support/resources unless the user explicitly authorizes a platform-specific removal. Neither a cache name nor an old timestamp alone establishes that an item is disposable.
 
 Prefer explicit output/log/build paths on the Windows data volume. If a tool requires Linux scratch for correctness or performance, use a bounded owned temporary directory and remove it after verified export. Do not relocate installed SDKs/venvs, application data or runtime databases merely to reduce disk usage. Reassess unusually large reproducible caches separately with evidence and authorization.
 

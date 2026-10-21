@@ -1,0 +1,15 @@
+{
+  "rust_version": "1.99.1",
+  "flutter": {
+    "version": "3.24.5",
+    "commit": "dec2ee5c1f98f8e84a7d5380c05eb8a3d0a81668"
+  },
+  "engine": {
+    "url": "https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip",
+    "sha256": "ec8cabf36ee4ff24c8d98de25b00e70781eb03876265aee84d0fe554a110036e"
+  },
+  "vcpkg": { "commit": "120deac3062162151622ca4860575a33844ba10b" },
+  "bridge_version": "1.80.1",
+  "cargo_expand_version": "1.0.95",
+  "topmost": { "commit": "ecd8d6a139eee76845ea66423fb739af450fda90" }
+}
