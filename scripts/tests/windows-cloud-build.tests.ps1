@@ -23,6 +23,11 @@ try {
   Set-Content (Join-Path $temporary 'libs/portable/Cargo.toml') 'version = "1.4.10"'
   Reject { Get-SourceVersion $temporary } 'versions must exist and match'
   Reject { & (Join-Path $root 'scripts/windows-cloud-build.ps1') -SourceDir $root -ExpectedCommit ('0' * 40) -ValidateOnly } 'ExpectedCommit'
+  Assert-MsiVersion '1.4.11' '1.4.11'
+  Assert-MsiVersion '1.4.11.0' '1.4.11'
+  Check $true 'MSI may retain the explicit zero revision or normalize it away.'
+  Reject { Assert-MsiVersion '1.4.11.9' '1.4.11' } 'MSI ProductVersion'
+  Reject { Assert-MsiVersion '1.4.10.0' '1.4.11' } 'MSI ProductVersion'
 
   $download = Join-Path $temporary 'cached.bin'
   [IO.File]::WriteAllBytes($download, [byte[]](1, 2, 3))

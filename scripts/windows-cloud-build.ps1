@@ -51,6 +51,10 @@ function Assert-X64Executable([string]$Path) {
   } finally { $reader.Dispose(); $stream.Dispose() }
 }
 
+function Assert-MsiVersion([string]$Actual, [string]$SourceVersion) {
+  if ($Actual -notin @($SourceVersion, "$SourceVersion.0")) { throw "MSI ProductVersion does not match source: $Actual" }
+}
+
 $SourceDir = (Resolve-Path -LiteralPath $SourceDir).Path
 $config = Get-Content -LiteralPath (Join-Path $SourceDir 'scripts/windows-cloud-build.json') -Raw | ConvertFrom-Json
 $version = Get-SourceVersion $SourceDir
@@ -118,7 +122,7 @@ try {
     & git -C $flutterRoot apply --reverse --check $flutterPatch 2>$null
     if ($LASTEXITCODE -ne 0) { throw 'Flutter compatibility patch failed; do not suppress this error.' }
   }
-  Invoke-Checked 'flutter' @('config', '--enable-windows-desktop', '--no-analytics')
+  Invoke-Checked 'flutter' @('config', '--enable-windows-desktop')
   Invoke-Checked 'flutter' @('precache', '--windows')
   $engineZip = Join-Path $ToolsRoot "engine-$($config.engine.sha256).zip"
   Get-VerifiedDownload $config.engine.url $engineZip $config.engine.sha256
@@ -169,7 +173,7 @@ try {
   Assert-X64Executable $portableOut
   Push-Location 'res/msi'
   try {
-    Invoke-Checked 'python' @('preprocess.py', '--arp', '-d', $bundle, '--version', $version)
+    Invoke-Checked 'python' @('preprocess.py', '--arp', '-d', $bundle, '--version', $version, '--revision-version', '0')
     Invoke-Checked 'nuget' @('restore', 'msi.sln', '-NonInteractive')
     Invoke-Checked 'msbuild' @('msi.sln', '/restore', '/p:Configuration=Release', '/p:Platform=x64', '/p:TargetVersion=Windows10', '/m:2')
     $msiFiles = @(Get-ChildItem 'Package/bin' -Recurse -Filter '*.msi' | Where-Object { $_.LastWriteTimeUtc -ge $buildStarted })
@@ -181,7 +185,7 @@ try {
   $database = $installer.OpenDatabase($msiOut, 0)
   $view = $database.OpenView("SELECT ``Value`` FROM ``Property`` WHERE ``Property`` = 'ProductVersion'")
   $view.Execute(); $msiVersion = $view.Fetch().StringData(1); $view.Close()
-  if ($msiVersion -ne $version) { throw "MSI ProductVersion does not match source: $msiVersion" }
+  Assert-MsiVersion $msiVersion $version
   if ($database.SummaryInformation(0).Property(7) -notmatch '^x64;') { throw 'MSI does not target x64.' }
   [void][Runtime.InteropServices.Marshal]::ReleaseComObject($view)
   [void][Runtime.InteropServices.Marshal]::ReleaseComObject($database)
@@ -192,6 +196,7 @@ try {
   [ordered]@{
     status = 'PASS'; validation = 'Package architecture, MSI version, dependency lockfiles and SHA-256; Windows runtime acceptance pending'
     application = 'rd-cl'; version = $version; target = 'windows-x86_64'; source_repository = 'https://github.com/2bitegr/rd-cl'
+    msi_product_version = $msiVersion
     source_commit = $commit; dirty_source = $dirtySource; expected_submodule_patch = 'patches/hbb_common-exantas-config.patch'
     toolchain = $env:RUSTUP_TOOLCHAIN; flutter_commit = $flutterCommit; build_inputs = $config
     signing = 'unsigned development build; Windows SmartScreen may warn'; artifacts = $artifacts
