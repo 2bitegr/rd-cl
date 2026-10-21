@@ -29,6 +29,9 @@ set(CURRENT_HOST_INSTALLED_DIR "${_VCPKG_INSTALLED_DIR}/${_HOST_TRIPLET}")
 # The host helper port installs only its pinned scripts and Meson source. It
 # runs no compiler; its ordinary SHA512/patch checks and no-download guard apply.
 set(CURRENT_PACKAGES_DIR "${CURRENT_HOST_INSTALLED_DIR}")
+set(PORT vcpkg-cmake)
+set(CURRENT_PORT_DIR "${VCPKG_ROOT_DIR}/ports/vcpkg-cmake")
+include("${CURRENT_PORT_DIR}/portfile.cmake")
 set(PORT vcpkg-cmake-get-vars)
 set(CURRENT_PORT_DIR "${VCPKG_ROOT_DIR}/ports/vcpkg-cmake-get-vars")
 include("${CURRENT_PORT_DIR}/portfile.cmake")

@@ -23,6 +23,82 @@ spec.loader.exec_module(codec)
 
 
 class BootstrapGuards(unittest.TestCase):
+    def test_helper_audit_stages_cmake_dependency_before_loading_consumers(self):
+        cmake = os.environ.get('RDCL_TEST_CMAKE') or shutil.which('cmake')
+        if not cmake:
+            self.skipTest('Existing CMake unavailable; set RDCL_TEST_CMAKE on S2. No download attempted.')
+        self.assertTrue(Path(cmake).is_file(), 'RDCL_TEST_CMAKE must name an existing executable')
+        for dependency_present in [True, False]:
+            with self.subTest(dependency_present=dependency_present), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / 'owned fixture'
+                vcpkg = root / 'local-vcpkg'
+                audit = root / 'audit'
+                scripts = vcpkg / 'scripts'
+                (scripts / 'cmake').mkdir(parents=True)
+                audit.mkdir()
+                (scripts / 'cmake/vcpkg_common_definitions.cmake').write_text('# fixture host context\n')
+                (scripts / 'ports.cmake').write_text('''
+set(CURRENT_BUILDTREES_DIR "${BUILDTREES_DIR}/${PORT}")
+function(vcpkg_find_acquire_program program)
+  set(${program} "${CMAKE_COMMAND}" PARENT_SCOPE)
+endfunction()
+function(vcpkg_acquire_msys output)
+  set(${output} "${BOOTSTRAP_AUDIT}/fixture-msys" PARENT_SCOPE)
+endfunction()
+''')
+                # Model the pinned helper dependency: get-vars' installed config
+                # is imported by Meson and includes vcpkg-cmake's installed config.
+                ports = {
+                    'vcpkg-cmake': '''
+file(INSTALL "${CURRENT_PORT_DIR}/vcpkg-port-config.cmake"
+  DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")
+''',
+                    'vcpkg-cmake-get-vars': '''
+file(INSTALL "${CURRENT_PORT_DIR}/vcpkg-port-config.cmake"
+  DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")
+''',
+                    'vcpkg-tool-meson': '''
+include("${CURRENT_HOST_INSTALLED_DIR}/share/vcpkg-cmake-get-vars/vcpkg-port-config.cmake")
+if(NOT FIXTURE_CMAKE_READY)
+  message(FATAL_ERROR "Missing installed vcpkg-cmake dependency")
+endif()
+file(WRITE "${BOOTSTRAP_AUDIT}/dependency-loaded.txt" "ready")
+set(SCRIPT_MESON "${BOOTSTRAP_AUDIT}/fixture-meson.py")
+file(WRITE "${SCRIPT_MESON}" "# fixture, never executed")
+'''}
+                for name, content in ports.items():
+                    port = vcpkg / 'ports' / name
+                    port.mkdir(parents=True)
+                    (port / 'portfile.cmake').write_text(content)
+                (vcpkg / 'ports/vcpkg-cmake/vcpkg-port-config.cmake').write_text('''
+set(FIXTURE_CMAKE_READY TRUE)
+function(vcpkg_cmake_configure)
+  message(FATAL_ERROR "Input audit must not compile codecs")
+endfunction()
+''')
+                (vcpkg / 'ports/vcpkg-cmake-get-vars/vcpkg-port-config.cmake').write_text(
+                    'include("${CURRENT_HOST_INSTALLED_DIR}/share/vcpkg-cmake/vcpkg-port-config.cmake")\n')
+                if not dependency_present:
+                    (vcpkg / 'ports/vcpkg-cmake/portfile.cmake').unlink()
+                downloads = root / 'preserved-downloads'
+                downloads.mkdir()
+                (downloads / 'original.tar.gz').write_bytes(b'preserved-local-input')
+                before = codec.inventory(downloads)
+                result = subprocess.run([cmake, '-DBOOTSTRAP_TOOL_DATE=2025-07-21',
+                    '-DBOOTSTRAP_ROOT=' + vcpkg.as_posix(), '-DBOOTSTRAP_AUDIT=' + audit.as_posix(),
+                    '-DDOWNLOADS=' + downloads.as_posix(), '-P', str(codec.SCRIPT.with_suffix('.cmake'))],
+                    capture_output=True, text=True, timeout=30, env=codec.native.offline_environment(os.environ))
+                if dependency_present:
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual((audit / 'dependency-loaded.txt').read_text(), 'ready')
+                    self.assertEqual((audit / 'helpers-complete.txt').read_text().strip(), 'LOCAL_INPUTS_CHECKED')
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn('vcpkg-cmake', result.stderr)
+                    self.assertFalse((audit / 'helpers-complete.txt').exists())
+                self.assertEqual(codec.inventory(downloads), before)
+                self.assertFalse((audit / 'compiled-cache-receipt.json').exists())
+
     def plan(self):
         return 'The following packages will be built and installed:\n' + ''.join(
             '  * ' + name + ':x64-windows-static@' + value['baseline'] +

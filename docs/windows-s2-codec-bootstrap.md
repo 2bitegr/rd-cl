@@ -48,6 +48,14 @@ the real CMake exit code instead. Offline flags/blocked asset origins/file-only
 Git and process-local HTTP proxies remain active; these are tool policies, not an
 OS firewall. No machine-wide network/security setting changes.
 
+The isolated helper audit stages `vcpkg-cmake` before `vcpkg-cmake-get-vars` and
+Meson, using the existing pinned local portfiles. An existing host installation
+does not populate this separate audit root. The CMake integration regression
+executes the published audit with synthetic helper ports and checks both dependency
+availability and failure without it. On S2, set `RDCL_TEST_CMAKE` to the actual
+installed CMake executable before the guard tests; an unavailable CMake is a
+reported test skip on the coordinator, not a passing integration check.
+
 Use an unused `Tools/codec-bootstrap/<name>` root. The script copies pinned local
 vcpkg source/objects and its download cache there, with fresh native install,
 package and buildtree locations. Existing installed codecs and download cache
