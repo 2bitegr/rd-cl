@@ -30,6 +30,48 @@ msi = load('native_msi', 'windows-native-msi.py')
 
 
 class OfflineGuards(unittest.TestCase):
+    def test_vsdevcmd_cannot_redirect_the_rust_child_to_an_unverified_vcpkg(self):
+        # Exercise the actual import and child runner, without invoking VS/Rust.
+        for imported_root in [b'Vcpkg_Root=foreign-vs-vcpkg\r\n', b'']:
+            with self.subTest(imported_root=imported_root), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                runner = object.__new__(build.Build)
+                runner.source = runner.logs = root
+                runner.vs = root / 'VS'
+                runner.tools = {'vcpkg': root / 'verified-codecs'}
+                runner.env = {'VCPKG_ROOT': 'stale-config-root', 'Vcpkg_Root': 'inherited-root',
+                              'CARGO_NET_OFFLINE': 'true'}
+                runner.steps = []
+                imported = imported_root + b'Path=vs-compiler-path\r\nINCLUDE=vs-sdk-include\r\nLIB=vs-sdk-lib\r\n'
+                results = [argparse.Namespace(returncode=0, stdout=imported),
+                           argparse.Namespace(returncode=0)]
+                with patch.object(build.subprocess, 'CREATE_NO_WINDOW', 0, create=True):
+                    with patch.object(build.subprocess, 'run', side_effect=results) as child:
+                        runner.developer_environment()
+                        runner.run('cargo-release-environment-probe', ['cached-cargo', 'build', '--frozen'])
+                actual = child.call_args_list[1].kwargs['env']
+                self.assertEqual(actual['VCPKG_ROOT'], str(runner.tools['vcpkg']))
+                self.assertEqual([k for k in actual if k.upper() == 'VCPKG_ROOT'], ['VCPKG_ROOT'])
+                self.assertEqual(actual['PATH'], 'vs-compiler-path')
+                self.assertEqual(actual['INCLUDE'], 'vs-sdk-include')
+                self.assertEqual(actual['LIB'], 'vs-sdk-lib')
+                self.assertEqual(actual['CARGO_NET_OFFLINE'], 'true')
+                evidence = json.loads((root / 'native-vcpkg-root.json').read_text())
+                self.assertEqual(evidence['vcpkg_root'], str(runner.tools['vcpkg']))
+                self.assertEqual(evidence['selected_from'], 'toolchain.paths.vcpkg')
+
+    def test_failed_vsdevcmd_stops_without_root_selection_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = object.__new__(build.Build)
+            runner.logs = runner.vs = root
+            runner.env = {}
+            with patch.object(build.subprocess, 'CREATE_NO_WINDOW', 0, create=True):
+                with patch.object(build.subprocess, 'run', return_value=argparse.Namespace(returncode=1)):
+                    with self.assertRaisesRegex(RuntimeError, 'VsDevCmd failed'):
+                        runner.developer_environment()
+            self.assertFalse((root / 'native-vcpkg-root.json').exists())
+
     def test_source_pin_rejects_moving_ref_wrong_head_and_modified_profile(self):
         profile = {'source_commit_policy': 'exact-published-invocation'}
         sha = 'a' * 40

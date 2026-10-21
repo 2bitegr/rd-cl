@@ -437,6 +437,16 @@ class Build:
             if '=' in line and not line.startswith('='):
                 key, value = line.split('=', 1)
                 self.env[key.upper()] = value
+        # VsDevCmd can select Visual Studio's unrelated bundled vcpkg. Rust
+        # build scripts (including pinned hwcodec) read VCPKG_ROOT directly;
+        # they must use the same root as our receipt/ABI and installed-plan checks.
+        # Remove case aliases too: Windows environment keys are case-insensitive.
+        for key in list(self.env):
+            if key.upper() == 'VCPKG_ROOT':
+                del self.env[key]
+        self.env['VCPKG_ROOT'] = str(self.tools['vcpkg'])
+        save(self.logs / 'native-vcpkg-root.json', {
+            'vcpkg_root': self.env['VCPKG_ROOT'], 'selected_from': 'toolchain.paths.vcpkg'})
 
     def provision(self):
         self.developer_environment()

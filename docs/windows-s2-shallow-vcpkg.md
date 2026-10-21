@@ -45,6 +45,37 @@ There is no unshallow, fetch, receipt synthesis, codec rebuild or cache deletion
 An absent object fails with the corresponding named step/error log. Stop and
 return its exact object/path; do not fetch, modify .git/shallow or bypass the check.
 
+## Keep the verified root after VsDevCmd
+
+S2 reported at `1590e8381b3af15dc6a47e4e680adedb78292dcc`: guard tests
+51 PASS/1 Linux-only SKIP, Preflight/object audit/ABI/exact installed-only plan
+PASS, 50 Dart regressions PASS and virtual-display build PASS. Main Rust DLL
+compilation failed with exit 101 because hwcodec searched Visual Studio's bundled
+vcpkg for `libavutil/pixfmt.h`; the header exists in the verified codec root.
+Flutter and EXE packaging were NOT RUN. S2 reports the genuine receipt and all
+424 installed codec/ABI files unchanged. This is reported S2 evidence, not an
+independently accessed Windows build on the coordinator.
+
+The tool previously imported every VsDevCmd variable over the configured
+process environment. Its receipt verifier and vcpkg CLI used `paths.vcpkg`, while
+pinned hwcodec [`778df1f99597722473b29443bac22ae6c23946fe` build.rs](https://github.com/rustdesk-org/hwcodec/blob/778df1f99597722473b29443bac22ae6c23946fe/build.rs)
+reads `VCPKG_ROOT` directly. Therefore the checks could pass while the Rust child
+used a different root. After successful VsDevCmd import, the tool now removes
+case aliases of that variable and sets exactly one `VCPKG_ROOT` from
+`self.tools['vcpkg']`, the configured root after the existing drive-alias mapping.
+VS compiler/SDK PATH, INCLUDE and LIB are retained. No global environment changes
+or dependency edits are made. `native-vcpkg-root.json` records only the selected
+root/source, not an environment dump or a claim that codec verification passed.
+The existing receipt, object audit, offline policy and installed-only guards
+still run before native compilation.
+
+Retry the normal application workflow below using the newly published tooling
+SHA and the same genuine codec root/receipt. Do not rerun codec bootstrap,
+clear Cargo targets or edit hwcodec. Keep the failed run's resumable state and
+compact diagnostics. Verify `native-vcpkg-root.json` names the configured codec
+root and that native build logs no longer select Visual Studio's vcpkg. A further
+failure remains BLOCKED and requires its actual diagnostics.
+
 ## Reviewed verification
 
 Stdlib command, from the snapshot root, using its existing Python:
@@ -55,7 +86,7 @@ $env:PYTHONDONTWRITEBYTECODE = '1'
 if ($LASTEXITCODE -ne 0) { throw 'Guard tests failed' }
 ```
 
-Coordinator Linux result: 51 PASS, 1 existing CMake integration SKIP (CMake is
+Coordinator Linux result: 53 PASS, 1 existing CMake integration SKIP (CMake is
 absent; no download). The 11 new tests use real Git objects, including a shallow
 boundary with its parent object removed, a selected override tree different from
 HEAD's recipe, missing baseline commit/JSON/versions/tree/subtree/blob, a missing
@@ -63,7 +94,11 @@ promisor blob without lazy fetch, changed metadata, wrong versions/override IDs,
 overlay precedence, exact installed-plan rejection and failure before provisioning
 side effects. The eight non-override builtin versions were also compared with the
 pinned baseline JSON; all match.
-These are guard tests, not a native Windows application build. On S2 use its
+Two additional regressions exercise the real VsDevCmd import and child runner
+with synthetic process output: a foreign/absent root and mixed-case inherited
+roots cannot redirect Cargo; compiler/SDK settings remain, and failed VsDevCmd
+stops without root-selection evidence. These are guard tests, not a native
+Windows application build. On S2 use its
 existing `RDCL_TEST_CMAKE` and canonical process-local TEMP/TMP; do not weaken
 platform or dependency checks. Actual Windows continuation remains required.
 
