@@ -492,27 +492,35 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             spacing: 6,
             runSpacing: 6,
             children: [
-              OutlinedButton(
-                onPressed: () => _showTechnicianLoginDialog(context),
-                child:
-                    Text(technicianLoggedIn ? 'Αλλαγή χρήστη' : 'Σύνδεση'),
-              ),
-              if (technicianLoggedIn && Platform.isWindows && status?.nativeReady != true)
+              if (!Platform.isWindows) ...[
                 OutlinedButton(
-                  onPressed: () => _runExantasAction(() => _exantasCompanion.ensureNativeReady(force: true)),
-                  child: const Text('Επιβεβαίωση RustDesk'),
+                  onPressed: () => _showTechnicianLoginDialog(context),
+                  child:
+                      Text(technicianLoggedIn ? 'Αλλαγή χρήστη' : 'Σύνδεση'),
                 ),
-              if (technicianLoggedIn)
-                OutlinedButton(
-                  onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.supportSessions),
-                  child: const Text('Αναφορές'),
-                ),
-              if (technicianLoggedIn)
-                OutlinedButton(
-                  onPressed: () => _runExantasAction(
-                      () => _exantasCompanion.logoutTechnician()),
-                  child: const Text('Αποσύνδεση'),
-                ),
+                if (technicianLoggedIn)
+                  OutlinedButton(
+                    onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.supportSessions),
+                    child: const Text('Αναφορές'),
+                  ),
+                if (technicianLoggedIn)
+                  OutlinedButton(
+                    onPressed: () => _runExantasAction(
+                        () => _exantasCompanion.logoutTechnician()),
+                    child: const Text('Αποσύνδεση'),
+                  ),
+              ] else ...[
+                if (!bind.isDisableAccount())
+                  OutlinedButton(
+                    onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.account),
+                    child: const Text('Λογαριασμός'),
+                  ),
+                if (technicianLoggedIn)
+                  OutlinedButton(
+                    onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.supportSessions),
+                    child: const Text('Αναφορές'),
+                  ),
+              ],
             ],
           ),
         ],
@@ -1461,6 +1469,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       }
     });
     Get.put<RxBool>(svcStopped, tag: 'stop-service');
+    ExantasCompanionService.accountChanges.addListener(_refreshExantasStatus);
     _refreshExantasStatus();
     ExantasReportOutbox.instance.openReport = (row) async {
       await _presentSessionReport(row);
@@ -1634,6 +1643,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
   @override
   void dispose() {
+    ExantasCompanionService.accountChanges.removeListener(_refreshExantasStatus);
     _uniLinksSubscription?.cancel();
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();

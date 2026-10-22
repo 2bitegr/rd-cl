@@ -84,6 +84,16 @@ when the user returns a newer completed application/package report. Record a
 pending handoff separately; issuing a prompt cannot advance completed state.
 If the live target SHA still equals this source, return NO_RDCL_BUILD_NEEDED.
 
+## Required branding for the next handoff
+
+Use [canonical Windows icons](windows-branding.md), pinned to immutable
+cf634df336de55daf3d67273a91194e427369e31 with exact per-file hashes. Source
+publication must restore/verify all five assets before a new branding-compliant
+handoff. A rule alone does not change the source assets. S2 verifies the published
+snapshot; it does not cherry-pick/copy historical icons locally. Preserve running
+historical builds/provenance and compatible codec evidence. Verify tray, runner,
+installer and Desktop icon selection; separate runtime appearance acceptance.
+
 ## Required tooling behavior learned on S2
 
 Read [the reviewed tooling explanation](windows-s2-shallow-vcpkg.md). Preserve:
@@ -249,6 +259,9 @@ tooling. Διατήρησέ το και ακολούθησε το βήμα5 γι
    Επαλήθευσε embedded runtime integrity και κράτησε SHA256SUMS, manifests,
    BUILD-STATUS.md και ελληνικό INSTALLATION-EL.md δίπλα στο νέο EXE.
    Cleanup μόνο με την προβλεπόμενη ελεγμένη/εξουσιοδοτημένη διαδικασία.
+   Επαλήθευσε τα πέντε canonical icon hashes του docs/windows-branding.md και
+   την επιλογή resources για tray/runner/installer. Αν διαφέρουν, ανέφερε τη
+   διαφορά χωρίς τοπική διόρθωση source ή ισχυρισμό branding PASS.
    Επαλήθευσε και το native-core-identity.json: έκδοση και DLL hash πρέπει να
    συμφωνούν με το Cargo output και το runtime manifest.
    Packaging PASS δεν σημαίνει installation/runtime PASS. Αν η οθόνη δείχνει

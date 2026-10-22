@@ -777,7 +777,8 @@ class Build:
         self.run('dart-regressions', [*self.flutter_command('test', '--no-pub', '--concurrency=1'), 'test/exantas_session_report_test.dart',
                  'test/input_modifier_utils_test.dart', 'test/autocomplete_peer_merge_test.dart',
                  'test/server_settings_dialog_test.dart', 'test/exantas_identity_settings_test.dart',
-                 'test/exantas_native_auth_test.dart'],
+                 'test/exantas_native_auth_test.dart', 'test/exantas_account_settings_test.dart',
+                 'test/exantas_office_response_test.dart'],
                  cwd=self.source / 'flutter')
         self.run('cargo-metadata', [self.tools['cargo'], 'metadata', '--frozen', '--features', 'flutter,hwcodec,vram',
                                               '--format-version', '1', '--filter-platform', 'x86_64-pc-windows-msvc'])

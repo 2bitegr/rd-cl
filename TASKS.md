@@ -1,3 +1,45 @@
+## Account UI and canonical branding publication — 2026-10-22
+
+Reviewed publication: rd-cl Windows Office login is centralized in Settings →
+Account; Home shows status/navigation. Exact five cf634df icons restored in rd-cl
+and pinned by source hashes. Office changes are branding-policy/task docs only;
+no API/Web runtime deployment or SQL migration is needed for this publication.
+S2 must pull the exact published commits, run Dart tests and build a new installer.
+Native GUI/auth/session acceptance remains pending; preserve current packages,
+genuine codec receipts/caches and all unrelated dirty work. No version bump.
+
+## Single Windows Office account entry — 2026-10-22
+
+IMPLEMENTED LOCALLY / FLUTTER + NATIVE ACCEPTANCE PENDING. Settings → Account
+uses Office login/pair/native lease; Windows Home navigates there and retains
+status/Reports. Legacy native token blocks the Office form until explicit logout;
+migration requires HTTP200/null acknowledgement before local reset, with failed
+revocation retaining credentials. No user/peer/ID deletion or ownership takeover.
+Busy/error handling, partial-pairing confirmation, immediate Home refresh and safe
+non-JSON HTTP errors added. Non-Windows account flow, versions/dependencies,
+server contracts and authorization guards retained. Native Dart regression list
+includes the new account/HTTP tests; profile hashes refreshed for changed inputs.
+Verification:90 tooling cases completed,87 PASS/3 native-Windows SKIP; all10
+changed/new Dart files parse; pinned input hashes and diff whitespace PASS.
+PowerShell tests use process-local XDG_CACHE/CONFIG/DATA_HOME under the owned
+cloud cache because the default home is read-only; tests/guards were not relaxed.
+No commit/push/product build/deploy or production mutation. Existing branding-policy
+changes preserved separately. Flutter execution blocked locally: SDK absent,
+official download endpoint denied by environment proxy (CONNECT403). Do not label
+widget tests, Windows migration or real session acceptance PASS without S2 results.
+
+## Canonical Windows branding rule — 2026-10-22
+
+User requested reuse of existing icons, no new design. Verified immutable rd-cl
+commitcf634df336de55daf3d67273a91194e427369e31, ancestor of published
+custom-windows-client. All5 requested asset blobs exist; four ICOs share SHA256
+0ddb6370f8d1d80da794372cecb4191ae28d4e4c1042a6cecc0ab3caab622a90;
+PNG SHA2566dc3d3daf8cce082fc7ba4f14752ee08aab3fda0d675244f94a2e57910325382.
+Both AGENTS and S2 handoff require exact assets from reviewed published source.
+Guide:rd-cl/docs/windows-branding.md. Current6c9828b2 differs at all5 paths;
+assets are not restored by this docs-only task, and no branded EXE is established.
+No source/asset changes, version bump, build interruption, commit/push or deploy.
+
 ## S2 CRLF fixture blocker correction — 2026-10-22
 
 S2db42ac67 report:85 PASS,1 synthetic CRLF ERROR,1 Linux-only SKIP;

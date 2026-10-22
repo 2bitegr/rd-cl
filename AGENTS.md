@@ -149,7 +149,33 @@ BUILD-STATUS.md, Greek INSTALLATION-EL.md and release-maintenance verification.
 Packaging PASS does not authorize or prove signing, installation, upgrade or real
 runtime acceptance; those remain NOT_RUN until separately performed and reported.
 
+## Required rd-cl Windows branding
+
+User-selected canonical icons are the five assets from immutable rd-cl commit
+`cf634df336de55daf3d67273a91194e427369e31` (branding refresh in
+`custom-windows-client`): res/tray-icon.ico, res/icon.ico,
+flutter/windows/runner/resources/app_icon.ico, flutter/assets/icon.ico and
+flutter/assets/icon.png. Use those exact bytes; no new design, full-word EXANTAS
+substitute, resizing or recompression without an explicit user change.
+Read rd-cl/docs/windows-branding.md for verified hashes and consumers. Before the
+next publication/build handoff the source coordinator restores/verifies only these
+assets in reviewed source; never import the old commit's unrelated source/auth
+changes. S2 builds the published assets and reports mismatch, without local source
+edits. Verify tray/EXE/installer/Flutter/Desktop icon selection; distinguish static
+resource checks from installed runtime/icon-cache acceptance. Reuse compatible
+verified codecs for icon-only changes; do not interrupt an active historical build
+or rewrite its provenance. A policy edit alone is not restored branding.
+
 ## Native build integrity gates
+
+Windows Office sign-in has one entry point: Settings → Account. The Home Office
+card shows status and navigates there; do not reintroduce a second login form.
+Use Office credentials and the existing native lease bridge, never replace this
+with a shared RustDesk user/password or remove foreign-owner/role guards. Existing
+legacy native sessions require explicit authenticated logout before Office login;
+preserve local credentials on an unconfirmed migration logout. No device/user/ID
+deletion or automatic ownership transfer is implied. Non-Windows native Account
+behavior remains unchanged until its secure-store integration is reviewed.
 
 The 2026-10-22 audit fixes require the owned hbb_common tree to equal its pinned
 commit plus only the reviewed patch (CRLF allowed, extra tracked/staged/untracked
