@@ -1,3 +1,20 @@
+## S2 CRLF fixture blocker correction — 2026-10-22
+
+S2db42ac67 report:85 PASS,1 synthetic CRLF ERROR,1 Linux-only SKIP;
+all3 native Windows installer copy/lock tests PASS. Codec/application/EXE stages
+NOT_RUN; no new receipt/EXE. Historical receipt/424 ABI files remained unchanged.
+Reproduced old fixture failure locally:git apply with autocrlf=true emits CRLF,
+then unconditional LF replacement creates CRCRLF in patched/new source files.
+Corrected only test construction:canonicalize CRLF to LF before emitting CRLF.
+Explicit local fixture autocrlf=true/false/input cases accept exact patched source
+and reject extra CRLF source edits, preserving bytes/index. A negative CRCRLF
+regression still fails the unchanged production guard. No skip/guard relaxation.
+Full suite twice (normal and isolated global autocrlf=true):87 PASS,3 Windows-only
+SKIP each,90 cases;4 real Rust generator unit tests PASS. Native S2 rerun required.
+Version remains2.0.0+72; no dependency/application/receipt/tooling-guard changes.
+Preserve failed S2 snapshot/output/logs and use a matching new published snapshot.
+Continue the full handoff after suite PASS; no local fixture workaround on S2.
+
 ## Publication preparation — 2026-10-22
 
 User requested coordinated commit/push for rd-cl2.0.0+72 and Office build policies.

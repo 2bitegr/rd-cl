@@ -83,11 +83,44 @@ new file mode 100644
         self.assertEqual(self.verify(False), 'PATCHED')
         self.assertEqual(index.read_bytes(), original)
 
-    def test_crlf_normalization_accepts_only_expected_source(self):
+    def check_crlf_normalization(self, autocrlf):
+        # git apply may already write CRLF under Windows/global autocrlf=true.
+        # Configure only this owned fixture, and canonicalize existing CRLF first.
+        self.git('autocrlf', 'config', '--local', 'core.autocrlf', autocrlf)
+        original_index = (self.root / '.git/index').read_bytes()
         self.apply()
         for path in (self.root / 'src').rglob('*.rs'):
-            path.write_bytes(path.read_bytes().replace(b'\n', b'\r\n'))
+            data = path.read_bytes().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')
+            path.write_bytes(data)
+            self.assertNotIn(b'\r\r\n', data)
+            self.assertEqual(data.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'), data)
         self.assertEqual(self.verify(False), 'PATCHED')
+        changed = self.root / 'src/other.rs'
+        changed.write_bytes(b'const OTHER: u32 = 999;\r\n')
+        with self.assertRaises(RuntimeError):
+            self.verify(False)
+        self.assertEqual(changed.read_bytes(), b'const OTHER: u32 = 999;\r\n')
+        self.assertEqual((self.root / '.git/index').read_bytes(), original_index)
+
+    def test_crlf_normalization_accepts_only_expected_source(self):
+        self.check_crlf_normalization('true')
+
+    def test_crlf_normalization_with_autocrlf_false(self):
+        self.check_crlf_normalization('false')
+
+    def test_crlf_normalization_with_autocrlf_input(self):
+        self.check_crlf_normalization('input')
+
+    def test_doubled_carriage_return_remains_rejected(self):
+        self.git('autocrlf', 'config', '--local', 'core.autocrlf', 'true')
+        self.apply()
+        changed = self.root / 'src/config.rs'
+        changed.write_bytes(b'const VALUE: u32 = 2;\r\r\n')
+        original_index = (self.root / '.git/index').read_bytes()
+        with self.assertRaises(RuntimeError):
+            self.verify(False)
+        self.assertEqual(changed.read_bytes(), b'const VALUE: u32 = 2;\r\r\n')
+        self.assertEqual((self.root / '.git/index').read_bytes(), original_index)
 
     def test_extra_tracked_edit_before_and_after_patch_is_preserved_and_rejected(self):
         changed = put(self.root, 'src/other.rs', 'const OTHER: u32 = 999;\n')

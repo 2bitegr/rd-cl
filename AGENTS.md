@@ -178,6 +178,10 @@ rd-cl/docs/windows-installer-2.0.0.md for the installer correction and required
 native clean-install/upgrade acceptance. The old1.4.13+71 packaging PASS remains
 historical; user-reported installation/upgrade failed (old core, broken shortcut,
 stopped service). Do not call it a verified installation or overwrite its evidence.
+For CRLF synthetic fixtures, normalize existing CRLF before generating CRLF;
+Git apply may already emit CRLF under core.autocrlf=true. Test true/false/input
+in fixture-local configuration, retain negative CRCRLF/extra-source checks and
+never relax production source guards or change global Git settings to fix tests.
 When installation screenshots show a different version, record actual installer
 SHA256 and running core DLL path/hash against the delivery manifest before
 concluding which build is installed. Sidebar version comes from the Rust core;

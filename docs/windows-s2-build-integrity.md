@@ -163,3 +163,22 @@ services/registry or reinstalling:
 
 The completed installer remains historical packaging evidence; new-PC identity,
 installation and service acceptance are unresolved pending these observations.
+
+
+## S2 synthetic CRLF blocker correction
+
+The db42ac67 S2 suite stopped at a synthetic fixture, not at actual submodule
+verification or codec compilation. The old test unconditionally replaced LF
+with CRLF after git apply. With core.autocrlf=true, Git already emitted CRLF for
+patched/new files; the test then produced CRCRLF. This failure was reproduced
+locally; it is not evidence of corruption in the real S2 submodule.
+
+The fixture now canonicalizes existing CRLF first, then emits CRLF exactly once.
+Fixture-local true/false/input cases verify acceptance and rejection of extra
+source edits without changing real index/worktree. Deliberate CRCRLF remains a
+negative case. Production guards and application/dependency versions are unchanged.
+All90 cases were rerun under normal settings and an isolated global autocrlf=true:
+87 PASS,3 native Windows copy-test skips each. S2 reported those3 native copy tests
+PASS on the preceding commit; rerun all tests on the new exact published snapshot.
+Do not change S2 global Git config, patch the old fixture locally or delete failed
+logs/output to resume. Continue codec/bootstrap/application/EXE only after PASS.
