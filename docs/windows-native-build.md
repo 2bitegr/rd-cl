@@ -263,6 +263,34 @@ is a minimum reserve, not a guarantee of peak-space availability.
 Do not delete unrelated data to bypass it. Storage compression or cleanup must
 have a separate explicit scope/approval and preserve build inputs.
 
+## S2 elapsed-time evidence and reuse (2026-10-22)
+
+For successful a23ec301 /2.0.0+72, the supplied S2 transcript reports:
+
+| Stage | Wall time |
+| --- | ---: |
+| Cargo virtual display |26m35s |
+| Cargo main DLL |59m05s |
+| Flutter Windows release |466.1s (7m46.1s) |
+| Full agent run, including preparation/verification |2h04m52s |
+
+The transcript explicitly chose a new isolated Cargo target because the old
+native build-script cache had ambiguous provenance. It shows fresh dependency
+compilation and no new codec compilation. A recorded build output path identifies
+`C:\Build\rd-cl\a23ec301\target` as a candidate for future application-cache
+reuse; the actual config, locks and tool/SDK/codec evidence must be checked on S2.
+Do not select an old ambiguous target or claim the candidate is verified solely
+from this path. Keep source snapshots/delivery outputs separate from caches.
+
+The current build script explicitly passes `-j 1` to Cargo for both components.
+Setting CARGO_BUILD_JOBS cannot override that command-line limit. Reviewed
+configurable parallelism and per-command elapsed timing are follow-up tooling
+work, requiring S2 CPU/RAM/peak-memory evidence; neither is implemented by this
+documentation update. The actual EXE compression/packer time and the rest of the
+run cannot be isolated precisely from this transcript; require step-level timing
+before claiming their cost or a promised repeat-build duration. All tests, guards,
+codec checks and final payload identity still run with cache reuse.
+
 ## Acceptance and current limits
 
 A passing installer, locked resolve, metadata/preflight or AOT probe is not a

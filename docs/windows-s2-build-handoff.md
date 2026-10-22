@@ -43,28 +43,32 @@ no-download wording does not reinstate the removed preparation policy ban.
 
 ## Current completed application/EXE baseline
 
-Latest S2 completion, reported by the user on 2026-10-21; Windows artifact bytes
-were not independently accessed from this coordinator. Use this completed build
-as the comparison baseline, not the earlier codec-only result or blocked attempts.
+Latest S2 completion, user report on 2026-10-22. Package/log bytes on Windows
+were not independently accessed here; these are reported native S2 results.
 
-- Source/tooling: `ad46faef58b5773fc662f021c00ed2f92a9c675a`, published branch
-  `codex/s2-codec-bootstrap-1.4.13`.
-- Version/target: `1.4.13+71`, Windows x64, unsigned EXE installer; no MSI.
-- EXE directory:
-  `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\1.4.13+71\delivery-s2`.
-- Filename: `rd-cl-1.4.13+71-windows-x64-install.exe`; size: `23875584` bytes.
-- SHA-256: `0586a21a7c3df107475722b07bcb6536be80fbcff19f9659672a7ddae6a8b66b`.
-- Reported PASS: 53 guard tests, 50 Dart tests, Preflight, Git object/ABI/exact
-  installed-only checks, Rust/Flutter build, EXE packaging, integrity of 91 embedded
-  runtime files and release-maintenance gate. Genuine codec receipt unchanged.
-- Sibling evidence: `SHA256SUMS`, manifests, `BUILD-STATUS.md`, `INSTALLATION-EL.md`.
-- User-reported installation/upgrade acceptance on 2026-10-22: **FAIL** — the
-  screen still showed core1.4.11, service stopped, no error dialog and a broken
-  Desktop shortcut. Actual loaded DLL path/hash and installer bytes on that PC
-  remain unverified. Retain historical packaging PASS separately from this failure.
-- Current unpublished source targets2.0.0+72 with installer corrections; see
-  [Windows installer correction](windows-installer-2.0.0.md). Do not issue its
-  build prompt until the exact source/tooling commit is published and verified.
+- Source/tooling: `a23ec301e95db089b2cc6c0d05e06f7eebf40521`, branch
+  `codex/s2-codec-bootstrap-1.4.13`; Office `8ed064c219e78019dcea02af433dddb67993accc`.
+- Version/target: `2.0.0+72`, Windows x64, unsigned EXE; no MSI reported.
+- Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-a23ec301`.
+- Filename: `rd-cl-2.0.0+72-windows-x64-install.exe`; size `24304128` bytes.
+- SHA256: `717a1fd2a1dd0cb8fa953d2e542b4307a5836f2009e4ba15210ed00eb69b88a1`.
+- PASS: guards89/1 Linux-only skip, Dart62, codec reuse, Preflight, Rust,
+  Flutter, ZIP/embedded runtime/x64/canonical EX icons, cleanup plan/apply/verify.
+- Siblings: ZIP, manifests, SHA256SUMS, BUILD-STATUS.md and INSTALLATION-EL.md.
+- Installation/upgrade and real Office/native sign-in: NOT_RUN. No deployment.
+- No repeat build for this SHA; compare later published source against it.
+
+Preserve the previous ad46faef58b5773fc662f021c00ed2f92a9c675a/1.4.13+71
+historical delivery and its evidence. Its historical packaging PASS and failed
+user installation do not establish acceptance of the new installer.
+
+Before the next build, assess the latest successful application target and
+compatible Flutter state for reuse; never allocate a cold target solely because
+source SHA/delivery path changed. Keep new source snapshots/deliveries separate.
+The a23ec301 run used a cold target because the previous native cache was ambiguous,
+not because codecs were missing. Preserve that successful target; verify exact
+paths/tool/SDK/codec provenance locally. Do not reuse an ambiguous old cache or
+change -j1 locally. See windows-native-build.md for measured timings and limits.
 
 Historical codec inputs to preserve (SDK identity is absent; current hardened
 tooling requires new isolated compilation before reuse):
@@ -130,9 +134,9 @@ rd-cl repository/ref: <verified repository and published ref>
 Ακριβές rd-cl SourceCommit: <full published SHA>
 Version: <manifest/profile version including Flutter build number>
 Target: Windows x64, EXE installer και το υπάρχον verified runtime ZIP.
-Προηγούμενο completed application/EXE baseline: ad46faef58b5773fc662f021c00ed2f92a9c675a
-Baseline version: 1.4.13+71
-Baseline EXE SHA-256: 0586a21a7c3df107475722b07bcb6536be80fbcff19f9659672a7ddae6a8b66b
+Προηγούμενο completed application/EXE baseline: a23ec301e95db089b2cc6c0d05e06f7eebf40521
+Baseline version: 2.0.0+72
+Baseline EXE SHA-256: 717a1fd2a1dd0cb8fa953d2e542b4307a5836f2009e4ba15210ed00eb69b88a1
 (Ο αποστολέας ενημερώνει αυτά τα baseline πεδία από την τελευταία completed αναφορά.)
 Αλλαγές rd-cl: <verified comparison and changed source/build-input paths>
 Προγραμματισμένος κατάλογος EXE: <verified S2 Desktop OutputRoot, or discover as below>
@@ -180,6 +184,12 @@ tooling. Διατήρησέ το και ακολούθησε το βήμα5 γι
    Το γνωστό υπάρχον toolchain είναι:
    C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\1.4.13+71\codec-bootstrap-s2\toolchain-codecs-local.json
    Επαλήθευσε αυτά τα δεδομένα στο μηχάνημα· μην μαντέψεις άλλον root.
+
+Πριν ορίσεις application CARGO_TARGET_DIR, έλεγξε τον τελευταίο επιτυχή
+   target και τη συμβατή Flutter cache. Μην δημιουργήσεις cold target ανά SHA
+   χωρίς πραγματική ασυμβατότητα/ambiguity. Κράτησε ξεχωριστά snapshot/delivery,
+   όλους τους guards/locks και τα κανονικά compile/test/package invocations.
+   Κατέγραψε αιτία κάθε αναγκαστικού cold rebuild και χρόνους ανά στάδιο.
 
 3. Επιβεβαίωσε όλα τα pinned τοπικά prerequisites, SDK, CMake/compiler, Python
    Brotli, Flutter/Rust/FRB/LLVM, engine archive και caches. Χρησιμοποίησε canonical

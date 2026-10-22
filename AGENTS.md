@@ -131,11 +131,11 @@ is unchanged, report NO_RDCL_BUILD_NEEDED. No automatic builds, Actions, product
 installation or deployment is implied. The former cloud build plan is superseded.
 
 The latest completed S2 application/EXE baseline, reported by the user on
-2026-10-21, is `ad46faef58b5773fc662f021c00ed2f92a9c675a`, version `1.4.13+71`.
+2026-10-22, is `a23ec301e95db089b2cc6c0d05e06f7eebf40521`, version `2.0.0+72`.
 Read the maintained handoff guide's completed baseline for the EXE hash, size,
 codec receipt and acceptance limits; do not use earlier blocked/codec-only states.
 Reported EXE directory:
-`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\1.4.13+71\delivery-s2`.
+`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-a23ec301`.
 Keep that verified delivery unchanged and use an unused owned output directory
 for the next build. An unchanged published SHA needs no repeat build.
 
@@ -148,6 +148,22 @@ Dart regressions, Rust/Flutter build, EXE/runtime integrity, SHA256SUMS/manifest
 BUILD-STATUS.md, Greek INSTALLATION-EL.md and release-maintenance verification.
 Packaging PASS does not authorize or prove signing, installation, upgrade or real
 runtime acceptance; those remain NOT_RUN until separately performed and reported.
+
+## Preserve verified application build caches
+
+Future S2 handoffs must assess the last successful CARGO_TARGET_DIR and compatible
+Flutter build state before allocating a cold application target. A new source SHA
+or delivery directory alone is not a reason to discard compiled dependencies.
+Keep immutable source snapshots and separate delivery roots; reuse compatible
+owned caches under the existing session locks and pinned tool/SDK/codec checks.
+Ambiguous or incompatible native-cache provenance still requires isolation, with
+an exact recorded reason. Never copy a stale DLL as proof of a new build, skip
+Cargo/Flutter/tests or weaken guards. Let the build tools determine recompilation.
+Current scripts pin Cargo to -j1; changing CARGO_BUILD_JOBS cannot override that.
+Parallelism changes need reviewed source tooling and S2 CPU/RAM/peak-memory
+measurements, not an unreviewed local command edit. Record per-stage wall times
+and distinguish cold compilation from repeat builds; do not promise an unmeasured
+build-time target. See rd-cl/docs/windows-native-build.md for measured S2 timings.
 
 ## Required rd-cl Windows branding
 

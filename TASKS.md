@@ -1,3 +1,25 @@
+## Documentation publication preparation — 2026-10-22
+
+Coordinated Office commit/push authorized by the user. Publish the four reviewed
+baseline/cache-policy documentation files on codex/s2-codec-bootstrap-1.4.13.
+Application/build-input tree remains identical to completed a23ec301; source
+version2.0.0+72 and genuine caches/receipts/packages unchanged. No new EXE or S2
+application build is needed for this documentation delta. Do not merge the
+separately diverged main branch or deploy. Full live SHA recorded after push.
+
+## S2 application delivery completed / build-time review — 2026-10-22
+
+USER-REPORTED PASS at a23ec301e95db089b2cc6c0d05e06f7eebf40521, Office8ed064c.
+EXE2.0.0+72:24304128bytes, SHA256717a1fd2a1dd0cb8fa953d2e542b4307a5836f2009e4ba15210ed00eb69b88a1.
+Desktop:Builds/rd-cl/2.0.0+72/delivery-s2-a23ec301. Guards89 PASS/1 Linux SKIP;
+Dart62 PASS; codec reuse, Preflight, Rust/Flutter, ZIP/EXE/icons and cleanup PASS.
+Unsigned; installation/upgrade and real Office/native sign-in remain NOT_RUN.
+Transcript: new cold Cargo target due to old native-cache ambiguity; virtual
+component26m35s, main DLL59m05s, Flutter466.1s, total agent run2h04m52s.
+Next handoff assesses this successful target for compatible reuse; no new cold
+root solely per SHA. -j1 is a separate remaining tooling limit. Baseline/policy
+updated locally; no rebuild, source-tooling change, commit/push or deployment.
+
 ## Account UI and canonical branding publication — 2026-10-22
 
 Reviewed publication: rd-cl Windows Office login is centralized in Settings →
