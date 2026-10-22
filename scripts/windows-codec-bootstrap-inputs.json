@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "base_source_commit": "1be7642b56af58d3fb27c400e52a78200505e39b",
-  "product_version": "1.4.13+71",
-  "triplet_sha256": "323c6f88ab1a51ff02dacabd5d7f00e290fc5510acab1841d61ea3a8788e1a92",
+  "product_version": "2.0.0+72",
+  "triplet_sha256": "6e5446ee9aa0ab97e61170013be186b2c03ea7bc9f63cb56fdff478f61448275",
   "previous_triplet_sha256": "e3cd9820386c639b8cbf844d43853cbc838f75a1488bfd4add98d5646c716538",
   "ports": {
     "libjpeg-turbo": {
@@ -134,5 +134,9 @@
     "libyuv",
     "mfx-dispatch",
     "opus"
-  ]
+  ],
+  "legacy_triplet_sha256": [
+    "323c6f88ab1a51ff02dacabd5d7f00e290fc5510acab1841d61ea3a8788e1a92"
+  ],
+  "windows_sdk_version": "10.0.22621.0"
 }

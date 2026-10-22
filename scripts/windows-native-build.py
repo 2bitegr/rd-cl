@@ -6,6 +6,7 @@ No downloads, dependency upgrades, product execution, signing, Git commits or de
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -15,9 +16,12 @@ import struct
 import tomllib
 import subprocess
 import tempfile
+import secrets
+import stat
 import sys
 from datetime import datetime
 import zipfile
+import xml.etree.ElementTree as ET
 from urllib.parse import urljoin, urlparse
 from urllib.request import url2pathname
 
@@ -59,6 +63,113 @@ def offline_environment(environment):
         result[key] = 'http://127.0.0.1:9'
     result['NO_PROXY'] = result['no_proxy'] = 'localhost,127.0.0.1,::1'
     return result
+
+
+WINDOWS_SDK_VERSION = '10.0.22621.0'
+SDK_INPUTS = ['Include/{version}/um/Windows.h', 'Include/{version}/shared/sdkddkver.h',
+              'Include/{version}/ucrt/corecrt.h', 'Lib/{version}/um/x64/kernel32.lib',
+              'Lib/{version}/ucrt/x64/ucrt.lib', 'Lib/{version}/ucrt/x64/libucrt.lib']
+
+
+def native_triplet(profile):
+    version = profile.get('windows_sdk_version', WINDOWS_SDK_VERSION)
+    if not re.fullmatch(r'10\.0\.\d+\.0', version):
+        raise RuntimeError('Invalid pinned Windows SDK version')
+    return ('set(VCPKG_TARGET_ARCHITECTURE x64)\r\n'
+            'set(VCPKG_CRT_LINKAGE static)\r\nset(VCPKG_LIBRARY_LINKAGE static)\r\n'
+            'set(VCPKG_BUILD_TYPE release)\r\n'
+            'set(VCPKG_CMAKE_SYSTEM_VERSION ' + version + ')\r\n').encode('ascii')
+
+
+def runtime_inventory(root):
+    root = Path(root)
+    files = {}
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        info = directory.lstat()
+        if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+            raise RuntimeError('Runtime link/reparse point is not a verified payload: ' + str(directory))
+        with os.scandir(directory) as entries:
+            for entry in sorted(entries, key=lambda item: item.name):
+                path = Path(entry.path)
+                info = entry.stat(follow_symlinks=False)
+                if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+                    raise RuntimeError('Runtime link/reparse point is not a verified payload: ' + str(path))
+                if stat.S_ISDIR(info.st_mode):
+                    pending.append(path)
+                elif stat.S_ISREG(info.st_mode):
+                    files[path.relative_to(root).as_posix()] = digest(path)
+                else:
+                    raise RuntimeError('Unexpected runtime entry: ' + str(path))
+    return files
+
+
+class BuildLocks:
+    """Non-blocking per-user resource locks. Never guess or erase a stale owner."""
+    def __init__(self, directory, resources):
+        self.directory = Path(directory)
+        self.owned = []
+        self.resources = sorted(set(resources))
+
+    def acquire(self):
+        self.directory.mkdir(parents=True, exist_ok=True)
+        try:
+            for resource in self.resources:
+                name = hashlib.sha256(resource.encode()).hexdigest() + '.lock'
+                path = self.directory / name
+                token = json.dumps({'pid': os.getpid(), 'resource': resource, 'token': secrets.token_hex(24)})
+                try:
+                    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                except FileExistsError as error:
+                    raise RuntimeError('Build resource locked; preserve owner/stale lock for inspection: ' + str(path)) from error
+                identity = os.fstat(descriptor)
+                try:
+                    with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
+                        stream.write(token)
+                except BaseException:
+                    current = path.lstat()
+                    if (current.st_dev, current.st_ino) == (identity.st_dev, identity.st_ino) and not path.is_symlink():
+                        path.unlink()
+                    raise
+                self.owned.append((path, token))
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self):
+        for path, token in reversed(self.owned[:]):
+            if path.is_symlink() or path.read_text(encoding='utf-8') != token:
+                raise RuntimeError('Build lock ownership changed; preserve for inspection: ' + str(path))
+            path.unlink()
+            self.owned.remove((path, token))
+
+
+def require_submodule_tree(git, root, commit, patch, environment, scratch, allow_unpatched=True):
+    """Compare worktree with a temporary index for pinned tree + exact public patch.
+
+    Real index/worktree are never reset or cleaned. Only the owned temporary
+    index is patched; Git handles CRLF normalization during comparisons.
+    """
+    with tempfile.TemporaryDirectory(prefix='submodule-audit-', dir=scratch) as directory:
+        env = environment.copy()
+        env['GIT_INDEX_FILE'] = str(Path(directory) / 'index')
+        git('hbb-audit-read-tree', '-c', 'core.autocrlf=input', 'read-tree', commit, cwd=root, env=env)
+
+        def matches(label):
+            code, _ = git(label, '-c', 'core.autocrlf=input', 'diff', '--exit-code', '--no-ext-diff', '--', cwd=root, env=env, check=False)
+            if code not in (0, 1):
+                raise RuntimeError('Cannot inspect pinned submodule worktree')
+            _, others = git(label + '-untracked', '-c', 'core.autocrlf=input', 'ls-files', '--others', '--exclude-standard', '-z', cwd=root, env=env)
+            return code == 0 and not others
+
+        if allow_unpatched and matches('hbb-audit-base'):
+            return 'PINNED'
+        git('hbb-audit-patch', '-c', 'core.autocrlf=input', 'apply', '--cached', '--ignore-whitespace', '--ignore-space-change',
+            '--unidiff-zero', str(patch), cwd=root, env=env)
+        if not matches('hbb-audit-patched'):
+            raise RuntimeError('hbb_common differs from pinned source plus the exact reviewed patch; preserve dirty work')
+        return 'PATCHED'
 
 
 def require_files(paths):
@@ -181,11 +292,14 @@ def require_vcpkg_objects(git, profile, ports, overlays=None):
 class Build:
     def __init__(self, args):
         self.drive_created = False
+        self.session_locks = None
         try:
             self._initialize(args)
-        except BaseException:
-            # main() cannot enter its finally block when construction fails.
-            self.close()
+        except BaseException as error:
+            try:
+                self.close()
+            except Exception as cleanup:
+                error.add_note('Build cleanup also failed; preserve locks/state: ' + str(cleanup))
             raise
 
     def _initialize(self, args):
@@ -205,6 +319,20 @@ class Build:
             raise RuntimeError('OutputRoot must remain within this artifact root Builds/rd-cl')
         if self.cfg.get('drive_alias') and os.path.normcase(self.cfg['drive_alias']['target']) != os.path.normcase(str(artifact_root)):
             raise RuntimeError('Drive alias must point only at this reviewed artifact root')
+        # Acquire before SUBST, generated files, logs or native build mutation.
+        normalize = lambda path: os.path.normcase(str(Path(path).resolve()))
+        resources = ['source:' + normalize(physical_source),
+                     'output:' + normalize(args.output_root),
+                     'cargo:' + normalize(self.cfg['environment'].get('CARGO_TARGET_DIR', os.environ.get('CARGO_TARGET_DIR', physical_source / 'target'))),
+                     'flutter:' + normalize(self.cfg['paths']['flutter']),
+                     'vcpkg:' + normalize(self.cfg['paths']['vcpkg'])]
+        if self.cfg.get('drive_alias'):
+            resources.append('alias:' + self.cfg['drive_alias']['drive'].upper())
+        if getattr(args, 'codec_root', None):
+            resources.append('codec:' + normalize(args.codec_root))
+        lock_home = Path(os.environ.get('LOCALAPPDATA', tempfile.gettempdir()))
+        self.session_locks = BuildLocks(lock_home / 'ExantasBuildLocks/rd-cl', resources)
+        self.session_locks.acquire()
         self.drive_created = False
         alias = self.cfg.get('drive_alias')
         if alias:
@@ -341,8 +469,8 @@ class Build:
             raise RuntimeError(f'{label}: exit {result.returncode}; see {stderr}')
         return result.returncode, text
 
-    def git(self, label, *args, cwd=None, check=True):
-        return self.run(label, [self.tools['git'], '-c', 'core.autocrlf=false', *args], cwd, check)
+    def git(self, label, *args, cwd=None, check=True, env=None):
+        return self.run(label, [self.tools['git'], '-c', 'core.autocrlf=false', *args], cwd, check, env=env)
 
     def patch(self, label, root, patch, extra=()):
         code, _ = self.git(label + '-check', 'apply', *extra, '--check', patch, cwd=root, check=False)
@@ -379,6 +507,7 @@ class Build:
         for relative, expected in self.profile['input_sha256'].items():
             if digest(self.source / relative) != expected:
                 raise RuntimeError(f'Unreviewed source input: {relative}')
+        self.require_hbb_source()
         cargo_manifest = tomllib.loads((self.source / 'Cargo.toml').read_text(encoding='utf-8'))
         pubspec = (self.source / 'flutter/pubspec.yaml').read_text(encoding='utf-8')
         app_version = re.search(r'^version:\s*[\"\']?([^\s\"\']+)', pubspec, re.MULTILINE).group(1)
@@ -423,11 +552,31 @@ class Build:
             self.check_build_space('space-budget-preflight.json')
         return info
 
+    def require_hbb_source(self, allow_unpatched=True):
+        state = require_submodule_tree(self.git, self.source / 'libs/hbb_common',
+            self.profile['submodule_commit'], self.source / 'patches/hbb_common-exantas-config.patch',
+            self.env, self.logs, allow_unpatched)
+        save(self.logs / 'submodule-source.json', {'status': 'PASS', 'state': state,
+             'commit': self.profile['submodule_commit']})
+
+    def selected_sdk_identity(self):
+        required = self.profile.get('windows_sdk_version', WINDOWS_SDK_VERSION)
+        version = self.env.get('WINDOWSSDKVERSION', '').rstrip('\\/')
+        root = Path(self.env.get('WINDOWSSDKDIR', ''))
+        if version != required or not root.is_absolute():
+            raise RuntimeError('Selected Windows SDK differs from pinned ' + required)
+        paths = {name.format(version=version): root / name.format(version=version) for name in SDK_INPUTS}
+        require_files(paths.values())
+        return {'version': version, 'files_sha256': {name: digest(path) for name, path in paths.items()}}
+
     def developer_environment(self):
         # Import in memory only. Never log a full environment or its values.
+        sdk = self.profile.get('windows_sdk_version', WINDOWS_SDK_VERSION)
+        if not re.fullmatch(r'10\.0\.\d+\.0', sdk):
+            raise RuntimeError('Invalid pinned Windows SDK version')
         batch = self.logs / 'vs-env.cmd'
         batch.write_text('@echo off\ncall "' + str(self.vs / 'Common7/Tools/VsDevCmd.bat') +
-                         '" -arch=x64 -host_arch=x64 >nul\nif errorlevel 1 exit /b %errorlevel%\nset\n')
+                         '" -arch=x64 -host_arch=x64 -winsdk=' + sdk + ' >nul\nif errorlevel 1 exit /b %errorlevel%\nset\n')
         result = subprocess.run([self.env.get('COMSPEC', r'C:\Windows\System32\cmd.exe'),
                                  '/d', '/c', str(batch)], env=self.env, capture_output=True,
                                 creationflags=subprocess.CREATE_NO_WINDOW)
@@ -445,6 +594,8 @@ class Build:
             if key.upper() == 'VCPKG_ROOT':
                 del self.env[key]
         self.env['VCPKG_ROOT'] = str(self.tools['vcpkg'])
+        self.env['RDCL_WINDOWS_SDK_VERSION'] = sdk
+        save(self.logs / 'selected-windows-sdk.json', self.selected_sdk_identity())
         save(self.logs / 'native-vcpkg-root.json', {
             'vcpkg_root': self.env['VCPKG_ROOT'], 'selected_from': 'toolchain.paths.vcpkg'})
 
@@ -486,6 +637,7 @@ class Build:
         self.patch('exantas-submodule', self.source / 'libs/hbb_common', self.source /
                    'patches/hbb_common-exantas-config.patch',
                    ('--ignore-whitespace', '--ignore-space-change', '--unidiff-zero'))
+        self.require_hbb_source(allow_unpatched=False)
         self.run('pub-locked', self.flutter_command('pub', 'get', '--offline', '--enforce-lockfile'),
                  cwd=self.source / 'flutter')
         if digest(self.source / 'flutter/pubspec.lock') != self.profile['input_sha256']['flutter/pubspec.lock']:
@@ -570,12 +722,19 @@ class Build:
             raise RuntimeError('Codec cache receipt does not match the pinned dependency inputs')
         version = (self.vs / 'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt').read_text().strip()
         compiler = self.vs / 'VC/Tools/MSVC' / version / 'bin/Hostx64/x64'
-        actual_tools = [compiler / 'cl.exe', compiler / 'link.exe', self.tools.get('vcpkg_cmake', self.cmake)]
+        actual_tools = [compiler / 'cl.exe', compiler / 'link.exe', compiler / 'lib.exe',
+                        self.tools.get('vcpkg_cmake', self.cmake), self.tools['vcpkg'] / 'vcpkg.exe']
         key = lambda path: os.path.normcase(str(Path(path).resolve()))
         expected_tools = {key(path): sha for path, sha in cached.get('tool_sha256', {}).items()}
         for tool in actual_tools:
             if key(tool) not in expected_tools or digest(tool) != expected_tools[key(tool)]:
                 raise RuntimeError('Codec compiler/tool differs from the verified cache: ' + str(tool))
+        if not cached.get('sdk_identity'):
+            raise RuntimeError('Codec receipt lacks Windows SDK identity; preserve it and compile a new isolated codec root with current tooling')
+        if cached['sdk_identity'] != self.selected_sdk_identity():
+            raise RuntimeError('Windows SDK identity differs from the verified codec receipt')
+        if cached.get('triplet_sha256') != hashlib.sha256(native_triplet(self.profile)).hexdigest():
+            raise RuntimeError('Codec receipt triplet differs from the SDK-pinned release-only triplet')
         installed = self.tools['vcpkg'] / 'installed/x64-windows-static'
         for relative, expected in cached['codec_abi_sha256'].items():
             if digest(installed / relative) != expected:
@@ -627,8 +786,7 @@ class Build:
                                              'rust_version': p.get('rust_version')} for p in metadata['packages']])
         triplets = self.output / 'Triplets'
         triplets.mkdir(exist_ok=True)
-        (triplets / 'x64-windows-static.cmake').write_text('set(VCPKG_TARGET_ARCHITECTURE x64)\n'
-            'set(VCPKG_CRT_LINKAGE static)\nset(VCPKG_LIBRARY_LINKAGE static)\nset(VCPKG_BUILD_TYPE release)\n')
+        (triplets / 'x64-windows-static.cmake').write_bytes(native_triplet(self.profile))
         self.check_build_space()
         # Pin the codec CMake separately from Flutter/VS CMake so an unrelated
         # newer tool on PATH does not invalidate every installed codec ABI.
@@ -643,6 +801,7 @@ class Build:
                  '--x-install-root=' + str(self.tools['vcpkg'] / 'installed'),
                  '--no-downloads', '--only-binarycaching'], env=codec_env)
         require_installed_vcpkg_plan(plan, self.codec_ports)
+        self.require_hbb_source(allow_unpatched=False)
         self.run('cargo-virtual-display', [self.tools['cargo'], 'build', '--frozen',
                                           '--release', '-p', 'dylib_virtual_display', '-j', '1'])
         self.run('cargo-release', [self.tools['cargo'], 'build', '--frozen', '--features',
@@ -658,13 +817,38 @@ class Build:
             shutil.copy2(cargo_target / 'release/deps/dylib_virtual_display.dll',
                          rust_payload / 'deps/dylib_virtual_display.dll')
         self.run('flutter-release', self.flutter_command('build', 'windows', '--release', '--no-pub'), cwd=self.source / 'flutter')
+        self.require_flutter_sdk()
+        self.require_verified_codecs()
         bundle = self.source / 'flutter/build/windows/x64/runner/Release'
         shutil.copy2(self.source / 'target/release/deps/dylib_virtual_display.dll', bundle)
+        self.require_native_core(bundle, cargo_target)
         receipt = {'source_commit': self.args.source_commit,
                    'lock_sha256': digest(self.source / 'flutter/pubspec.lock'),
-                   'payload_sha256': {str(p.relative_to(bundle)): digest(p) for p in bundle.rglob('*') if p.is_file()}}
+                   'payload_sha256': runtime_inventory(bundle)}
         save(self.output / 'native-compile-receipt.json', receipt)
         self.package()
+
+    def require_native_core(self, bundle, cargo_target):
+        generated = (self.source / 'src/version.rs').read_text(encoding='utf-8')
+        match = re.search(r'pub const VERSION:\s*&str\s*=\s*"([^"]+)"', generated)
+        if not match or match.group(1) != self.profile['version'].split('+')[0]:
+            raise RuntimeError('Generated native core version differs from the release profile')
+        compiled = cargo_target / 'release/librustdesk.dll'
+        if digest(bundle / 'librustdesk.dll') != digest(compiled):
+            raise RuntimeError('Flutter payload contains a different native DLL from this Cargo build')
+        save(self.logs / 'native-core-identity.json', {
+            'version': match.group(1), 'compiled_dll_sha256': digest(compiled),
+            'generated_version_sha256': digest(self.source / 'src/version.rs')})
+
+    def require_flutter_sdk(self):
+        project = self.source / 'flutter/build/windows/x64/runner/rustdesk.vcxproj'
+        root = ET.parse(project).getroot()
+        versions = {node.text.strip() for node in root.iter()
+                    if node.tag.rsplit('}', 1)[-1] == 'WindowsTargetPlatformVersion' and node.text}
+        expected = self.profile.get('windows_sdk_version', WINDOWS_SDK_VERSION)
+        if versions != {expected}:
+            raise RuntimeError('Flutter project selected a different or unknown Windows SDK: ' + repr(versions))
+        save(self.logs / 'flutter-sdk-selection.json', {'status': 'PASS', 'version': expected})
 
     def close(self):
         if self.drive_created:
@@ -679,6 +863,8 @@ class Build:
             subprocess.run([subst, alias['drive'], '/d'], check=True,
                            creationflags=subprocess.CREATE_NO_WINDOW)
             self.drive_created = False
+        if getattr(self, 'session_locks', None):
+            self.session_locks.close()
 
     def package_exe(self):
         # Reuse the existing upstream self-extracting installer. Never execute
@@ -688,8 +874,7 @@ class Build:
         if (info.get('status') != 'PASS' or info['source_commit'] != self.args.source_commit
                 or info['version'] != self.profile['version']):
             raise RuntimeError('EXE requires a verified matching native build')
-        current = {str(p.relative_to(bundle)).replace('\\', '/'): digest(p)
-                   for p in bundle.rglob('*') if p.is_file()}
+        current = runtime_inventory(bundle)
         if current != info['files']:
             raise RuntimeError('Runtime payload differs from the verified native build')
         destination = self.output / ('rd-cl-' + self.profile['version'] + '-windows-x64-install.exe')
@@ -709,6 +894,8 @@ class Build:
             stream.seek(0x3c); stream.seek(struct.unpack('<I', stream.read(4))[0])
             if stream.read(4) != b'PE\0\0' or struct.unpack('<H', stream.read(2))[0] != 0x8664:
                 raise RuntimeError('Installer architecture is not x64')
+        if runtime_inventory(bundle) != current:
+            raise RuntimeError('Runtime payload changed during EXE packaging')
         shutil.copy2(target, destination)
         receipt = {'status': 'PACKAGED_NATIVE_ACCEPTANCE_PENDING',
             'source_commit': self.args.source_commit, 'version': self.profile['version'],
@@ -742,21 +929,28 @@ class Build:
         receipt = json.loads((self.output / 'native-compile-receipt.json').read_text(encoding='utf-8'))
         if receipt['source_commit'] != self.args.source_commit or receipt['lock_sha256'] != digest(self.source / 'flutter/pubspec.lock'):
             raise RuntimeError('Native compile provenance differs from the current inputs')
-        for relative, expected in receipt['payload_sha256'].items():
-            if digest(bundle / relative) != expected:
-                raise RuntimeError('Release payload changed after compilation')
+        expected_files = {name.replace('\\', '/'): sha for name, sha in receipt['payload_sha256'].items()}
+        files = runtime_inventory(bundle)
+        if len(expected_files) != len(receipt['payload_sha256']) or files != expected_files:
+            raise RuntimeError('Release payload inventory differs from native compilation: extra/missing/changed file')
         name = 'rd-cl-' + self.profile['version'] + '-windows-x64-portable'
         archive = self.output / (name + '.zip')
         if archive.exists():
             raise RuntimeError('Refusing to overwrite an existing package')
-        files = {str(p.relative_to(bundle)).replace('\\', '/'): digest(p)
-                 for p in bundle.rglob('*') if p.is_file()}
         with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as output:
             for relative in sorted(files):
                 output.write(bundle / relative, name + '/' + relative)
         with zipfile.ZipFile(archive) as verify:
             if verify.testzip():
                 raise RuntimeError('Portable ZIP integrity failure')
+            if set(verify.namelist()) != {name + '/' + relative for relative in files}:
+                raise RuntimeError('Portable ZIP inventory mismatch')
+            for relative, expected in files.items():
+                with verify.open(name + '/' + relative) as stream:
+                    if hashlib.file_digest(stream, 'sha256').hexdigest() != expected:
+                        raise RuntimeError('Portable ZIP payload differs: ' + relative)
+        if runtime_inventory(bundle) != files:
+            raise RuntimeError('Runtime payload changed during ZIP packaging')
         info = {'status': 'PASS', 'source_commit': self.args.source_commit,
                 'source_repository': self.profile['source_repository'],
                 'build_automation_sha256': {name: digest(Path(__file__).with_name(name)) for name in
@@ -774,12 +968,17 @@ class Build:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--mode', choices=['Preflight', 'Provision', 'Build', 'Package', 'PackageExe'], required=True)
+    parser.add_argument('--mode', choices=['Preflight', 'Provision', 'Build', 'Package', 'PackageExe', 'PackageMsi'], required=True)
     parser.add_argument('--toolchain', required=True)
     parser.add_argument('--source-commit', required=True)
     parser.add_argument('--output-root', required=True)
+    parser.add_argument('--with-exe', action='store_true')
+    parser.add_argument('--with-msi', action='store_true')
     args = parser.parse_args()
+    if ((args.with_exe or args.with_msi) and args.mode not in ['Build', 'Package']) or (args.with_exe and args.with_msi):
+        parser.error('Choose one installer, only after Build/Package')
     build = Build(args)
+    failure = None
     try:
         build.preflight()
         if args.mode == 'Provision':
@@ -789,13 +988,35 @@ def main():
         elif args.mode == 'Package':
             build.package()
         elif args.mode == 'PackageExe':
+            build.developer_environment()
             build.package_exe()
-        build.close()
+        if args.with_exe:
+            if args.mode == 'Package':
+                build.developer_environment()
+            build.package_exe()
+        if args.with_msi or args.mode == 'PackageMsi':
+            build.developer_environment()
+            spec = importlib.util.spec_from_file_location('native_msi', Path(__file__).with_name('windows-native-msi.py'))
+            msi = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(msi)
+            msi.package(build, sys.modules[__name__])
+    except Exception as error:
+        failure = error
+    finally:
+        try:
+            build.close()
+        except Exception as cleanup:
+            if failure is None:
+                failure = cleanup
+            else:
+                failure.add_note('Build cleanup also failed; preserve locks/state: ' + str(cleanup))
+                print('Cleanup also failed: ' + str(cleanup), file=sys.stderr)
+    if failure is not None:
+        return report_failure(build, failure)
+    try:
         save(build.logs / 'result.json', {'mode': args.mode, 'status': 'PASS'})
     except Exception as error:
         return report_failure(build, error)
-    finally:
-        build.close()
     return 0
 
 

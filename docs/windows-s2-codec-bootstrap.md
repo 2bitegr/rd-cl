@@ -1,10 +1,13 @@
-# Offline S2 codec bootstrap for rd-cl 1.4.13+71
+# Offline S2 codec bootstrap for rd-cl2.0.0+72
 
-Application source baseline: `1be7642b56af58d3fb27c400e52a78200505e39b`.
+Historical ancestry baseline (not the current application source): `1be7642b56af58d3fb27c400e52a78200505e39b`.
 Use the exact published **bootstrap tooling commit** from the handoff, which is
-a descendant of that baseline containing only bootstrap scripts, tests and docs.
-The application manifests, locks, dependency versions and existing verifier are
-unchanged. This is a user-requested S2 prerequisite workflow, separate from cloud
+a descendant of that baseline containing the reviewed build tooling, SDK-selection CMake, tests and docs.
+Current application manifests/profile select2.0.0+72 after the user-authorized
+installer correction; dependency versions remain unchanged. Read
+[the installer correction](windows-installer-2.0.0.md).
+The 2026-10-22 integrity update hardens source/tool/SDK verification; read
+[the receipt migration and locked build requirements](windows-s2-build-integrity.md). This is a user-requested S2 prerequisite workflow, separate from cloud
 or GitHub Actions builds. It never executes the product or contacts production.
 
 ## What is checked and preserved
@@ -16,15 +19,16 @@ full tooling SHA. Do not fabricate a marker for different source or discard dirt
 work. Use the existing reviewed snapshot preparation procedure; return authored
 changes to the source workstation. The scripts themselves never fetch source.
 
-`windows-codec-bootstrap.ps1 -Mode Preflight` uses the unchanged native preflight
+`windows-codec-bootstrap.ps1 -Mode Preflight` uses the hardened native preflight
 for source/profile/version, submodule, SDK22621, compiler, Rust/Flutter and existing
 cache checks. It then checks the following **before codec compilation**:
 
 - Existing triplet SHA256 must be either
   `e3cd9820386c639b8cbf844d43853cbc838f75a1488bfd4add98d5646c716538`
-  or the canonical release-only hash. It is never edited. The new overlay is
+  or a legacy/current release-only hash listed in the pinned bootstrap inputs. It is never edited. The new overlay is
   written with exact CRLF bytes, SHA256
-  `323c6f88ab1a51ff02dacabd5d7f00e290fc5510acab1841d61ea3a8788e1a92`.
+  `6e5446ee9aa0ab97e61170013be186b2c03ea7bc9f63cb56fdff478f61448275`,
+  including the explicit SDK22621 CMake system-version selection.
 - Ten local source/patch archives, including Meson, must match the SHA512 pins
   in `windows-codec-bootstrap-inputs.json`. These come from the unchanged overlay
   ports, baseline ports and the two exact override trees in the build profile.
@@ -94,8 +98,8 @@ $existingTriplet = '<existing S2 x64-windows-static.cmake>'
 $snapshot = '<owned S2 snapshot at published tooling commit>'
 $published = '<full published tooling SHA from handoff>'
 $cfg = Get-Content -LiteralPath $toolchain -Raw | ConvertFrom-Json
-$codecRoot = Join-Path $cfg.artifact_root 'Tools\codec-bootstrap\1.4.13-71-s2'
-$output = Join-Path $cfg.artifact_root 'Builds\rd-cl\1.4.13+71\codec-bootstrap-s2'
+$codecRoot = Join-Path $cfg.artifact_root 'Tools\codec-bootstrap\2.0.0-72-s2'
+$output = Join-Path $cfg.artifact_root 'Builds\rd-cl\2.0.0+72\codec-bootstrap-s2'
 $bootstrap = Join-Path $snapshot 'scripts\windows-codec-bootstrap.ps1'
 
 # Confirm snapshot HEAD/profile/marker using the existing source handoff first.
@@ -122,7 +126,7 @@ receipt generation requires fresh object files, static libraries and ABI records
 Compiler paths and compiler/linker/CMake executable hashes must match the checked
 local tools. A successful process exit or copied .lib alone is insufficient.
 The script checks preservation of the original installation/cache, source pins
-and triplet, runs **the existing `require_verified_codecs()` without changes**,
+and triplet, runs **the hardened `require_verified_codecs()` including all recorded tools, SDK fingerprint and SDK-pinned triplet**,
 and requires the existing installed-only dry-run plan guard to pass.
 
 Only then does it publish `compiled-cache-receipt.json` plus a separate
@@ -139,7 +143,7 @@ After Compile PASS, use the generated local JSON for the existing S2 build:
 
 ```powershell
 $codecToolchain = Join-Path $output 'toolchain-codecs-local.json'
-$delivery = Join-Path $cfg.artifact_root 'Builds\rd-cl\1.4.13+71\delivery-s2'
+$delivery = Join-Path $cfg.artifact_root 'Builds\rd-cl\2.0.0+72\delivery-s2'
 & (Join-Path $snapshot 'scripts\windows-native-release.ps1') `
   -Mode Build -WithExe -Toolchain $codecToolchain `
   -SourceCommit $published -OutputRoot $delivery

@@ -106,10 +106,16 @@ pub fn goto_install() {
 pub fn install_me(_options: String, _path: String, _silent: bool, _debug: bool) {
     #[cfg(windows)]
     std::thread::spawn(move || {
-        allow_err!(crate::platform::windows::install_me(
-            &_options, _path, _silent, _debug
-        ));
-        std::process::exit(0);
+        match crate::platform::windows::install_me(&_options, _path, _silent, _debug) {
+            Ok(()) => std::process::exit(0),
+            Err(error) => {
+                log::error!("Installation failed: {error}");
+                crate::platform::windows::message_box(&format!(
+                    "{}\n\n{error}", crate::client::translate("Installation failed!".to_owned())
+                ));
+                std::process::exit(1);
+            }
+        }
     });
 }
 

@@ -1046,7 +1046,7 @@ pub fn is_share_rdp() -> bool {
 pub fn set_share_rdp(enable: bool) {
     let (subkey, _, _, _) = get_install_info();
     let cmd = format!(
-        "reg add {} /f /v share_rdp /t REG_SZ /d \"{}\"",
+        "reg add \"{}\" /f /v share_rdp /t REG_SZ /d \"{}\"",
         subkey,
         if enable { "true" } else { "false" }
     );
@@ -1434,17 +1434,18 @@ fn get_install_info_with_subkey(subkey: String) -> (String, String, String, Stri
     (subkey, path, start_menu, exe)
 }
 
-pub fn copy_raw_cmd(src_raw: &str, _raw: &str, _path: &str) -> ResultType<String> {
-    let main_raw = format!(
-        "XCOPY \"{}\" \"{}\" /Y /E /H /C /I /K /R /Z",
-        PathBuf::from(src_raw)
-            .parent()
-            .ok_or(anyhow!("Can't get parent directory of {src_raw}"))?
-            .to_string_lossy()
-            .to_string(),
-        _path
-    );
-    return Ok(main_raw);
+pub fn copy_raw_cmd(src_raw: &str, raw: &str, path: &str) -> ResultType<String> {
+    let source = Path::new(src_raw);
+    let directory = source.parent().ok_or(anyhow!("Missing executable parent"))?;
+    let filename = source.file_name().ok_or(anyhow!("Missing executable filename"))?;
+    Ok(super::windows_install::payload_commands(
+        src_raw,
+        &directory.to_string_lossy(),
+        &filename.to_string_lossy(),
+        raw,
+        path,
+        cfg!(feature = "flutter"),
+    ))
 }
 
 pub fn copy_exe_cmd(src_exe: &str, exe: &str, path: &str) -> ResultType<String> {
@@ -1457,25 +1458,6 @@ pub fn copy_exe_cmd(src_exe: &str, exe: &str, path: &str) -> ResultType<String> 
         ORIGIN_PROCESS_EXE = win_topmost_window::ORIGIN_PROCESS_EXE,
         broker_exe = win_topmost_window::INJECTED_PROCESS_EXE,
     ))
-}
-
-#[inline]
-pub fn rename_exe_cmd(src_exe: &str, path: &str) -> ResultType<String> {
-    let src_exe_filename = PathBuf::from(src_exe)
-        .file_name()
-        .ok_or(anyhow!("Can't get file name of {src_exe}"))?
-        .to_string_lossy()
-        .to_string();
-    let app_name = crate::get_app_name().to_lowercase();
-    if src_exe_filename.to_lowercase() == format!("{app_name}.exe") {
-        Ok("".to_owned())
-    } else {
-        Ok(format!(
-            "
-        move /Y \"{path}\\{src_exe_filename}\" \"{path}\\{app_name}.exe\"
-        ",
-        ))
-    }
 }
 
 #[inline]
@@ -1509,51 +1491,56 @@ fn get_after_install(
 
     let desktop_shortcuts = reg_value_desktop_shortcuts
         .map(|v| {
-            format!("reg add HKEY_CLASSES_ROOT\\.{ext} /f /v {REG_NAME_INSTALL_DESKTOPSHORTCUTS} /t REG_SZ /d \"{v}\"")
+            format!("reg add \"HKEY_CLASSES_ROOT\\.{ext}\" /f /v {REG_NAME_INSTALL_DESKTOPSHORTCUTS} /t REG_SZ /d \"{v}\"")
         })
         .unwrap_or_default();
     let start_menu_shortcuts = reg_value_start_menu_shortcuts
         .map(|v| {
             format!(
-                "reg add HKEY_CLASSES_ROOT\\.{ext} /f /v {REG_NAME_INSTALL_STARTMENUSHORTCUTS} /t REG_SZ /d \"{v}\""
+                "reg add \"HKEY_CLASSES_ROOT\\.{ext}\" /f /v {REG_NAME_INSTALL_STARTMENUSHORTCUTS} /t REG_SZ /d \"{v}\""
             )
         })
         .unwrap_or_default();
     let reg_printer = reg_value_printer
         .map(|v| {
             format!(
-                "reg add HKEY_CLASSES_ROOT\\.{ext} /f /v {REG_NAME_INSTALL_PRINTER} /t REG_SZ /d \"{v}\""
+                "reg add \"HKEY_CLASSES_ROOT\\.{ext}\" /f /v {REG_NAME_INSTALL_PRINTER} /t REG_SZ /d \"{v}\""
             )
         })
         .unwrap_or_default();
 
     format!("
     chcp 65001
-    reg add HKEY_CLASSES_ROOT\\.{ext} /f
+    reg add \"HKEY_CLASSES_ROOT\\.{ext}\" /f
     {desktop_shortcuts}
     {start_menu_shortcuts}
     {reg_printer}
-    reg add HKEY_CLASSES_ROOT\\.{ext}\\DefaultIcon /f
-    reg add HKEY_CLASSES_ROOT\\.{ext}\\DefaultIcon /f /ve /t REG_SZ  /d \"\\\"{exe}\\\",0\"
-    reg add HKEY_CLASSES_ROOT\\.{ext}\\shell /f
-    reg add HKEY_CLASSES_ROOT\\.{ext}\\shell\\open /f
-    reg add HKEY_CLASSES_ROOT\\.{ext}\\shell\\open\\command /f
-    reg add HKEY_CLASSES_ROOT\\.{ext}\\shell\\open\\command /f /ve /t REG_SZ /d \"\\\"{exe}\\\" --play \\\"%%1\\\"\"
-    reg add HKEY_CLASSES_ROOT\\{ext} /f
-    reg add HKEY_CLASSES_ROOT\\{ext} /f /v \"URL Protocol\" /t REG_SZ /d \"\"
-    reg add HKEY_CLASSES_ROOT\\{ext}\\shell /f
-    reg add HKEY_CLASSES_ROOT\\{ext}\\shell\\open /f
-    reg add HKEY_CLASSES_ROOT\\{ext}\\shell\\open\\command /f
-    reg add HKEY_CLASSES_ROOT\\{ext}\\shell\\open\\command /f /ve /t REG_SZ /d \"\\\"{exe}\\\" \\\"%%1\\\"\"
+    reg add \"HKEY_CLASSES_ROOT\\.{ext}\\DefaultIcon\" /f
+    reg add \"HKEY_CLASSES_ROOT\\.{ext}\\DefaultIcon\" /f /ve /t REG_SZ  /d \"\\\"{exe}\\\",0\"
+    reg add \"HKEY_CLASSES_ROOT\\.{ext}\\shell\" /f
+    reg add \"HKEY_CLASSES_ROOT\\.{ext}\\shell\\open\" /f
+    reg add \"HKEY_CLASSES_ROOT\\.{ext}\\shell\\open\\command\" /f
+    reg add \"HKEY_CLASSES_ROOT\\.{ext}\\shell\\open\\command\" /f /ve /t REG_SZ /d \"\\\"{exe}\\\" --play \\\"%%1\\\"\"
+    reg add \"HKEY_CLASSES_ROOT\\{ext}\" /f
+    reg add \"HKEY_CLASSES_ROOT\\{ext}\" /f /v \"URL Protocol\" /t REG_SZ /d \"\"
+    reg add \"HKEY_CLASSES_ROOT\\{ext}\\shell\" /f
+    reg add \"HKEY_CLASSES_ROOT\\{ext}\\shell\\open\" /f
+    reg add \"HKEY_CLASSES_ROOT\\{ext}\\shell\\open\\command\" /f
+    reg add \"HKEY_CLASSES_ROOT\\{ext}\\shell\\open\\command\" /f /ve /t REG_SZ /d \"\\\"{exe}\\\" \\\"%%1\\\"\"
     netsh advfirewall firewall add rule name=\"{app_name} Service\" dir=out action=allow program=\"{exe}\" enable=yes
     netsh advfirewall firewall add rule name=\"{app_name} Service\" dir=in action=allow program=\"{exe}\" enable=yes
     {create_service}
-    reg add HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /f /v SoftwareSASGeneration /t REG_DWORD /d 1
+    reg add \"HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /f /v SoftwareSASGeneration /t REG_DWORD /d 1
     ", create_service=get_create_service(&exe))
 }
 
 pub fn install_me(options: &str, path: String, silent: bool, debug: bool) -> ResultType<()> {
-    let uninstall_str = get_uninstall(false, false);
+    if get_reg("UninstallString").to_ascii_lowercase().contains("msiexec.exe") {
+        bail!("An MSI-managed installation exists. Use its managed upgrade/uninstall procedure before installing the EXE package.");
+    }
+    // Keep existing files/configuration until the replacement payload is verified.
+    // Removing the installation directory first can destroy a working upgrade.
+    let uninstall_str = get_before_uninstall(false);
     let mut path = path.trim_end_matches('\\').to_owned();
     let (subkey, _path, start_menu, exe) = get_default_install_info();
     let mut exe = exe;
@@ -1703,22 +1690,22 @@ copy /Y \"{tmp_path}\\{app_name} Tray.lnk\" \"%PROGRAMDATA%\\Microsoft\\Windows\
         "
 {uninstall_str}
 chcp 65001
-md \"{path}\"
+if not exist \"{path}\" md \"{path}\"
 {copy_exe}
-reg add {subkey} /f
-reg add {subkey} /f /v DisplayIcon /t REG_SZ /d \"{display_icon}\"
-reg add {subkey} /f /v DisplayName /t REG_SZ /d \"{app_name}\"
-reg add {subkey} /f /v DisplayVersion /t REG_SZ /d \"{version}\"
-reg add {subkey} /f /v Version /t REG_SZ /d \"{version}\"
-reg add {subkey} /f /v BuildDate /t REG_SZ /d \"{build_date}\"
-reg add {subkey} /f /v InstallLocation /t REG_SZ /d \"{path}\"
-reg add {subkey} /f /v Publisher /t REG_SZ /d \"{app_name}\"
-reg add {subkey} /f /v VersionMajor /t REG_DWORD /d {version_major}
-reg add {subkey} /f /v VersionMinor /t REG_DWORD /d {version_minor}
-reg add {subkey} /f /v VersionBuild /t REG_DWORD /d {version_build}
-reg add {subkey} /f /v UninstallString /t REG_SZ /d \"\\\"{exe}\\\" --uninstall\"
-reg add {subkey} /f /v EstimatedSize /t REG_DWORD /d {size}
-reg add {subkey} /f /v WindowsInstaller /t REG_DWORD /d 0
+reg add \"{subkey}\" /f
+reg add \"{subkey}\" /f /v DisplayIcon /t REG_SZ /d \"{display_icon}\"
+reg add \"{subkey}\" /f /v DisplayName /t REG_SZ /d \"{app_name}\"
+reg add \"{subkey}\" /f /v DisplayVersion /t REG_SZ /d \"{version}\"
+reg add \"{subkey}\" /f /v Version /t REG_SZ /d \"{version}\"
+reg add \"{subkey}\" /f /v BuildDate /t REG_SZ /d \"{build_date}\"
+reg add \"{subkey}\" /f /v InstallLocation /t REG_SZ /d \"{path}\"
+reg add \"{subkey}\" /f /v Publisher /t REG_SZ /d \"{app_name}\"
+reg add \"{subkey}\" /f /v VersionMajor /t REG_DWORD /d {version_major}
+reg add \"{subkey}\" /f /v VersionMinor /t REG_DWORD /d {version_minor}
+reg add \"{subkey}\" /f /v VersionBuild /t REG_DWORD /d {version_build}
+reg add \"{subkey}\" /f /v UninstallString /t REG_SZ /d \"\\\"{exe}\\\" --uninstall\"
+reg add \"{subkey}\" /f /v EstimatedSize /t REG_DWORD /d {size}
+reg add \"{subkey}\" /f /v WindowsInstaller /t REG_DWORD /d 0
 cscript \"{mk_shortcut}\"
 cscript \"{uninstall_shortcut}\"
 {tray_shortcuts}
@@ -1744,7 +1731,7 @@ copy /Y \"{tmp_path}\\Uninstall {app_name}.lnk\" \"{path}\\\"
         copy_exe = copy_exe_cmd(&src_exe, &exe, &path)?,
         import_config = get_import_config(&exe),
     );
-    run_cmds(cmds, debug, "install")?;
+    run_cmds(super::windows_install::checked_commands(&cmds), debug, "install")?;
     run_after_run_cmds(silent);
     Ok(())
 }
@@ -1752,7 +1739,7 @@ copy /Y \"{tmp_path}\\Uninstall {app_name}.lnk\" \"{path}\\\"
 pub fn run_after_install() -> ResultType<()> {
     let (_, _, _, exe) = get_install_info();
     run_cmds(
-        get_after_install(&exe, None, None, None),
+        super::windows_install::checked_commands(&get_after_install(&exe, None, None, None)),
         true,
         "after_install",
     )
@@ -1773,12 +1760,12 @@ fn get_before_uninstall(kill_self: bool) -> String {
     format!(
         "
     chcp 65001
-    sc stop {app_name}
-    sc delete {app_name}
+    sc stop \"{app_name}\"
+    sc delete \"{app_name}\"
     taskkill /F /IM {broker_exe}
-    taskkill /F /IM {app_name}.exe{filter}
-    reg delete HKEY_CLASSES_ROOT\\.{ext} /f
-    reg delete HKEY_CLASSES_ROOT\\{ext} /f
+    taskkill /F /IM \"{app_name}.exe\"{filter}
+    reg delete \"HKEY_CLASSES_ROOT\\.{ext}\" /f
+    reg delete \"HKEY_CLASSES_ROOT\\{ext}\" /f
     netsh advfirewall firewall delete rule name=\"{app_name} Service\"
     ",
         broker_exe = WIN_TOPMOST_INJECTED_PROCESS_EXE,
@@ -1819,7 +1806,7 @@ fn get_uninstall(kill_self: bool, uninstall_printer: bool) -> String {
     {before_uninstall}
     {uninstall_printer_cmd}
     {uninstall_cert_cmd}
-    reg delete {subkey} /f
+    reg delete \"{subkey}\" /f
     {uninstall_amyuni_idd}
     if exist \"{path}\" rd /s /q \"{path}\"
     if exist \"{start_menu}\" rd /s /q \"{start_menu}\"
@@ -1852,11 +1839,13 @@ fn write_cmds(cmds: String, ext: &str, tip: &str) -> ResultType<std::path::PathB
     let mut file = std::fs::File::create(&tmp)?;
     if ext == "bat" {
         let tmp2 = get_undone_file(&tmp)?;
-        std::fs::File::create(&tmp2).ok();
+        std::fs::write(&tmp2, "Installer did not complete")?;
         cmds = format!(
             "
+set \"RDCL_INSTALL_FAILURE={path}\"
 {cmds}
 if exist \"{path}\" del /f /q \"{path}\"
+exit /b 0
 ",
             path = tmp2.to_string_lossy()
         );
@@ -1902,13 +1891,15 @@ fn run_cmds(cmds: String, show: bool, tip: &str) -> ResultType<()> {
         .show(show)
         .force_prompt(true)
         .status();
+    let status = res?;
+    if !status.success() || tmp2.exists() {
+        let detail = std::fs::read_to_string(&tmp2)
+            .unwrap_or_else(|_| "Elevated command failed".to_owned());
+        bail!("{} failed: {}. Diagnostic script: {}. Failure record: {}",
+            tip, detail.trim(), tmp.display(), tmp2.display());
+    }
     if !show {
         allow_err!(std::fs::remove_file(tmp));
-    }
-    let _ = res?;
-    if tmp2.exists() {
-        allow_err!(std::fs::remove_file(tmp2));
-        bail!("{} failed", tip);
     }
     Ok(())
 }
@@ -2145,7 +2136,7 @@ pub fn update_install_option(k: &str, v: &str) -> ResultType<()> {
     let app_name = crate::get_app_name();
     let ext = app_name.to_lowercase();
     let cmds =
-        format!("chcp 65001 && reg add HKEY_CLASSES_ROOT\\.{ext} /f /v {k} /t REG_SZ /d \"{v}\"");
+        format!("chcp 65001 && reg add \"HKEY_CLASSES_ROOT\\.{ext}\" /f /v {k} /t REG_SZ /d \"{v}\"");
     run_cmds(cmds, false, "update_install_option")?;
     Ok(())
 }
@@ -3165,11 +3156,11 @@ pub fn uninstall_service(show_new_window: bool, _: bool) -> bool {
     let cmds = format!(
         "
     chcp 65001
-    sc stop {app_name}
-    sc delete {app_name}
+    sc stop \"{app_name}\"
+    sc delete \"{app_name}\"
     if exist \"%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\{app_name} Tray.lnk\" del /f /q \"%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\{app_name} Tray.lnk\"
     taskkill /F /IM {broker_exe}
-    taskkill /F /IM {app_name}.exe{filter}
+    taskkill /F /IM \"{app_name}.exe\"{filter}
     ",
         app_name = crate::get_app_name(),
         broker_exe = WIN_TOPMOST_INJECTED_PROCESS_EXE,
@@ -3195,7 +3186,7 @@ pub fn install_service() -> bool {
     let cmds = format!(
         "
 chcp 65001
-taskkill /F /IM {app_name}.exe{filter}
+taskkill /F /IM \"{app_name}.exe\"{filter}
 cscript \"{tray_shortcut}\"
 copy /Y \"{tmp_path}\\{app_name} Tray.lnk\" \"%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\\"
 {import_config}
@@ -3317,20 +3308,20 @@ pub fn update_me(debug: bool) -> ResultType<()> {
             "".to_string()
         } else {
             format!(
-                "reg add {} /f /v DisplayIcon /t REG_SZ /d \"{}\"",
+                "reg add \"{}\" /f /v DisplayIcon /t REG_SZ /d \"{}\"",
                 subkey, display_icon
             )
         };
         format!(
             "
 {reg_display_icon}
-reg add {subkey} /f /v DisplayVersion /t REG_SZ /d \"{version}\"
-reg add {subkey} /f /v Version /t REG_SZ /d \"{version}\"
-reg add {subkey} /f /v BuildDate /t REG_SZ /d \"{build_date}\"
-reg add {subkey} /f /v VersionMajor /t REG_DWORD /d {version_major}
-reg add {subkey} /f /v VersionMinor /t REG_DWORD /d {version_minor}
-reg add {subkey} /f /v VersionBuild /t REG_DWORD /d {version_build}
-reg add {subkey} /f /v EstimatedSize /t REG_DWORD /d {size}
+reg add \"{subkey}\" /f /v DisplayVersion /t REG_SZ /d \"{version}\"
+reg add \"{subkey}\" /f /v Version /t REG_SZ /d \"{version}\"
+reg add \"{subkey}\" /f /v BuildDate /t REG_SZ /d \"{build_date}\"
+reg add \"{subkey}\" /f /v VersionMajor /t REG_DWORD /d {version_major}
+reg add \"{subkey}\" /f /v VersionMinor /t REG_DWORD /d {version_minor}
+reg add \"{subkey}\" /f /v VersionBuild /t REG_DWORD /d {version_build}
+reg add \"{subkey}\" /f /v EstimatedSize /t REG_DWORD /d {size}
         "
         )
     }
@@ -3367,7 +3358,7 @@ reg add {subkey} /f /v EstimatedSize /t REG_DWORD /d {size}
 
     let filter = format!(" /FI \"PID ne {}\"", get_current_pid());
     let restore_service_cmd = if is_service_running {
-        format!("sc start {}", &app_name)
+        format!("sc start \"{}\"", &app_name)
     } else {
         "".to_owned()
     };
@@ -3399,11 +3390,10 @@ reg add {subkey} /f /v EstimatedSize /t REG_DWORD /d {size}
     let cmds = format!(
         "
 chcp 65001
-sc stop {app_name}
-taskkill /F /IM {app_name}.exe{filter}
-{reg_cmd}
+sc stop \"{app_name}\"
+taskkill /F /IM \"{app_name}.exe\"{filter}
 {copy_exe}
-{rename_exe}
+{reg_cmd}
 {remove_meta_toml}
 {restore_service_cmd}
 {uninstall_printer_cmd}
@@ -3412,13 +3402,12 @@ taskkill /F /IM {app_name}.exe{filter}
     ",
         app_name = app_name,
         copy_exe = copy_exe_cmd(&src_exe, &exe, &path)?,
-        rename_exe = rename_exe_cmd(&src_exe, &path)?,
         remove_meta_toml = remove_meta_toml_cmd(is_msi.unwrap_or(true), &path),
         sleep = if debug { "timeout 300" } else { "" },
     );
 
-    let _restore_session_guard = crate::common::SimpleCallOnReturn {
-        b: true,
+    let mut restore_session_guard = crate::common::SimpleCallOnReturn {
+        b: false,
         f: Box::new(move || {
             let is_root = is_root();
             if tray_sessions.is_empty() {
@@ -3474,7 +3463,8 @@ taskkill /F /IM {app_name}.exe{filter}
         }),
     };
 
-    run_cmds(cmds, debug, "update")?;
+    run_cmds(super::windows_install::checked_commands(&cmds), debug, "update")?;
+    restore_session_guard.b = true;
 
     std::thread::sleep(std::time::Duration::from_millis(2000));
     log::info!("Update completed.");
@@ -3688,12 +3678,13 @@ fn get_import_config(exe: &str) -> String {
         return "".to_string();
     }
     format!("
-sc stop {app_name}
-sc delete {app_name}
-sc create {app_name} binpath= \"\\\"{exe}\\\" --import-config \\\"{config_path}\\\"\" start= auto DisplayName= \"{app_name} Service\"
-sc start {app_name}
-sc stop {app_name}
-sc delete {app_name}
+sc stop \"{app_name}\"
+sc delete \"{app_name}\"
+sc create \"{app_name}\" binpath= \"\\\"{exe}\\\" --import-config \\\"{config_path}\\\"\" start= auto DisplayName= \"{app_name} Service\"
+rem RDCL_CONFIG_IMPORT_START
+sc start \"{app_name}\"
+sc stop \"{app_name}\"
+sc delete \"{app_name}\"
 ",
     app_name = crate::get_app_name(),
     config_path=Config::file().to_str().unwrap_or(""),
@@ -3711,8 +3702,8 @@ if exist \"%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\{ap
 ", app_name = crate::get_app_name())
     } else {
         format!("
-sc create {app_name} binpath= \"\\\"{exe}\\\" --service\" start= auto DisplayName= \"{app_name} Service\"
-sc start {app_name}
+sc create \"{app_name}\" binpath= \"\\\"{exe}\\\" --service\" start= auto DisplayName= \"{app_name} Service\"
+sc start \"{app_name}\"
 ",
     app_name = crate::get_app_name())
     }
@@ -3722,8 +3713,7 @@ fn run_after_run_cmds(silent: bool) {
     let (_, _, _, exe) = get_install_info();
     if !silent {
         log::debug!("Spawn new window");
-        allow_err!(std::process::Command::new("cmd")
-            .args(&["/c", "timeout", "/t", "2", "&", &format!("{exe}")])
+        allow_err!(std::process::Command::new(&exe)
             .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
             .spawn());
     }

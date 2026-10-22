@@ -1,9 +1,28 @@
+> Historical continuation and investigation at ad46. Current source/payload,
+> tool/SDK and release-lock requirements are in
+> [S2 build integrity](windows-s2-build-integrity.md). The old genuine receipt is
+> preserved historical evidence and is no longer reusable by hardened tooling:
+> run a new isolated bootstrap with SDK identity/new triplet. Do not execute the
+> historical reuse-only instructions below against the updated builder.
+
 # S2 application continuation with a shallow vcpkg checkout
 
 Scope: rd-cl 1.4.13+71, source/tooling branch
 `codex/s2-codec-bootstrap-1.4.13`, following the genuine S2 codec compilation
 at `def169111cfdb42591497955c60db4c35457522d`. No application, authentication,
 dependency or production changes. No coordinator application build.
+
+## Completion update
+
+The user reports full native S2 application/EXE packaging PASS on 2026-10-21 at
+`ad46faef58b5773fc662f021c00ed2f92a9c675a`, with 53 guard tests, 50 Dart tests,
+object/ABI/installed-only checks, Rust/Flutter, 91 embedded runtime files and the
+release-maintenance gate PASS. Genuine codec receipt remained unchanged.
+The completed EXE baseline/path/hash and maintained next-build prompt are in
+[the S2 handoff guide](windows-s2-build-handoff.md). Earlier BLOCKED/NOT_RUN
+application results below describe the resolved investigation, not current
+packaging status. Installation, upgrade and real runtime acceptance remain NOT_RUN;
+this coordinator has not independently accessed the Windows artifact bytes.
 
 ## Why ancestry is unnecessary for this path
 
@@ -100,7 +119,8 @@ roots cannot redirect Cargo; compiler/SDK settings remain, and failed VsDevCmd
 stops without root-selection evidence. These are guard tests, not a native
 Windows application build. On S2 use its
 existing `RDCL_TEST_CMAKE` and canonical process-local TEMP/TMP; do not weaken
-platform or dependency checks. Actual Windows continuation remains required.
+platform or dependency checks. The latest S2 completion is recorded above; these coordinator guard tests alone
+do not establish native application success.
 
 ## S2 continuation
 

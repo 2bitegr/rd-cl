@@ -1,5 +1,6 @@
 {
-  "version": "1.4.13+71",
+  "version": "2.0.0+72",
+  "windows_sdk_version": "10.0.22621.0",
   "submodule_commit": "7e1c392c62d39c364127307cd408421dd5f8cfb0",
   "flutter_commit": "dec2ee5c1f98f8e84a7d5380c05eb8a3d0a81668",
   "flutter_version": "3.24.5",
@@ -10,17 +11,21 @@
   "engine_sha256": "ec8cabf36ee4ff24c8d98de25b00e70781eb03876265aee84d0fe554a110036e",
   "engine_provenance_note": "Immutable tag workflow used3.24.4; SDK3.24.4 and3.24.5 share Dart revision88c9758ef131d430d8ce595c6bfb4c90574d3ddd; native AOT validation remains required. Synthetic native Flutter AOT frontend/custom-gen_snapshot probe passed; product runtime remains untested. Asset payload differs from the archived tag workflow file list; an exact engine build source revision is not established. The delivery pin is immutable asset ID plus exact SHA-256.",
   "input_sha256": {
-    "Cargo.toml": "a5d78afc9c0d2d926d7d332b228bb8c1ddd4b7ae407b3c0887aa398bf648b246",
-    "Cargo.lock": "4c6598d92c5e1f43fa38e35de5beca20802549d0bb081b25b6f71733ffee23ec",
-    "flutter/pubspec.yaml": "41c0ab14dd6600a5c9b0c03c20ef1ea5ae8a480309d41755a446315f261df063",
+    "Cargo.toml": "0ec28d7edf89a90da8bd1df13374a7a2bb9f3c72e5e8dff286a5b59d47543bcc",
+    "Cargo.lock": "19fd1d5c78faaee3a29c3eed7fbf859a0d7fd28862ad34c151f5195d4e785c02",
+    "flutter/pubspec.yaml": "7e15b0d727624bcacf787f2d413ea547a57b1a92fc4e66c4b25e01a14882c3b3",
     "flutter/pubspec.lock": "4941773a17aa887f32c04e6c3e2f2d15aa50bdb7fb77100266df498056b7201a",
     "vcpkg.json": "64507a425be8d92cbb28d180d33986d8c419238cd6cae960e6a365d7691bbea0",
     ".github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff": "7663824d8d728990a49e7a43e081fd1269f536a10987b576ba8f0bb766d2c759",
     "patches/hbb_common-exantas-config.patch": "bf99166930c5e39d5916a3ff2a7323093fd0c57dacf5e14ad603d4503af3618e",
     "flutter/lib/desktop/pages/desktop_home_page.dart": "2e54ff03108ba2f5573b18eb0932b411c337f8641d13882e3e6f136ac28f045c",
-    "libs/portable/Cargo.toml": "111726e69c9bc53ca0c86728910f494eb3606e91447cce46a507e1b7b29bf3c5",
+    "libs/portable/Cargo.toml": "e9b088e27f1a6ca4afce839d0abac5a7c3449289c16123ff402f428bdbe524d6",
     "libs/portable/generate.py": "f4c1d6f24f9cb3e106112b88b52eec39bee9b65871c2538892885a118d8dda11",
-    "libs/portable/build.rs": "bde0743bc7410ce73155fe9c802dfa96ed5f6bd064f31015bc26f9c8a37df7b6"
+    "libs/portable/build.rs": "bde0743bc7410ce73155fe9c802dfa96ed5f6bd064f31015bc26f9c8a37df7b6",
+    "flutter/windows/CMakeLists.txt": "69a73f1689ba4cf5d272cf6520b324f06067606b308229aabe5d6ef09c21fe9a",
+    "src/platform/windows.rs": "ca013f9aec759777606035a7648827bf4009fe0a2ac30be2d27e2712c5decedf",
+    "src/platform/windows_install.rs": "3c29c350175982eea0afeef384cce67d397dc52f0881ad57ecd443f363a07eb4",
+    "src/ui_interface.rs": "e1206d186eea831917e5b03061925077256bbea4750b0a58144e14df66641c61"
   },
   "vcpkg_override_trees": {
     "amd-amf": "47db5211b49a66cf05a86858cddd41d2c4b5d8a9",

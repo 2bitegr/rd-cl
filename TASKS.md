@@ -1,22 +1,111 @@
+## Publication preparation — 2026-10-22
+
+User requested coordinated commit/push for rd-cl2.0.0+72 and Office build policies.
+Publish reviewed installer/version/integrity tooling on the existing S2 branch;
+no main integration or native build is implied. Local guards:84 PASS,3 Linux
+platform skips for native Windows copy tests;4 actual Rust unit tests also PASS.
+Preserve historical receipt/delivery. After both live refs are verified, return
+one S2 prompt with exact published commits; record completion only on S2 evidence.
+
+## rd-cl installer correction / 2.0.0 — 2026-10-22
+
+User explicitly requested installer/upgrade corrections and version2.0.0.
+Prepared source version2.0.0, Flutter2.0.0+72 and installer resources2.0.0.72;
+only local workspace lock versions changed; third-party dependencies unchanged.
+Fresh install/update share copy/rename/binary verification before metadata.
+Branded service/process/registry names quoted; critical commands fail closed,
+interactive errors shown and script/step diagnostics retained. Existing install
+folder is not recursively removed first; partial updates are not transactional.
+EXE installer rejects MSI-managed ownership; no silent MSI migration.
+Build verifies generated version and Cargo DLL versus Flutter bundled DLL.
+Tests:84 PASS,3 native Windows copy/locked-file tests SKIP on Linux; the passed
+Rust harness includes4 actual generator unit tests. Changed Rust files parsed.
+Docs:rd-cl/docs/windows-installer-2.0.0.md and maintained S2 handoff/AGENTS updated.
+Historical package PASS retained separately from user-reported installation/
+upgrade FAIL (core1.4.11, broken shortcut, stopped service, no error dialog).
+No commit/push, native product build, installer, installation or production action.
+S2 native build and separately authorized clean-install/upgrade acceptance pending.
+
+## rd-cl audit remediation — 2026-10-22
+
+IMPLEMENTED LOCALLY / NATIVE S2 VALIDATION PENDING: all four audit gaps addressed.
+Exact pinned+reviewed-patch hbb_common temp-index validation rejects extra edits;
+exact receipt/runtime/ZIP hashes reject added/missing/mutated payloads; all five
+recorded executables plus selected SDK fingerprint and SDK-pinned triplet are
+verified; one native session holds resource locks across Build and installer.
+Windows SDK remains10.0.22621.0 and product/dependency versions remain unchanged.
+New triplet SHA2566e5446ee9aa0ab97e61170013be186b2c03ea7bc9f63cb56fdff478f61448275.
+Historical3b02998 receipt/old codecs/ad46 EXE preserved; missing SDK identity is
+not retroactively certified. New isolated native codec compilation/receipt is
+required with current tooling before application retry; never rewrite old proof.
+Guide:rd-cl/docs/windows-s2-build-integrity.md; both AGENTS and S2 prompt updated.
+Validation: 81 Windows-tooling tests PASS, zero skips (real local Git/process,
+CMake helper integration and actual PowerShell wrapper argument forwarding).
+Report: Office-Workspace-Artifacts/Reports/rd-cl/build-integrity-fixes-2026-10-22/VALIDATION.md.
+New-PC screenshot shows native core v1.4.11/stopped service: installer/loaded-DLL
+identity and completed installation remain unresolved; diagnostic guide added.
+No commit/push, native application build, product install or production action.
+
+## rd-cl S2 build audit — 2026-10-22
+
+Audit completed against published ad46faef58b5773fc662f021c00ed2f92a9c675a.
+Findings:F1 P1 extra hbb_common tracked edits pass source/patch checks;F2 P2
+package() accepts extra runtime files after compile receipt;F3 P2 codec reuse
+ignores recorded lib/vcpkg hashes and actual SDK selection;F4 P2 application
+release has no shared snapshot/target/alias lock (source inspection).
+F1–F3 reproduced with isolated synthetic fixtures;53 guard tests PASS,1 CMake
+integration SKIP. No native Windows/application build,fixes or Git publication.
+Report:/workspace/Office-Workspace-Artifacts/Reports/rd-cl/build-audit-2026-10-22/AUDIT.md.
+Existing verified S2 delivery/receipt and unrelated dirty work remain preserved.
+
+## Coordinated Office/rd-cl publication and S2 prompt — 2026-10-22
+
+User clarified trigger: an Office commit/push request also checks related
+uncommitted/unpublished rd-cl work. Publish related reviewed task-owned rd-cl
+changes under its own Git/review/cleanup gates unless scope is explicitly limited;
+Office push alone cannot publish rd-cl. Then compare live target with completed
+S2 baseline and return one complete prompt in the same response when pending.
+Prompt starts with safe fast-forward pull/sync and exact Office/rd-cl commit/
+submodule verification, then owned-snapshot build and EXE/artifact verification.
+S2 creates no commits/pushes; dirty/diverged work is preserved. No pending rd-cl
+means NO_RDCL_BUILD_NEEDED; blocked publication never produces an unpublished-SHA
+build prompt. Documentation updated locally; no Git publication or new build.
+
+# Dependency download policy — 2026-10-22
+
+User removed the blanket dependency/build-tool download ban, including S2,
+now that disk space is available. Updated Office release-maintenance skill and
+stack controls, Office/rd-cl AGENTS and the S2 prompt: reuse caches first, prepare
+missing exact inputs from trusted sources without a separate exception, preserve
+TLS/signatures/hashes/Git pins/lockfiles/versions and working toolchains. Existing
+offline/frozen build guards and genuine receipt/ABI checks remain unchanged;
+explicit offline tasks still block on missing local inputs. No build, download,
+source-code change, Git publication, product installation or production action
+performed by this policy update. Changes remain local pending publication.
+
 # rd-cl build tasks
 
-- REVIEWED TOOLING / S2 EXECUTION PENDING (2026-10-21): user requested an offline
-  codec bootstrap for1.4.13+71, base1be7642b56af58d3fb27c400e52a78200505e39b.
-  Isolated codec root preserves installed codecs/caches/previous delivery;
-  exact CRLF release-only triplet, pinned archive/helper/plan checks precede
-  compilation. Receipt requires fresh native objects/libraries/ABIs and the
-  unchanged existing verifier; no S1 receipt or warm-app proof is substituted.
-  Procedure: docs/windows-s2-codec-bootstrap.md. S2 now reports helper dependency
-  regression PASS and Preflight PASS at ceeac60; Compile blocked before codecs
-  because the fresh-output guard rejected the empty detect_compiler package dir.
-  Shared guard now accepts that exact empty probe, preserving it, while rejecting
-  unknown/nonempty package state and codec artifacts. Both call sites have
-  filesystem regression coverage. Native S2
-  compilation/receipt and subsequent application/EXE build remain NOT_RUN. No functional/auth,
-  dependency/version, installation, Actions or production changes.
-  Validation:40 stdlib guard/verifier tests, PowerShell parser and public-release
-  hygiene PASS on Linux. New CMake integration test requires installed CMake;
-  coordinator has none, so its runtime check remains SKIPPED here; S2 reported PASS.
+- APPLICATION/EXE PASS per S2 user report (2026-10-21), not independently
+  accessed here: rd-cl1.4.13+71 at ad46faef58b5773fc662f021c00ed2f92a9c675a.
+  Baseline EXE rd-cl-1.4.13+71-windows-x64-install.exe,23875584bytes, SHA256
+  0586a21a7c3df107475722b07bcb6536be80fbcff19f9659672a7ddae6a8b66b.
+  Directory:C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\1.4.13+71\delivery-s2.
+  Reported PASS:53 guards,50 Dart tests,Preflight/object/ABI/installed-only checks,
+  Rust/Flutter,EXE packaging,91 embedded runtime files,release-maintenance gate.
+  Genuine codec receipt SHA256 remains
+  3b02998a60c5439c3031ba84536791837ed9cce6290bccad6a36f256fb229e97.
+  Unsigned;no MSI;installation/upgrade/real runtime acceptance NOT_RUN.
+  Supersedes prior application NOT_RUN/blocked reports. Current live branch
+  matches this completed source: NO_RDCL_BUILD_NEEDED. Preserve verified delivery.
+
+- HANDOFF POLICY UPDATED locally (2026-10-21): after authorized Office commit/push,
+  compare live published rd-cl with the completed application/EXE baseline and
+  produce one complete S2 prompt only when changes are pending. Maintained guide:
+  docs/windows-s2-build-handoff.md. Includes receipt reuse, actual Git objects,
+  post-VsDevCmd configured VCPKG_ROOT, complete tests/native build/EXE/artifact
+  gates, Greek installation notes and exact Desktop path/hash. Future output
+  must not overwrite the completed delivery. No new build/Git publication,
+  downloads, installation or production action in this documentation update.
 
 - PUBLICATION PREPARATION (2026-10-19): user authorized coordinated S1 commit/push
   of rd-cl, Office and rustdesk-api. Product1.4.13+71; matching root/Flutter/packer

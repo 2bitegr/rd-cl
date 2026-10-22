@@ -13,6 +13,7 @@ import tarfile
 import tempfile
 import time
 import unittest
+from native_guard_fixture import sdk_fixture
 from unittest.mock import Mock, patch
 
 
@@ -108,7 +109,7 @@ endfunction()
     def test_triplet_exact_bytes_and_old_triplet_are_distinct(self):
         self.assertEqual(hashlib.sha256(codec.TRIPLET).hexdigest(), codec.PINS['triplet_sha256'])
         self.assertNotEqual(codec.PINS['previous_triplet_sha256'], codec.PINS['triplet_sha256'])
-        self.assertEqual(codec.TRIPLET.count(b'\r\n'), 4)
+        self.assertEqual(codec.TRIPLET.count(b'\r\n'), 5)
 
     def test_full_pinned_plan_and_features_are_accepted(self):
         codec.require_empty_plan(self.plan().replace('ffmpeg:', 'ffmpeg[amf,core,nvcodec,qsv]:'))
@@ -244,7 +245,8 @@ endfunction()
             version.write_text('local-version')
             compiler = runner.vs / 'VC/Tools/MSVC/local-version/bin/Hostx64/x64'
             runner.cmake = root / 'cmake.exe'
-            tools = [compiler / 'cl.exe', compiler / 'link.exe', runner.cmake]
+            tools = [compiler / 'cl.exe', compiler / 'link.exe', compiler / 'lib.exe',
+                     root / 'vcpkg/vcpkg.exe', runner.cmake]
             for tool in tools:
                 tool.parent.mkdir(parents=True, exist_ok=True)
                 tool.write_bytes(b'local-tool')
@@ -257,7 +259,9 @@ endfunction()
             abi.write_bytes(b'native-abi')
             receipt = root / 'receipt.json'
             runner.cfg = {'compiled_cache_receipt': str(receipt)}
-            codec.native.save(receipt, {'status': 'PASS', 'scope': 'codecs-only',
+            sdk = sdk_fixture(runner, root)
+            codec.native.save(receipt, {'status': 'PASS', 'scope': 'codecs-only', 'sdk_identity': sdk,
+                'triplet_sha256': codec.PINS['triplet_sha256'],
                 'inputs': runner.profile['input_sha256'], 'source_sha256': {},
                 'codec_abi_sha256': {'share/codec/vcpkg_abi_info.txt': codec.native.digest(abi)},
                 'tool_sha256': {str(t): codec.native.digest(t) for t in tools}})
@@ -454,6 +458,7 @@ endfunction()
             original_json_hash = codec.native.digest(toolchain)
             runner.args = argparse.Namespace(source_commit='a' * 40, toolchain=str(toolchain))
             runner.codec_preflight = Mock(return_value=(root, triplets))
+            runner.initial_sdk_identity = sdk_fixture(runner, base)
             runner.cmake_version = 'synthetic CMake version'
             codec.native.save(runner.output / 'codec-preflight.json', {'status': 'synthetic-fixture'})
             codec.native.save(runner.logs / 'steps.json', [])

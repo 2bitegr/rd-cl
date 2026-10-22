@@ -9,6 +9,9 @@ pub use windows::*;
 pub mod windows;
 
 #[cfg(windows)]
+mod windows_install;
+
+#[cfg(windows)]
 pub mod win_device;
 
 #[cfg(target_os = "macos")]

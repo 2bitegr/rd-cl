@@ -1,9 +1,11 @@
 param(
-    [Parameter(Mandatory=$true)][ValidateSet('Preflight','Provision','Build','Package','PackageExe')][string]$Mode,
+    [Parameter(Mandatory=$true)][ValidateSet('Preflight','Provision','Build','Package','PackageExe','PackageMsi')][string]$Mode,
     [Parameter(Mandatory=$true)][string]$Toolchain,
     [Parameter(Mandatory=$true)][string]$SourceCommit,
     [Parameter(Mandatory=$true)][string]$OutputRoot,
-    [switch]$ElevateProvision
+    [switch]$ElevateProvision,
+    [switch]$WithExe,
+    [switch]$WithMsi
 )
 $ErrorActionPreference = 'Stop'
 if ($ElevateProvision) {
@@ -29,6 +31,8 @@ $stderr = Join-Path $OutputRoot "wrapper-$run.err.log"
 # Use the native Windows argument quoting contract; reject embedded quote/newline.
 $values = @((Join-Path $PSScriptRoot 'windows-native-build.py'), '--mode', $Mode,
             '--toolchain', $Toolchain, '--source-commit', $SourceCommit, '--output-root', $OutputRoot)
+if ($WithExe) { $values += '--with-exe' }
+if ($WithMsi) { $values += '--with-msi' }
 $quoted = foreach ($value in $values) {
     if ($value -match '["\r\n]' -or $value.EndsWith('\')) { throw 'Unsupported Windows argument.' }
     '"' + $value + '"'

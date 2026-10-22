@@ -1,7 +1,7 @@
 """Offline S2 codec compilation, separate from every existing vcpkg installation.
 
 Preflight validates local inputs; Compile repeats it and publishes codec evidence
-only after fresh native objects, installed ABIs and the unchanged verifier pass.
+only after fresh native objects, installed ABIs and the hardened tool/SDK verifier pass.
 This does not compile/package/run rd-cl or import any S1 compiled-cache receipt.
 """
 import argparse
@@ -27,9 +27,7 @@ spec = importlib.util.spec_from_file_location('native_build', SCRIPT.with_name('
 native = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(native)
 PINS = json.loads(SCRIPT.with_name('windows-codec-bootstrap-inputs.json').read_text(encoding='utf-8'))
-TRIPLET = ('set(VCPKG_TARGET_ARCHITECTURE x64)\r\n'
-           'set(VCPKG_CRT_LINKAGE static)\r\nset(VCPKG_LIBRARY_LINKAGE static)\r\n'
-           'set(VCPKG_BUILD_TYPE release)\r\n').encode('ascii')
+TRIPLET = native.native_triplet({'windows_sdk_version': PINS['windows_sdk_version']})
 
 
 def regular_tree(root, recursive=True):
@@ -182,8 +180,10 @@ class Bootstrap(native.Build):
             if SCRIPT.with_name(name).read_text(encoding='utf-8') != text:
                 raise RuntimeError('Invoke bootstrap scripts from the selected published snapshot')
         self.git('source-base', 'merge-base', '--is-ancestor', PINS['base_source_commit'], self.args.source_commit)
+        if self.profile.get('windows_sdk_version') != PINS['windows_sdk_version']:
+            raise RuntimeError('Bootstrap Windows SDK pin differs from the build profile')
         if self.profile['version'] != PINS['product_version']:
-            raise RuntimeError('Bootstrap is reviewed for 1.4.13+71 only')
+            raise RuntimeError('Bootstrap product version differs from its pinned inputs')
 
     def tool_hashes(self):
         version = (self.vs / 'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt').read_text().strip()
@@ -269,11 +269,12 @@ class Bootstrap(native.Build):
         if 'vcpkg_cmake' not in self.tools:
             raise RuntimeError('Explicit existing paths.vcpkg_cmake is required')
         previous = Path(self.args.existing_triplet)
-        if native.digest(previous) not in [PINS['previous_triplet_sha256'], PINS['triplet_sha256']]:
+        if native.digest(previous) not in [PINS['previous_triplet_sha256'], PINS['triplet_sha256'], *PINS.get('legacy_triplet_sha256', [])]:
             raise RuntimeError('Unexpected existing triplet; preserved without edits')
         if hashlib.sha256(TRIPLET).hexdigest() != PINS['triplet_sha256']:
             raise RuntimeError('Canonical CRLF release-only triplet bytes differ')
         self.developer_environment()
+        self.initial_sdk_identity = self.selected_sdk_identity()
         # Refuse inherited feature/tool/overlay changes before invoking vcpkg.
         for key in ['USE_AOM_391', 'VCPKG_OVERLAY_PORTS', 'VCPKG_OVERLAY_TRIPLETS',
                     'VCPKG_CHAINLOAD_TOOLCHAIN_FILE', 'VCPKG_VISUAL_STUDIO_PATH']:
@@ -377,6 +378,8 @@ class Bootstrap(native.Build):
             raise RuntimeError('Original codec installation changed; receipt withheld')
         if inventory(self.preserved_download_root) != self.original_downloads:
             raise RuntimeError('Original download cache changed; receipt withheld')
+        if self.selected_sdk_identity() != self.initial_sdk_identity:
+            raise RuntimeError('Windows SDK inputs changed during codec compilation; receipt withheld')
         if self.tool_hashes() != self.initial_tools:
             raise RuntimeError('Compiler/CMake/tool bytes changed during compilation')
         for path, sha in self.input_tools.items():
@@ -397,7 +400,8 @@ class Bootstrap(native.Build):
                    'machine': platform.node(), 'compiled_at': datetime.now(timezone.utc).isoformat(),
                    'source_commit': self.args.source_commit, 'base_source_commit': PINS['base_source_commit'],
                    'inputs': self.profile['input_sha256'], 'source_sha256': self.overlays,
-                   'tool_sha256': tool_hashes, 'codec_abi_sha256': hashes,
+                   'tool_sha256': tool_hashes, 'sdk_identity': self.initial_sdk_identity,
+                   'codec_abi_sha256': hashes,
                    'triplet_sha256': PINS['triplet_sha256'], 'compile_evidence': evidence,
                    'compiler_paths': compilers, 'cmake_version': self.cmake_version.strip(),
                    'preflight_sha256': native.digest(self.output / 'codec-preflight.json'),
@@ -405,7 +409,7 @@ class Bootstrap(native.Build):
                    'dependency_policy': 'local inputs only; source compilation; binary/asset origins disabled'}
         native.save(candidate, receipt)
         self.cfg['compiled_cache_receipt'] = str(candidate)
-        self.require_verified_codecs()  # Exact existing verifier, no exceptions.
+        self.require_verified_codecs()  # Full tool/SDK/ABI verifier; no legacy exceptions.
         # Use the same installed-only guard and command as the release build.
         verify_command = [arg for arg in self.command(root, triplets) if arg != '--no-binarycaching']
         _, plan = self.run('codec-installed-plan', [*verify_command, '--dry-run', '--only-binarycaching'])

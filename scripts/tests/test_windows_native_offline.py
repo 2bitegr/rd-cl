@@ -15,6 +15,7 @@ import sys
 import threading
 import unittest
 from unittest.mock import Mock, patch
+from native_guard_fixture import sdk_fixture
 import xml.etree.ElementTree as ET
 
 
@@ -42,6 +43,8 @@ class OfflineGuards(unittest.TestCase):
                 runner.env = {'VCPKG_ROOT': 'stale-config-root', 'Vcpkg_Root': 'inherited-root',
                               'CARGO_NET_OFFLINE': 'true'}
                 runner.steps = []
+                runner.profile = {}
+                sdk_fixture(runner, root)
                 imported = imported_root + b'Path=vs-compiler-path\r\nINCLUDE=vs-sdk-include\r\nLIB=vs-sdk-lib\r\n'
                 results = [argparse.Namespace(returncode=0, stdout=imported),
                            argparse.Namespace(returncode=0)]
@@ -50,6 +53,8 @@ class OfflineGuards(unittest.TestCase):
                         runner.developer_environment()
                         runner.run('cargo-release-environment-probe', ['cached-cargo', 'build', '--frozen'])
                 actual = child.call_args_list[1].kwargs['env']
+                self.assertIn('-winsdk=10.0.22621.0', (root / 'vs-env.cmd').read_text())
+                self.assertEqual(actual['RDCL_WINDOWS_SDK_VERSION'], '10.0.22621.0')
                 self.assertEqual(actual['VCPKG_ROOT'], str(runner.tools['vcpkg']))
                 self.assertEqual([k for k in actual if k.upper() == 'VCPKG_ROOT'], ['VCPKG_ROOT'])
                 self.assertEqual(actual['PATH'], 'vs-compiler-path')
@@ -66,6 +71,7 @@ class OfflineGuards(unittest.TestCase):
             runner = object.__new__(build.Build)
             runner.logs = runner.vs = root
             runner.env = {}
+            runner.profile = {}
             with patch.object(build.subprocess, 'CREATE_NO_WINDOW', 0, create=True):
                 with patch.object(build.subprocess, 'run', return_value=argparse.Namespace(returncode=1)):
                     with self.assertRaisesRegex(RuntimeError, 'VsDevCmd failed'):
@@ -264,7 +270,7 @@ class OfflineGuards(unittest.TestCase):
             runner.cfg = {'compiled_cache_receipt': str(receipt)}
             runner.profile = {'input_sha256': {'vcpkg.json': 'manifest'}}
             runner.vs = root / 'VS'
-            runner.tools = {}
+            runner.tools = {'vcpkg': root / 'vcpkg'}
             runner.cmake = root / 'cmake.exe'
             with self.assertRaisesRegex(RuntimeError, 'compiler/tool differs'):
                 runner.require_verified_codecs()
@@ -276,7 +282,9 @@ class OfflineGuards(unittest.TestCase):
             version.parent.mkdir(parents=True)
             version.write_text('synthetic')
             tools = [root / 'VS/VC/Tools/MSVC/synthetic/bin/Hostx64/x64/cl.exe',
-                     root / 'VS/VC/Tools/MSVC/synthetic/bin/Hostx64/x64/link.exe', root / 'cmake.exe']
+                     root / 'VS/VC/Tools/MSVC/synthetic/bin/Hostx64/x64/link.exe',
+                     root / 'VS/VC/Tools/MSVC/synthetic/bin/Hostx64/x64/lib.exe',
+                     root / 'vcpkg/vcpkg.exe', root / 'cmake.exe']
             for tool in tools:
                 tool.parent.mkdir(parents=True, exist_ok=True)
                 tool.write_bytes(b'owned-tool')
@@ -295,6 +303,10 @@ class OfflineGuards(unittest.TestCase):
             runner.tools = {'vcpkg': root / 'vcpkg'}
             runner.cmake = root / 'cmake.exe'
             runner.source = runner.logs = root
+            value = json.loads(receipt.read_text())
+            value['sdk_identity'] = sdk_fixture(runner, root)
+            value['triplet_sha256'] = build.hashlib.sha256(build.native_triplet(runner.profile)).hexdigest()
+            receipt.write_text(json.dumps(value))
             runner.require_verified_codecs()
             self.assertEqual(json.loads((root / 'verified-codecs.json').read_text())['status'], 'PASS')
 
