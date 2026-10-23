@@ -80,6 +80,9 @@ class _RemotePageState extends State<RemotePage>
         MultiWindowListener,
         TickerProviderStateMixin {
   Timer? _timer;
+  Timer? _officeIdentityTimer;
+  String _officeConnectionId = '';
+  bool _officeIdentityBusy = false;
   String keyboardMode = "legacy";
   bool _isWindowBlur = false;
   final _cursorOverImage = false.obs;
@@ -160,6 +163,19 @@ class _RemotePageState extends State<RemotePage>
           sessionId: sessionId, arg: 'show-remote-cursor');
       _zoomCursor.value = bind.sessionGetToggleOptionSync(
           sessionId: sessionId, arg: kOptionZoomCursor);
+    });
+    if (!isWeb) _officeIdentityTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!mounted || _officeIdentityBusy) return;
+      final id = bind.sessionGetConnSessionId(sessionId: sessionId).toString();
+      if (id == '0' || id.isEmpty || id == _officeConnectionId) return;
+      _officeIdentityBusy = true;
+      _officeConnectionId = id;
+      try {
+        await rustDeskWinManager.call(WindowType.Main, 'officeSessionIdentity', {
+          'local_session': buildExantasLocalSessionKey(_ffi.id, sessionId), 'rustdesk_session_id': id,
+        });
+      } catch (_) { debugPrint('Office identity retained in the remote view for closure.'); }
+      finally { _officeIdentityBusy = false; }
     });
     DesktopMultiWindow.addListener(this);
     // if (!_isCustomCursorInited) {
@@ -356,8 +372,10 @@ class _RemotePageState extends State<RemotePage>
     final closeSession = closeSessionOnDispose.remove(widget.id) ?? true;
     final closesOfficeConnection = closeSession &&
         bind.willSessionCloseCloseSession(sessionId: sessionId);
+    _officeIdentityTimer?.cancel();
     final officeConnectionId = closesOfficeConnection
-        ? bind.sessionGetConnSessionId(sessionId: sessionId).toString()
+        ? resolveExantasRustDeskSessionId(_officeConnectionId,
+            bind.sessionGetConnSessionId(sessionId: sessionId).toString())
         : '';
     final officeLocalSession =
         buildExantasLocalSessionKey(_ffi.id, sessionId);
@@ -389,17 +407,18 @@ class _RemotePageState extends State<RemotePage>
     if (closeSession) {
       clearWaylandKeyboardPromptSuppressedForConnection(sessionId.toString());
     }
+    // Start durable main-window capture before the final view is torn down.
+    // The final-view guard excludes tab moves and additional shared views.
+    final officeClose = closesOfficeConnection ? rustDeskWinManager.call(WindowType.Main, 'officeSessionEnded', {
+      'local_session': officeLocalSession,
+      'rustdesk_session_id': officeConnectionId,
+      'ended_at': DateTime.now().toUtc().toIso8601String(),
+    }).catchError((Object error) {
+      debugPrint('Office session end was not durably acknowledged.'); return null;
+    }) : null;
     await _ffi.close(closeSession: closeSession);
-    if (closesOfficeConnection) {
-      try {
-        await rustDeskWinManager.call(WindowType.Main, 'officeSessionEnded', {
-          'local_session': officeLocalSession,
-          'rustdesk_session_id': officeConnectionId,
-          'ended_at': DateTime.now().toUtc().toIso8601String(),
-        });
-      } catch (_) {
-        debugPrint('Could not persist Office session end');
-      }
+    if (officeClose != null) {
+      try { await officeClose; } catch (_) { debugPrint('Office session end was not durably acknowledged.'); }
     }
     _timer?.cancel();
     _ffi.dialogManager.dismissAll();

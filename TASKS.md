@@ -1,3 +1,14 @@
+## Native Office closure — 2026-10-23
+
+Source implemented; local API checks PASS, native delivery pending. New durable
+lifecycle queue is separate from v2 report suppression; capture exact remote
+connection ID, UTC end and immutable event/ACK, scope retries and preserve audit
+time authority. Coordinated Office1.12.9 receiver is required. No dependencies,
+codec/toolchain/version/icon pins changed; application source hashes refreshed. See docs/office-session-close.md.
+API80 PASS; Linux guard suite81 PASS/9 platform-tool SKIP; Dart syntax7 PASS, Dart behavioral/analyzer and Windows NOT_RUN
+(SDK acquisition HTTP403). Commit/push authorized, publication preparation in progress; no deploy or new EXE. Next S2
+handoff only after both new published SHAs, then pull/guards/Dart/build/native tests.
+
 ## Documentation publication preparation — 2026-10-22
 
 Coordinated Office commit/push authorized by the user. Publish the four reviewed

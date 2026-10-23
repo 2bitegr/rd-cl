@@ -294,3 +294,18 @@ Desktop build packages for rd-cl, CallerPopup and GrandStreamAgent must include 
 Report bytes exported and source bytes actually removed separately. Freeing Linux files does not by itself prove the host's WSL virtual disk file shrank. Do not perform VHD compaction or WSL shutdown as routine cleanup.
 
 The Desktop is an artifact destination, not a secret backup store. Keep secrets/business data in their established protected locations; do not copy them into reports/builds. Unrelated generated work also belongs outside Office repositories, under a separate Desktop category.
+
+## Durable native Office session closure
+
+Normal close of the last active remote connection view records the close event;
+tab moves, extra shared views and closing the home page do not close a session.
+Keep DPAPI-protected lifecycle delivery separate from v1/v2 report suppression,
+persist before acknowledging main-window IPC, retry immutable event IDs after
+lost ACK/restart and fence owner/API/from-peer. Reconnects in one Flutter tab are
+distinct native connections. Use Office companion sessions/close with an exact
+audited native session ID; no peer/time guessing, fake receipt or automatic bill.
+Client timing stays unverified until authoritative audit evidence confirms it.
+This requires the new Office1.12.9 receiver before S2 runtime acceptance. Pure
+Dart lifecycle tests plus native close/retry/multi-window tests are required;
+syntax checks alone are not behavioral/native acceptance. Preserve codec receipt
+and warm application caches: these Dart/API changes do not alter codec inputs.
