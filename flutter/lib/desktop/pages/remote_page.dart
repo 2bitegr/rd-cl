@@ -413,8 +413,8 @@ class _RemotePageState extends State<RemotePage>
       'local_session': officeLocalSession,
       'rustdesk_session_id': officeConnectionId,
       'ended_at': DateTime.now().toUtc().toIso8601String(),
-    }).catchError((Object error) {
-      debugPrint('Office session end was not durably acknowledged.'); return null;
+    }).then<void>((_) {}).catchError((Object error) {
+      debugPrint('Office session end was not durably acknowledged.');
     }) : null;
     await _ffi.close(closeSession: closeSession);
     if (officeClose != null) {

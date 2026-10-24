@@ -41,6 +41,52 @@ network acquisition. Guarded build/codec invocations remain offline unchanged.
 Older offline execution guides describe that guarded phase; their historical
 no-download wording does not reinstate the removed preparation policy ban.
 
+
+
+### Continuation after a blocked S2 build
+
+Every future prompt must distinguish the last completed delivery from the latest
+attempt and record the attempted SHA, exact failed gate, artifact status, newest
+genuine receipt/toolchain and warm application targets. A compiled/packaged EXE
+with failed analyzer or maintenance is BLOCKED, never the completed baseline.
+For source corrections, verify and supply both full published SHAs before issuing
+an executable replacement-build prompt. If the fix remains local, provide only
+preservation/read-only preparation with WAITING_FOR_PUBLISHED_FIX; do not point
+S2 at the failing SHA as a corrected target or invent a future SHA.
+Preserve the failed attempt and previous verified delivery. Use an unused owned
+snapshot/output for the corrected SHA, while reusing independently verified
+codec receipts and compatible Cargo/Flutter caches. Application-only corrections
+do not justify FFmpeg/codec bootstrap. Recheck the exact receipt/tool/SDK/ABI
+inputs; real incompatibility blocks reuse rather than fabricated proof.
+Schedule the pinned analyzer as soon as generated/package prerequisites are
+verified and before expensive native compilation where the reviewed tooling
+supports it. Preserve its complete command, exit code and all diagnostics; no
+suppression/fatality-flag changes or source edits on S2. A successful old stage
+is useful cache evidence, not permission to skip checks for a changed source.
+Required approvals remain covered by the explicit scoped approval block, with
+mandatory platform mechanisms intact. Publication/deployment/real installation
+and customer acceptance remain separate.
+
+### Explicit user approval in every S2 build prompt
+
+User instruction (2026-10-24): include an explicit user-approval block in every
+future rd-cl S2 build handoff. Approval covers the specified published-source
+synchronization, owned snapshot/config preparation, required pinned downloads
+and prerequisite provisioning (including necessary native UAC), existing-receipt/
+cache verification and reuse, tests/analyzer, application build, packaging,
+hashes/reports and reviewed task-owned cleanup under the existing gates. Proceed
+through those authorized phases without asking the user to approve them again.
+For an already running job, continue from its actual stage with the same approved
+SHAs/config/outputs; do not restart, change source or repeat completed phases
+merely to apply this approval. Preserve active processes, source and caches.
+This is task-scoped build approval, not permission for product installation,
+deployment, production DB changes, real customer sessions, source/guard changes,
+credential disclosure, Git publication on S2 or unrelated destructive operations.
+It does not override sandbox/tool/UAC approval mechanisms: use required approvals
+normally, never disable/bypass them or claim a prompt removes them. When mandatory
+platform approval is still needed, explain the concrete action and platform rule;
+when automatic review rejects it, report its reason and preserve dependent work.
+
 ## Current completed application/EXE baseline
 
 Latest S2 completion, user report on 2026-10-22. Package/log bytes on Windows
@@ -88,6 +134,27 @@ when the user returns a newer completed application/package report. Record a
 pending handoff separately; issuing a prompt cannot advance completed state.
 If the live target SHA still equals this source, return NO_RDCL_BUILD_NEEDED.
 
+## Latest S2 attempt: BLOCKED, not a completed baseline
+
+User report2026-10-24 for source d029c35d3771be508376a1986251d66d8351fa82:
+codec reuse PASS, guards89 PASS/1 Linux-only SKIP, Dart70 PASS, native application
+and EXE compilation PASS. Analyzer FAIL (remote_page.dart catchError returned
+Null for Future<MultiWindowCallResult>); final maintenance NOT_RUN. Keep the
+installer under delivery-s2-d029c35d as BLOCKED and do not install it or advance
+the completed a23ec301 baseline. See office-session-close.md for exact hash/size.
+
+The reported SDK-aware codec receipt SHA256 is
+784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572.
+Its toolchain JSON is reported at:
+C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-d029c35d\toolchain-codecs-d029c35d-local.json
+Verify those bytes, root and actual local tool/SDK/ABI identities on S2. Preserve
+and reuse this receipt plus successful Cargo/Flutter targets for the type-only
+source correction. No codec rebuild is justified by that correction. A retry
+needs a newly published source SHA and separate owned delivery; run analyzer
+with existing pinned tools before expensive compilation when generated inputs
+are ready. Never ignore diagnostics, reuse the blocked EXE as corrected output,
+change guards or mutate source on S2. Preserve diagnostics and normal gates.
+
 ## Required branding for the next handoff
 
 Use [canonical Windows icons](windows-branding.md), pinned to immutable
@@ -124,6 +191,21 @@ Read [the reviewed tooling explanation](windows-s2-shallow-vcpkg.md). Preserve:
 ## Prompt content
 
 ```text
+ΕΓΚΡΙΣΗ ΧΡΗΣΤΗ: Έχεις τη ρητή έγκρισή μου για όλα τα αναγκαία βήματα
+αυτού του συγκεκριμένου build: ασφαλή συγχρονισμό των δοσμένων published SHAs,
+owned snapshot/config, απαιτούμενες pinned λήψεις και prerequisite provisioning
+(με αναγκαίο UAC), επαλήθευση/επαναχρησιμοποίηση receipts και caches, tests,
+analyzer, compilation, packaging, hashes/reports και ελεγμένο task-owned cleanup
+με τα υποχρεωτικά gates. Συνέχισε χωρίς να ζητάς ξανά την ίδια έγκριση.
+Αν το build ήδη εκτελείται, συνέχισε από το πραγματικό τρέχον στάδιο με τα ίδια
+εγκεκριμένα SHAs/config/outputs. Μην το επανεκκινήσεις, αλλάξεις source ή
+επαναλάβεις ολοκληρωμένα στάδια μόνο εξαιτίας αυτής της έγκρισης.
+Η έγκριση δεν καλύπτει εγκατάσταση προϊόντος, deployment, production SQL,
+πραγματικές συνδέσεις πελάτη, source/guard edits ή commit/push στον S2.
+Οι υποχρεωτικές εγκρίσεις sandbox/tools/UAC εξακολουθούν να ισχύουν· μην τις
+παρακάμψεις ή απενεργοποιήσεις. Αν απαιτηθούν, εξήγησε τη συγκεκριμένη ενέργεια
+και τον κανόνα της πλατφόρμας. Πραγματική αποτυχία σταματά τα εξαρτώμενα στάδια.
+
 Προετοίμασε τα απαιτούμενα pinned inputs και εκτέλεσε το πλήρες build/package
 του rd-cl στον native Windows S2. Επιτρέπονται οι αναγκαίες λήψεις κατά την
 προετοιμασία, με TLS, signatures/checksums και ακριβή lockfile/Git/version pins.
@@ -134,6 +216,14 @@ rd-cl repository/ref: <verified repository and published ref>
 Ακριβές rd-cl SourceCommit: <full published SHA>
 Version: <manifest/profile version including Flutter build number>
 Target: Windows x64, EXE installer και το υπάρχον verified runtime ZIP.
+Τρόπος: <initial build ή continuation από συγκεκριμένο failed gate>
+Τελευταία προσπάθεια: d029c35d3771be508376a1986251d66d8351fa82, BLOCKED analyzer.
+Το παραχθέν EXE δεν είναι εγκεκριμένη παράδοση και δεν εγκαθίσταται.
+Νεότερο reported SDK-aware receipt:
+784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572
+Reported config: delivery-s2-d029c35d/toolchain-codecs-d029c35d-local.json.
+Επαλήθευσε πραγματικό path/hash/tool/SDK/ABI στον S2 και κράτησέ τα αμετάβλητα.
+Αυτό είναι ανεξάρτητο codec proof, όχι επιτυχής εφαρμογή ή νέο completed baseline.
 Προηγούμενο completed application/EXE baseline: a23ec301e95db089b2cc6c0d05e06f7eebf40521
 Baseline version: 2.0.0+72
 Baseline EXE SHA-256: 717a1fd2a1dd0cb8fa953d2e542b4307a5836f2009e4ba15210ed00eb69b88a1
@@ -143,8 +233,10 @@ Baseline EXE SHA-256: 717a1fd2a1dd0cb8fa953d2e542b4307a5836f2009e4ba15210ed00eb6
 
 Διάβασε τα AGENTS.md και docs/windows-native-build.md,
 docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
-Το παλιό receipt χωρίς sdk_identity δεν μπορεί να χρησιμοποιηθεί με το νέο
-tooling. Διατήρησέ το και ακολούθησε το βήμα5 για πραγματικό νέο compilation.
+Το ιστορικό receipt χωρίς sdk_identity διατηρείται αλλά δεν χρησιμοποιείται
+ως σύγχρονο proof. Υπάρχει νεότερο reported SDK-aware receipt παραπάνω:
+έλεγξε/επαναχρησιμοποίησέ το πρώτα. Μην ξεκινήσεις το βήμα5 απλώς επειδή
+άλλαξε το application source ή υπάρχει παλιό receipt.
 Χτίσε την έκδοση του δημοσιευμένου source χωρίς δικό σου version bump.
 Διατήρησε λειτουργικότητα, authentication και guards.
 Αν το ζητούμενο SHA έχει ήδη παραδοθεί επιτυχώς, μην επαναλάβεις build·
@@ -182,7 +274,7 @@ tooling. Διατήρησέ το και ακολούθησε το βήμα5 γι
    Το γνωστό artifact root από την τελευταία παράδοση είναι:
    C:\Users\Support-2\Desktop\Office-Workspace-Artifacts
    Το γνωστό υπάρχον toolchain είναι:
-   C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\1.4.13+71\codec-bootstrap-s2\toolchain-codecs-local.json
+   C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-d029c35d\toolchain-codecs-d029c35d-local.json
    Επαλήθευσε αυτά τα δεδομένα στο μηχάνημα· μην μαντέψεις άλλον root.
 
 Πριν ορίσεις application CARGO_TARGET_DIR, έλεγξε τον τελευταίο επιτυχή
@@ -233,6 +325,14 @@ tooling. Διατήρησέ το και ακολούθησε το βήμα5 γι
    Μετά πραγματικό PASS, όρισε $toolchain στο νέο παραγόμενο
    toolchain-codecs-local.json και κατέγραψε/επαλήθευσε το νέο receipt SHA256.
    Αν δεν περνά κάποιο στάδιο, σταμάτα τα εξαρτώμενα βήματα και κράτησε diagnostics.
+
+Πριν από το ακριβό native compilation, εκτέλεσε τον pinned analyzer για τα
+   αλλαγμένα αρχεία και tests, μόλις επαληθευτούν package/generated prerequisites
+   του νέου owned snapshot. Κράτησε πλήρη command/exit code/diagnostics.
+   Αν τα reviewed εργαλεία δεν επιτρέπουν αυτή τη σειρά, ανέφερε τον ακριβή
+   περιορισμό· μην τροποποιήσεις tooling/source/guards στον S2. Μην αγνοήσεις
+   WARNING/ERROR ή αλλάξεις severity/fatality flags. Τα INFO διατηρούνται στην
+   αναφορά και αξιολογούνται με την υπάρχουσα πολιτική του analyzer.
 
 6. Επίλεξε OutputRoot κάτω από το πραγματικό Desktop:
    Office-Workspace-Artifacts\Builds\rd-cl\<version>\delivery-s2-<short-source-sha>

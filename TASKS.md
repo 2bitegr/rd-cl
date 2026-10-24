@@ -1,3 +1,43 @@
+## Coordinated publication for analyzer correction — 2026-10-24
+
+User authorized Office1.12.10 commit/push; related rd-cl fix and approval/
+continuation policies included under shared policy. Publish on existing feature
+branch fromd029c35d, do not merge diverged main83c2a29a. Future<void> conversion
+fixes null callback typing; reviewed application integrity hash updated, all
+codec/dependency/toolchain/icon/version inputs unchanged. Guards81 PASS/9 local
+platform-tool SKIP, syntax PASS; pinned analyzer/native rerun required on S2.
+Return one exact-SHA continuation prompt after publication, reuse receipt784aba54
+and successful d029 Cargo/Flutter caches, preserve blocked/last verified packages.
+No new EXE, installation, production action or new codec bootstrap here.
+
+## S2 continuation handoff policy — 2026-10-24
+
+User requested a continuation prompt plus future-template update. Shared rules
+and rd-cl template distinguish blocked d029 EXE from completed a23 baseline;
+prefer latest SDK-aware receipt and warm caches, analyzer early, no codec rebuild
+for type-only fixes. Corrected source is still unpublished: immediate prompt is
+read-only preservation/WAITING_FOR_PUBLISHED_FIX, not a build of an invented SHA.
+Scoped approvals retained; no Git publication, build restart or deployment.
+
+## S2 d029c35d analyzer blocker — 2026-10-24
+
+User S2 report: guards89 PASS/1 Linux-only SKIP; Dart70 PASS; native build and
+packaging PASS, analyzer FAIL (catchError Null vs MultiWindowCallResult), final
+maintenance NOT_RUN. d029 EXE is BLOCKED, never a completed-delivery baseline.
+Local fix converts IPC result to Future<void> before attaching the void error
+handler; integrity hash refreshed, no codec/toolchain/version change. Preserve
+S2 SDK-aware receipt784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572,
+warm Cargo/Flutter state and blocked artifacts. Publication and a fresh owned
+application delivery are required before retry; analyzer/native acceptance pending.
+
+## S2 scoped build approvals — 2026-10-24
+
+User authorized explicit build-scope approval in every future S2 prompt and a
+supplement for the already running build. Updated shared AGENTS policy and
+rd-cl handoff template; continue active job without restarting or changing SHAs.
+Mandatory sandbox/tool/UAC approvals remain; no bypass or production expansion.
+Documentation only, local/unpublished; no commit/push, build or deployment.
+
 ## Native Office closure — 2026-10-23
 
 Source implemented; local API checks PASS, native delivery pending. New durable

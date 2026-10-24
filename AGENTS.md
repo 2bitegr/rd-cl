@@ -231,6 +231,52 @@ the older-installation warning compares BuildDate registry metadata. Packaging
 PASS cannot establish installation/service acceptance. Use the diagnostic steps
 in rd-cl/docs/windows-s2-build-integrity.md; do not silently reinstall/start services.
 
+
+
+### Continuation after a blocked S2 build
+
+Every future prompt must distinguish the last completed delivery from the latest
+attempt and record the attempted SHA, exact failed gate, artifact status, newest
+genuine receipt/toolchain and warm application targets. A compiled/packaged EXE
+with failed analyzer or maintenance is BLOCKED, never the completed baseline.
+For source corrections, verify and supply both full published SHAs before issuing
+an executable replacement-build prompt. If the fix remains local, provide only
+preservation/read-only preparation with WAITING_FOR_PUBLISHED_FIX; do not point
+S2 at the failing SHA as a corrected target or invent a future SHA.
+Preserve the failed attempt and previous verified delivery. Use an unused owned
+snapshot/output for the corrected SHA, while reusing independently verified
+codec receipts and compatible Cargo/Flutter caches. Application-only corrections
+do not justify FFmpeg/codec bootstrap. Recheck the exact receipt/tool/SDK/ABI
+inputs; real incompatibility blocks reuse rather than fabricated proof.
+Schedule the pinned analyzer as soon as generated/package prerequisites are
+verified and before expensive native compilation where the reviewed tooling
+supports it. Preserve its complete command, exit code and all diagnostics; no
+suppression/fatality-flag changes or source edits on S2. A successful old stage
+is useful cache evidence, not permission to skip checks for a changed source.
+Required approvals remain covered by the explicit scoped approval block, with
+mandatory platform mechanisms intact. Publication/deployment/real installation
+and customer acceptance remain separate.
+
+### Explicit user approval in every S2 build prompt
+
+User instruction (2026-10-24): include an explicit user-approval block in every
+future rd-cl S2 build handoff. Approval covers the specified published-source
+synchronization, owned snapshot/config preparation, required pinned downloads
+and prerequisite provisioning (including necessary native UAC), existing-receipt/
+cache verification and reuse, tests/analyzer, application build, packaging,
+hashes/reports and reviewed task-owned cleanup under the existing gates. Proceed
+through those authorized phases without asking the user to approve them again.
+For an already running job, continue from its actual stage with the same approved
+SHAs/config/outputs; do not restart, change source or repeat completed phases
+merely to apply this approval. Preserve active processes, source and caches.
+This is task-scoped build approval, not permission for product installation,
+deployment, production DB changes, real customer sessions, source/guard changes,
+credential disclosure, Git publication on S2 or unrelated destructive operations.
+It does not override sandbox/tool/UAC approval mechanisms: use required approvals
+normally, never disable/bypass them or claim a prompt removes them. When mandatory
+platform approval is still needed, explain the concrete action and platform rule;
+when automatic review rejects it, report its reason and preserve dependent work.
+
 ## Mandatory cleanup before commit, push and release
 
 Before creating any commit and before every `git push`, run a dedicated cleanup

@@ -88,3 +88,32 @@ The standard native build Dart regression list includes the new lifecycle queue
 test, so Build -WithExe cannot skip it. This changes the test invocation only;
 codec/ABI/toolchain inputs stay unchanged; reviewed application source hashes
 are refreshed in windows-native-profile.json. Publication is not native PASS.
+
+
+## S2 d029c35d result and local type correction — 2026-10-24
+
+User-reported S2 source d029c35d3771be508376a1986251d66d8351fa82: guards89
+PASS/1 Linux-only SKIP, Dart70 PASS including all lifecycle cases, verified codec
+reuse, Rust/Flutter/EXE compilation PASS. Analyzer exit2 flags a null-returning
+catchError handler on Future<MultiWindowCallResult> in remote_page.dart. The
+local correction maps the successful IPC result to Future<void> before the void
+error handler; durable-main capture still begins before FFI teardown and its
+failure remains logged. No IPC success/ACK is invented and no guard is weakened.
+
+The generated installer is BLOCKED, unsigned,24318464 bytes, SHA256
+c0ac67646bb75d5e45eaa7a626aaee0b825b4d8af695652685ea9ec6576b7b46.
+It lives under the reported S2 Desktop path
+Office-Workspace-Artifacts/Builds/rd-cl/2.0.0+72/delivery-s2-d029c35d.
+Do not install or advance the completed baseline from a23ec301. Final maintenance
+was NOT_RUN; static artifact diagnostics do not override that failed gate.
+
+New confirmed SDK-aware receipt SHA256:
+784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572.
+Its reported toolchain JSON is beside the blocked EXE:
+toolchain-codecs-d029c35d-local.json. Verify these actual bytes/paths on S2 and
+reuse matching codecs plus the successful application target. Do not rebuild
+FFmpeg due to this source-only type correction. After publication, use a fresh
+owned snapshot/delivery for the new SHA, run tests/analyzer/build/packaging and
+all maintenance gates. Preserve d029 diagnostics and previous verified delivery.
+The report's PE numeric/string version distinction is diagnostic, not permission
+to alter product metadata or relax the canonical package verifier on S2.
