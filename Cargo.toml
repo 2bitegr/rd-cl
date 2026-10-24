@@ -1,6 +1,6 @@
 [package]
 name = "rustdesk"
-version = "1.4.13"
+version = "2.0.0"
 authors = ["Exantas Support"]
 edition = "2021"
 build= "build.rs"

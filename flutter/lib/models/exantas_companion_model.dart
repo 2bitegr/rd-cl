@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/models/exantas_secure_store.dart';
 import 'package:flutter_hbb/models/exantas_native_auth.dart';
+import 'package:flutter_hbb/models/exantas_office_response.dart';
 import 'package:flutter_hbb/models/exantas_identity.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/exantas_workflow_http_policy.dart';
@@ -63,6 +65,7 @@ class ExantasCompanionStatus {
 }
 
 class ExantasCompanionService implements ExantasIdentityActions {
+  static final accountChanges = ChangeNotifier();
   static final _nativeFence = ExantasNativeAuthFence();
   final ExantasSecureStore _secureStore = const ExantasSecureStore();
 
@@ -347,6 +350,17 @@ class ExantasCompanionService implements ExantasIdentityActions {
           'platform': 'windows',
         },
         bearerToken: status.deviceToken);
+  }
+
+  Future<Map<String, dynamic>> submitSessionClose(Map<String, dynamic> record) async {
+    final before = await loadStatus();
+    _requireExpectedCompanion(before, record['owner'] as String, record['api'] as String);
+    final response = await http.post(Uri.parse('${before.apiBase}/rustdesk-companion/sessions/close'),
+      headers: _headers(before.companionToken), body: jsonEncode({
+        for (final key in ['event_id', 'peer_id', 'from_peer', 'rustdesk_session_id', 'ended_at']) key: record[key],
+      })).timeout(const Duration(seconds: 15));
+    _requireSameCompanion(before, await loadStatus());
+    return _decodeResponse(response.statusCode, response.body);
   }
 
   Future<List<Map<String, dynamic>>> pendingSessions({
@@ -644,12 +658,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
   }
 
   Map<String, dynamic> _decodeResponse(int statusCode, String body) {
-    final decoded = _decodeMap(body);
-    if (statusCode < 200 || statusCode >= 300) {
-      final message = _string(decoded['message']);
-      throw Exception(message.isEmpty ? 'Office request failed.' : message);
-    }
-    return decoded;
+    return decodeExantasOfficeResponse(statusCode, body);
   }
 
   Map<String, dynamic> _decodeMap(dynamic value) {
