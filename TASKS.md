@@ -1,3 +1,26 @@
+## Exact native launch binding — source candidate2026-10-24
+
+User authorized implementation. Office1.12.11/Popup1.4.9 + native rd-cl source
+bridge implemented: private same-user credential mailbox, public nonce only,
+immutable exact native identity, audit-pending retries and guarded work link.
+Existing report text/timing authority/financial gates preserved. New migration
+20261024000100 native_launch_bindings is UNAPPLIED; old SQL untouched.
+API/SQL149, Core42/App100/WPF compile PASS; guards81 PASS/9 local skips, Dart
+syntax12 PASS. New queue/Windows credential fixture provided but Dart analyzer/
+Windows cross-process/runtime acceptance NOT_RUN. See Office docs/native-launch-binding.md.
+No publication/build-package/deploy/production DDL. Demo source not retro-linked.
+
+## S2 corrected delivery completed — user report2026-10-24
+
+PASS build/package at1c7cff1289438b84788b3b2b78ab30c05ce25202, rd-cl2.0.0+72.
+Guards89 PASS/1 Linux-only SKIP, Dart70, analyzer exit0/no WARNING/ERROR/10 INFO,
+codec reuse/Preflight/native/EXE and exact93-file/core/icons/maintenance PASS.
+Release invocation16m06s, Flutter138.4s;4 logs/3767 bytes removed. New EXE
+24312320 bytes, SHA256e567886417f4d779299937ff626ca7da31aee790b4f33c4a9e6ffa417080d088.
+Updated completed baseline locally; d029 remains historical BLOCKED. Native
+installation/upgrade/real Office sessions/portal behavior NOT_RUN. No duplicate
+build, publication, installation or deployment performed for this report.
+
 ## Coordinated publication for analyzer correction — 2026-10-24
 
 User authorized Office1.12.10 commit/push; related rd-cl fix and approval/

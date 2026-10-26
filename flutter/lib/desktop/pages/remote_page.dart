@@ -41,6 +41,7 @@ class RemotePage extends StatefulWidget {
     this.sessionId,
     this.tabWindowId,
     this.password,
+    this.officeTicket,
     this.display,
     this.displays,
     this.tabController,
@@ -57,6 +58,7 @@ class RemotePage extends StatefulWidget {
   final int? display;
   final List<int>? displays;
   final String? password;
+  final String? officeTicket;
   final ToolbarState toolbarState;
   final String? switchUuid;
   final bool? forceRelay;
@@ -127,6 +129,7 @@ class _RemotePageState extends State<RemotePage>
   void initState() {
     super.initState();
     _ffi = FFI(widget.sessionId);
+    _ffi.officeLaunchTicket = widget.officeTicket;
     Get.put<FFI>(_ffi, tag: widget.id);
     _ffi.imageModel.addCallbackOnFirstImage((String peerId) {
       _ffi.canvasModel.activateLocalCursor();

@@ -352,6 +352,18 @@ class ExantasCompanionService implements ExantasIdentityActions {
         bearerToken: status.deviceToken);
   }
 
+  Future<Map<String, dynamic>> bindNativeLaunch(Map<String, dynamic> record) async {
+    final before = await loadStatus();
+    _requireExpectedCompanion(before, record['owner'] as String, record['api'] as String);
+    final response = await http.post(Uri.parse('${before.apiBase}/rustdesk-companion/sessions/bind-launch'),
+      headers: _headers(before.companionToken), body: jsonEncode({
+        ...Map<String,dynamic>.from(record['launch'] as Map),
+        for (final key in ['peer_id', 'from_peer', 'rustdesk_session_id']) key: record[key],
+      })).timeout(const Duration(seconds: 15));
+    _requireSameCompanion(before, await loadStatus());
+    return _decodeResponse(response.statusCode, response.body);
+  }
+
   Future<Map<String, dynamic>> submitSessionClose(Map<String, dynamic> record) async {
     final before = await loadStatus();
     _requireExpectedCompanion(before, record['owner'] as String, record['api'] as String);

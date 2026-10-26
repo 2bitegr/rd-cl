@@ -263,6 +263,19 @@ is a minimum reserve, not a guarantee of peak-space availability.
 Do not delete unrelated data to bypass it. Storage compression or cleanup must
 have a separate explicit scope/approval and preserve build inputs.
 
+## Latest S2 warm-cache result (user report2026-10-24)
+
+Source1c7cff1289438b84788b3b2b78ab30c05ce25202 completed build/package and
+all delivery gates. Release invocation16m06s, Flutter138.4s; this does not measure
+the whole agent session. Codecs were reused with SDK-aware receipt784aba54...6572,
+Dart70 and guards89 passed (one Linux-only skip), analyzer exit0 with10 INFO.
+Exact93-file runtime/core/icons and maintenance verification passed. Keep the
+successful application caches and compare real provenance before future reuse;
+no measured result guarantees the same duration for different changes/machines.
+See the handoff guide for exact source/artifact/toolchain/receipt hashes and
+remaining native installation/runtime acceptance. The older cold-run evidence
+below remains historical.
+
 ## S2 elapsed-time evidence and reuse (2026-10-22)
 
 For successful a23ec301 /2.0.0+72, the supplied S2 transcript reports:

@@ -1529,6 +1529,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       if (call.method == 'officeSessionStarted') {
         final event = Map<String, dynamic>.from(call.arguments as Map);
         await ExantasLifecycleOutbox.instance.started(event);
+        unawaited(ExantasLifecycleOutbox.instance.sync());
         unawaited(ExantasReportOutbox.instance.started(event).catchError((Object error) {
           debugPrint('Office report context lookup failed; lifecycle is preserved.'); return null;
         }));

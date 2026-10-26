@@ -131,11 +131,11 @@ is unchanged, report NO_RDCL_BUILD_NEEDED. No automatic builds, Actions, product
 installation or deployment is implied. The former cloud build plan is superseded.
 
 The latest completed S2 application/EXE baseline, reported by the user on
-2026-10-22, is `a23ec301e95db089b2cc6c0d05e06f7eebf40521`, version `2.0.0+72`.
+2026-10-24, is `1c7cff1289438b84788b3b2b78ab30c05ce25202`, version `2.0.0+72`.
 Read the maintained handoff guide's completed baseline for the EXE hash, size,
 codec receipt and acceptance limits; do not use earlier blocked/codec-only states.
 Reported EXE directory:
-`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-a23ec301`.
+`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-1c7cff12`.
 Keep that verified delivery unchanged and use an unused owned output directory
 for the next build. An unchanged published SHA needs no repeat build.
 

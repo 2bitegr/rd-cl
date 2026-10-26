@@ -1,3 +1,4 @@
+import 'exantas_launch_ticket.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -16,7 +17,7 @@ class ExantasLifecycleOutbox {
   Directory? _directory;
   Future<void>? _loading;
   final Map<String, Future<void>> _starts = {};
-  late final queue = ExantasLifecycleQueue(save: _save, send: _service.submitSessionClose);
+  late final queue = ExantasLifecycleQueue(save: _save, send: _service.submitSessionClose, bindLaunch: _service.bindNativeLaunch);
   String? _captureError;
   String? get error => _captureError ?? queue.error;
 
@@ -73,6 +74,7 @@ class ExantasLifecycleOutbox {
     final pending = rows.where((row) => row['rustdesk_session_id'] == '0' || row['rustdesk_session_id'] == null || row['rustdesk_session_id'] == '').toList();
     if (pending.length != 1) return false;
     await queue.capture({...pending.single, 'rustdesk_session_id': id});
+    await sync();
     return true;
   }
   Future<void> ended(Map<String, dynamic> event) async {
@@ -105,7 +107,23 @@ class ExantasLifecycleOutbox {
       await load();
       final status = await _service.loadStatus();
       if (!status.technicianLoggedIn) return;
-      await queue.sync(status.officeUserId, status.apiBase, (await bind.mainGetMyId()).trim());
+      final from = (await bind.mainGetMyId()).trim();
+      var ticketError = false;
+      final pending = queue.records.values.where((row) => row['owner'] == status.officeUserId
+        && row['api'] == status.apiBase && row['from_peer'] == from && row['office_ticket'] != null).toList();
+      for (final row in pending) {
+        final ticket = row['office_ticket']?.toString() ?? '';
+        if (ticket.isEmpty) continue;
+        try {
+          if (row['launch'] == null) {
+            final launch = readExantasLaunchTicket(ticket, status.apiBase, row['peer_id'] as String);
+            await queue.capture({...row, 'launch': launch});
+          }
+          deleteExantasLaunchTicket(ticket);
+        } catch (_) { ticketError = true; }
+      }
+      await queue.sync(status.officeUserId, status.apiBase, from);
+      if (ticketError) queue.error = 'Δεν ανακτήθηκε ή καθαρίστηκε το προστατευμένο αίτημα του Popup. Η λήξη διατηρείται ανεξάρτητα.';
     } catch (_) {
       queue.error = 'Δεν διαβάστηκε η τοπική ουρά λήξεων. Διατηρήστε τα τοπικά αρχεία και ελέγξτε τη σύνδεση Office.';
     }

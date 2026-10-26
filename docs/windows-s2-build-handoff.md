@@ -89,20 +89,32 @@ when automatic review rejects it, report its reason and preserve dependent work.
 
 ## Current completed application/EXE baseline
 
-Latest S2 completion, user report on 2026-10-22. Package/log bytes on Windows
+Latest S2 completion, user report on 2026-10-24. Package/log bytes on Windows
 were not independently accessed here; these are reported native S2 results.
 
-- Source/tooling: `a23ec301e95db089b2cc6c0d05e06f7eebf40521`, branch
-  `codex/s2-codec-bootstrap-1.4.13`; Office `8ed064c219e78019dcea02af433dddb67993accc`.
-- Version/target: `2.0.0+72`, Windows x64, unsigned EXE; no MSI reported.
-- Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-a23ec301`.
-- Filename: `rd-cl-2.0.0+72-windows-x64-install.exe`; size `24304128` bytes.
-- SHA256: `717a1fd2a1dd0cb8fa953d2e542b4307a5836f2009e4ba15210ed00eb69b88a1`.
-- PASS: guards89/1 Linux-only skip, Dart62, codec reuse, Preflight, Rust,
-  Flutter, ZIP/embedded runtime/x64/canonical EX icons, cleanup plan/apply/verify.
-- Siblings: ZIP, manifests, SHA256SUMS, BUILD-STATUS.md and INSTALLATION-EL.md.
-- Installation/upgrade and real Office/native sign-in: NOT_RUN. No deployment.
-- No repeat build for this SHA; compare later published source against it.
+- Source/tooling: `1c7cff1289438b84788b3b2b78ab30c05ce25202`, branch
+  `codex/s2-codec-bootstrap-1.4.13`; Office `09e6bb1f4cda905ec249f02a23fc2852314d8442`.
+- Version/target: `2.0.0+72`, Windows x64; existing unsigned EXE format, no MSI reported.
+- Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-1c7cff12`.
+- Filename: `rd-cl-2.0.0+72-windows-x64-install.exe`; size `24312320` bytes.
+- SHA256: `e567886417f4d779299937ff626ca7da31aee790b4f33c4a9e6ffa417080d088`.
+- PASS: guards89/1 Linux-only skip; Dart70; analyzer exit0, no WARNING/ERROR,
+  10 retained INFO; codec reuse/Preflight/Rust/Flutter/EXE; exact93 runtime-file
+  ZIP/embedded inventory, core DLL/x64/canonical icons; maintenance plan/apply/verify.
+- Release invocation16m06s; Flutter138.4s. This is not total agent elapsed time.
+- Cleanup removed4 redundant wrapper logs,3767 bytes; previous deliveries/caches retained.
+- Toolchain SHA256: `0b07fdfce291343d7a5f51b26275858c70faaed277da39347f61c18dcdbe0b70`.
+- SDK-aware receipt SHA256: `784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572`.
+  Discover the actual current config path from the completed manifest/BUILD-STATUS;
+  do not infer the filename or mutate the receipt.
+- Siblings: ZIP, manifests, SHA256SUMS, analyzer log, BUILD-STATUS.md, INSTALLATION-EL.md.
+- Installation/upgrade, GUI/DPAPI/services/auth/real remote connections: NOT_RUN.
+  Production SQL, deployment and automatic billing: NOT_RUN.
+- Preserve earlier completed a23ec301 and blocked d029c35d evidence. The final
+  checksum helper initially misresolved a portable prefix; the report records a
+  corrected local read-only helper using the published prefix, not a source/guard change.
+- No repeat build for this completed source. This report/documentation update
+  does not itself authorize another build or installation.
 
 Preserve the previous ad46faef58b5773fc662f021c00ed2f92a9c675a/1.4.13+71
 historical delivery and its evidence. Its historical packaging PASS and failed
@@ -134,14 +146,14 @@ when the user returns a newer completed application/package report. Record a
 pending handoff separately; issuing a prompt cannot advance completed state.
 If the live target SHA still equals this source, return NO_RDCL_BUILD_NEEDED.
 
-## Latest S2 attempt: BLOCKED, not a completed baseline
+## Historical d029c35d attempt: BLOCKED, superseded by completed 1c7cff12
 
 User report2026-10-24 for source d029c35d3771be508376a1986251d66d8351fa82:
 codec reuse PASS, guards89 PASS/1 Linux-only SKIP, Dart70 PASS, native application
 and EXE compilation PASS. Analyzer FAIL (remote_page.dart catchError returned
 Null for Future<MultiWindowCallResult>); final maintenance NOT_RUN. Keep the
 installer under delivery-s2-d029c35d as BLOCKED and do not install it or advance
-the completed a23ec301 baseline. See office-session-close.md for exact hash/size.
+a completed baseline. The later 1c7cff12 run passed; keep this failure historical. See office-session-close.md for exact hash/size.
 
 The reported SDK-aware codec receipt SHA256 is
 784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572.
@@ -217,16 +229,18 @@ rd-cl repository/ref: <verified repository and published ref>
 Version: <manifest/profile version including Flutter build number>
 Target: Windows x64, EXE installer και το υπάρχον verified runtime ZIP.
 Τρόπος: <initial build ή continuation από συγκεκριμένο failed gate>
-Τελευταία προσπάθεια: d029c35d3771be508376a1986251d66d8351fa82, BLOCKED analyzer.
-Το παραχθέν EXE δεν είναι εγκεκριμένη παράδοση και δεν εγκαθίσταται.
+Τελευταία ολοκληρωμένη προσπάθεια: 1c7cff1289438b84788b3b2b78ab30c05ce25202, PASS build/package.
+Ιστορικό d029c35d: BLOCKED analyzer, δεν χρησιμοποιείται ως διορθωμένο EXE.
 Νεότερο reported SDK-aware receipt:
 784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572
-Reported config: delivery-s2-d029c35d/toolchain-codecs-d029c35d-local.json.
+Current toolchain SHA256:
+0b07fdfce291343d7a5f51b26275858c70faaed277da39347f61c18dcdbe0b70
+Εντόπισε το πραγματικό config από τα manifests της delivery-s2-1c7cff12.
 Επαλήθευσε πραγματικό path/hash/tool/SDK/ABI στον S2 και κράτησέ τα αμετάβλητα.
 Αυτό είναι ανεξάρτητο codec proof, όχι επιτυχής εφαρμογή ή νέο completed baseline.
-Προηγούμενο completed application/EXE baseline: a23ec301e95db089b2cc6c0d05e06f7eebf40521
+Προηγούμενο completed application/EXE baseline: 1c7cff1289438b84788b3b2b78ab30c05ce25202
 Baseline version: 2.0.0+72
-Baseline EXE SHA-256: 717a1fd2a1dd0cb8fa953d2e542b4307a5836f2009e4ba15210ed00eb69b88a1
+Baseline EXE SHA-256: e567886417f4d779299937ff626ca7da31aee790b4f33c4a9e6ffa417080d088
 (Ο αποστολέας ενημερώνει αυτά τα baseline πεδία από την τελευταία completed αναφορά.)
 Αλλαγές rd-cl: <verified comparison and changed source/build-input paths>
 Προγραμματισμένος κατάλογος EXE: <verified S2 Desktop OutputRoot, or discover as below>

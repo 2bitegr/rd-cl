@@ -88,5 +88,33 @@ void main() {
     expect(queue.records['a']!['acknowledged'], true);
     expect(queue.records['a']!['ended_at'], '2026-10-23T09:10:00Z');
   });
+  test('launch binding persists before import, retries exact identity and never changes scope', () async {
+    final sent = <Map<String,dynamic>>[];
+    var imported = false;
+    final queue = ExantasLifecycleQueue(save: (_) async {}, send: (r) async => ack(r), bindLaunch: (r) async {
+      sent.add(r);
+      return {'status':'ok', 'launch_request_id':r['launch']['launch_request_id'],
+        'rustdesk_session_id':r['rustdesk_session_id'], 'linked':imported,
+        if (imported) 'remote_session_id':'exact-source'};
+    });
+    final start = {...record('launch'), 'ended_at':null, 'launch':{'launch_request_id':'request','capability':'synthetic-only'}};
+    await queue.capture(start);
+    await queue.sync('other',api,'111'); expect(sent,isEmpty);
+    await queue.sync('tech',api,'111'); expect(queue.records['launch']!['launch_linked'],isNot(true));
+    imported = true;
+    await queue.sync('tech',api,'111'); expect(sent[0],sent[1]);
+    expect(queue.records['launch']!['launch_linked'],true);
+    await queue.capture(start); await queue.sync('tech',api,'111'); expect(sent.length,2);
+  });
+  test('foreign binding receipt and binding failure never acknowledge association or block close', () async {
+    final queue = ExantasLifecycleQueue(save: (_) async {}, send: (r) async => ack(r), bindLaunch: (r) async =>
+      {'status':'ok','launch_request_id':'different','rustdesk_session_id':r['rustdesk_session_id'],'linked':true,'remote_session_id':'foreign'});
+    await queue.capture({...record('a'),'launch':{'launch_request_id':'request'}});
+    await queue.sync('tech',api,'111');
+    expect(queue.records['a']!['launch_linked'],isNot(true));
+    expect(queue.records['a']!['acknowledged'],true);
+    expect(queue.error,isNotNull);
+  });
+
 }
 // The queue is intentionally transport/storage injected: no real HTTP/DPAPI here.

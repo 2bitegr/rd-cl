@@ -117,3 +117,15 @@ owned snapshot/delivery for the new SHA, run tests/analyzer/build/packaging and
 all maintenance gates. Preserve d029 diagnostics and previous verified delivery.
 The report's PE numeric/string version distinction is diagnostic, not permission
 to alter product metadata or relax the canonical package verifier on S2.
+
+
+## Corrected S2 build completed — user report2026-10-24
+
+Source1c7cff1289438b84788b3b2b78ab30c05ce25202: analyzer exit0, no warnings/errors,10 INFO;
+Dart70 and guards89 PASS/1 Linux-only SKIP; codec reuse/Preflight/native build/
+packaging and final93-file/core/icon/maintenance gates PASS. This supersedes
+the analyzer blocker only for the corrected source; d029 stays BLOCKED.
+EXE24312320 bytes, SHA256e567886417f4d779299937ff626ca7da31aee790b4f33c4a9e6ffa417080d088.
+Completed baseline/path/toolchain/receipt are in windows-s2-build-handoff.md.
+Installation and real end-to-end close/multi-technician/portal acceptance NOT_RUN.
+No new build is required merely to record this completion.
