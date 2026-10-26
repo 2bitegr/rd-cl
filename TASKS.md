@@ -1,3 +1,15 @@
+## S2 analyzer continuation — 2026-10-26
+
+S2 reports b94834c7ac348504a0c939888f574d04fc64786e blocked before native
+compilation: common.dart unused dart:math import, analyzer exit2 (0 ERROR,
+1 WARNING,47 INFO). Codec reuse/guards89+1 skip/Preflight PASS, EXE NOT_PRODUCED.
+Remove only the unused import and refresh its profile integrity hash. No protocol,
+codec/toolchain/SDK/dependency/icon/version change. Office remains published
+74142de7fa7e4b0167cc40621e970f3f896234e4. Completed EXE baseline remains1c7cff12;
+preserve failed b948 evidence, previous packages and all compatible caches.
+Pinned analyzer and full native/package/artifact gates must rerun on S2 at the
+new published SHA. Cloud has no Dart/Flutter SDK; no analyzer PASS claimed here.
+
 ## Exact native launch binding — source candidate2026-10-24
 
 User authorized implementation. Office1.12.11/Popup1.4.9 + native rd-cl source

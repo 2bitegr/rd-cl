@@ -87,6 +87,19 @@ normally, never disable/bypass them or claim a prompt removes them. When mandato
 platform approval is still needed, explain the concrete action and platform rule;
 when automatic review rejects it, report its reason and preserve dependent work.
 
+## Latest attempt: b94834c7 — analyzer BLOCKED, 2026-10-26
+
+User S2 report: owned snapshot/pins, codec reuse and tools/SDK/ABI/plan PASS;
+guards89 PASS/1 Linux-only SKIP; application Preflight PASS. Analyzer exit2:
+common.dart:3:8 UNUSED_IMPORT dart:math (0 ERROR,1 WARNING,47 INFO).
+Native compilation/ZIP/EXE and maintenance NOT_RUN; EXE NOT_PRODUCED.
+Keep this failed attempt's evidence and completed1c7cff12 package unchanged.
+Source correction removes only the unused import and refreshes its integrity
+hash. New published SHA and separate owned output are required; analyzer runs
+before native compilation, with unchanged diagnostics policy. Reuse genuine
+receipt784aba54...6572 and compatible warm application caches; no codec rebuild
+is justified by this import-only correction. Office remains74142de7...234e4.
+
 ## Current completed application/EXE baseline
 
 Latest S2 completion, user report on 2026-10-24. Package/log bytes on Windows
