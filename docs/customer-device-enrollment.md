@@ -70,3 +70,20 @@ report actual signing, do not imply a certificate was acquired.
 No SQL migration, billing/report rewrite, email or remote session is part of this
 repair. Already applied Office migrations must not be replayed. Final Dokploy
 rollout remains the user's action and separate from scoped installer publication.
+
+## S2 analyzer correction —2026-10-27
+
+Candidate87e01f40 was not built:analyzer reported4warnings (protected and
+visibleForTesting for two external ChangeNotifier.notifyListeners calls).
+The corrected source puts notifyListeners inside its owning subclass; the service
+exposes Listenable for existing home-page listeners and a public notification
+method for both producers. Subscription identity, synchronous notification and
+finally behavior are preserved. Two application hashes change; version2.0.1+73,
+codecs/SDK/tools/dependencies/icons are retained. Pinned S2 analyzer must pass
+before native compilation; no local analyzer/native PASS is claimed.
+The failed attempt is preserved. S2 also reports no disposable Windows VM and
+live API1.12.16 without installer storage/config/route. Actual acceptance/hosting
+remain pending; never replace the completed build baseline with this failure.
+
+Fresh cloud correction checks:82guards PASS/8platform SKIP;3Dart files syntax
+PASS. These do not run or replace the pinned Flutter analyzer.

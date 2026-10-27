@@ -1,31 +1,32 @@
 # rd-cl active work —2026-10-27
 
-## IN_PROGRESS — customer installation repair2.0.1+73
+## BLOCKED S2 attempt87e01f40 — notifier correction prepared
 
-User authorized fixing the full installation flow. The URL transfers its code
-through registered exantas-support-enroll; no retyping or customer confirmation.
-Every changed-rd-cl S2 prompt includes verified latest-only server hosting.
-Windows technician-operated customer code/preview panel is separate from staff sign-in;
-expected customer/link/access, active identity protection, durable unknown-result
-fence and resumable existing-grant credential setup. Office1.12.17 public info
-contract1 is required. No new dependencies, codec/SDK/toolchain/icon/protocol pins.
-Profile/product/packer version2.0.1+73; application input hashes updated. New
-widget/contract test included unconditionally in native regression runner.
+User receipt2026-10-27:source/pins/codecs/SDK/ABI/plan/Preflight PASS,guards89PASS/
+1Linuxskip. Analyzer exit2:0ERROR/4WARNING/30INFO; two external notifyListeners
+calls each violate protected + visibleForTesting annotations. Dart/native/EXE/
+maintenance NOT_RUN;2.0.1+73 EXE NOT_PRODUCED. Preserve failed diagnostics/caches.
+Correction encapsulates ChangeNotifier notification inside its subclass; service
+exposes Listenable subscription and a public notification method. Both call sites
+and two profile hashes updated; no version/dependency/codec/tool/SDK/icon change.
+Local correction checks:82guards PASS/8platform SKIP;3Dart syntax PASS.
+Pinned S2 analyzer + complete native/EXE gates required at new published SHA.
+Independent blockers from S2:owned Windows VM absent/Sandbox disabled; running
+Office API1.12.16 has no shared installer mount/config/download route. Windows
+acceptance and hosting remain BLOCKED pending these prerequisites. No upload or
+deploy/restart happened. Office release1.12.17 remains de040725852f49761d602a81b6420e80f028f9e8.
 
-Cloud:Python/Rust guards82 PASS/8 platform SKIP; eight changed Dart files parse.
-Flutter widget/analyzer, Windows EXE/package/DPAPI/service/installation NOT_RUN.
-S2 build and verified new EXE/hosting receipt required. Do not advertise2.0.0 as
-supporting this new UI. Details:docs/customer-device-enrollment.md and the complete
-published-SHA handoff supplied after coordinated publication. Prior af37 build
-handoff is superseded by this new candidate; no duplicate old build requested.
+## IN_PROGRESS — customer installation2.0.1+73
 
-## Latest S2 attempt — b94834c7 BLOCKED
-
-User reports analyzer unused dart:math in common.dart:exit2,0ERROR/1WARNING,
-47INFO; guards89+1skip/preflight/codecs PASS, native/EXE NOT_PRODUCED.
-Published af37d461a2d7ff5535eb61561dff734544a27aaf removed the unused import
-and refreshed its hash. Preserve failed evidence and compatible warm caches.
-New candidate includes this fix and exact native launch lifecycle changes.
+Office1.12.17 de04072 public /install/:code transfers its existing capability to
+Windows exantas-support-enroll without retyping, customer consent or staff login.
+Technician previews exact customer/link/access and completes; active identity,
+unknown outcome and existing-grant credential recovery are fenced. No SQL change.
+Every changed-rd-cl S2 prompt includes latest-only server hosting after verified
+native acceptance/public bytes. No dependency/codec/tool/SDK/icon version changes.
+New widget regressions mandatory; cloud has no pinned analyzer/Flutter SDK.
+Details:docs/customer-device-enrollment.md and docs/windows-s2-build-handoff.md.
+Earlier b948/af37 analyzer/import history is retained there; do not rebuild it.
 
 ## Last completed S2 delivery —1c7cff12 (user receipt2026-10-24)
 

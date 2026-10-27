@@ -69,8 +69,14 @@ class ExantasCompanionStatus {
       enrolled ? 'Managed by Exantas Office' : 'Basic support mode';
 }
 
+class _AccountChanges extends ChangeNotifier {
+  void changed() => notifyListeners();
+}
+
 class ExantasCompanionService implements ExantasIdentityActions {
-  static final accountChanges = ChangeNotifier();
+  static final _accountChanges = _AccountChanges();
+  static Listenable get accountChanges => _accountChanges;
+  static void notifyAccountChanged() => _accountChanges.changed();
   static final _nativeFence = ExantasNativeAuthFence();
   final ExantasSecureStore _secureStore = const ExantasSecureStore();
 
@@ -279,7 +285,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
     }
     await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: '');
     await _setSecretLocalOption(kExantasEnrollmentPassword, '');
-    accountChanges.notifyListeners();
+    notifyAccountChanged();
   }
 
   Future<ExantasCompanionStatus> loginTechnician(String email, String password) =>

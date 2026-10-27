@@ -103,6 +103,29 @@ must be reported. No guessed URL/receipt, broad cleanup, SQL, S2 Git publication
 or automatic Dokploy rollout. Carry this phase in the single prompt; do not ask
 for another prompt merely because build and hosting are separate steps.
 
+## Latest attempt87e01f40 — notifier analyzer BLOCKED,2026-10-27
+
+User S2 receipt:source/pins/codec reuse/SDK/ABI/plan/Preflight PASS;guards89PASS/
+1Linux-onlySKIP. Analyzer exit2,0ERROR/4WARNING/30INFO. External notifyListeners
+calls at desktop_setting_page.dart2088 and exantas_companion_model.dart282 each
+trigger INVALID_USE_OF_VISIBLE_FOR_TESTING_MEMBER + INVALID_USE_OF_PROTECTED_MEMBER.
+Dart regressions/native/EXE/maintenance NOT_RUN;new EXE NOT_PRODUCED.
+Reviewed correction owns notification in a private ChangeNotifier subclass and
+exposes only Listenable for subscriptions plus a public service notification
+method. Both callers and profile input hashes change, nothing in codec/SDK/tool/
+dependency/version/icon inputs. New published SHA is required before S2 retry;
+do not re-run87e01f40, suppress warnings or treat cloud parsing as analyzer PASS.
+Keep its failed evidence, genuine codec receipt784aba54 and compatible caches.
+Completed baseline remains1c7cff12,2.0.0+72; candidate remains2.0.1+73.
+
+Independent S2 read-only findings:owned Windows VM unavailable, Sandbox disabled;
+running Office API1.12.16 has no common installer mount/config/download route.
+Acceptance/hosting remain BLOCKED until actual disposable Windows proof and user
+manual Office1.12.17 rollout. No upload/deploy/restart. Build stages may proceed
+independently after source correction; retain the hosting phase with its actual
+blocker instead of inventing acceptance. No migration replay or sandbox enabling
+is implied by this report. Office source staysde040725852f49761d602a81b6420e80f028f9e8.
+
 ## New customer installation candidate —2026-10-27
 
 Version2.0.1+73 adds the customer enrollment panel and guarded technician preview/
@@ -117,7 +140,7 @@ ABI/SDK/tool pins and warm caches; product version change is not codec drift.
 No new SQL migration. The resulting EXE needs an agreed HTTPS hosting location
 and matching Office installer descriptor before customer download is enabled.
 
-## Latest attempt: b94834c7 — analyzer BLOCKED, 2026-10-26
+## Earlier attempt: b94834c7 — analyzer BLOCKED, 2026-10-26
 
 User S2 report: owned snapshot/pins, codec reuse and tools/SDK/ABI/plan PASS;
 guards89 PASS/1 Linux-only SKIP; application Preflight PASS. Analyzer exit2:

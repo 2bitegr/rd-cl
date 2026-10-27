@@ -2085,7 +2085,7 @@ class _Account extends StatelessWidget {
       await action();
     } finally {
       // Login can persist the Office pairing before native confirmation fails.
-      ExantasCompanionService.accountChanges.notifyListeners();
+      ExantasCompanionService.notifyAccountChanged();
     }
   }
 
