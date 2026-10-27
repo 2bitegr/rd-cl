@@ -13,6 +13,8 @@ import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_hbb/models/exantas_companion_model.dart';
+import 'package:flutter_hbb/models/exantas_device_enrollment.dart';
+import 'package:flutter_hbb/desktop/widgets/exantas_device_enrollment.dart';
 import 'package:flutter_hbb/models/peer_tab_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
@@ -2204,7 +2206,7 @@ Future<bool> initUniLinks() async {
   // check cold boot
   try {
     final initialLink = await getInitialLink();
-    print("initialLink: $initialLink");
+    debugPrint("Initial application link received");
     if (initialLink == null || initialLink.isEmpty) {
       return false;
     }
@@ -2231,7 +2233,7 @@ StreamSubscription? listenUniLinks({handleByFlutter = true}) {
   }
 
   final sub = uriLinkStream.listen((Uri? uri) {
-    debugPrint("A uri was received: $uri. handleByFlutter $handleByFlutter");
+    debugPrint("Application link received; handleByFlutter $handleByFlutter");
     if (uri != null) {
       if (handleByFlutter) {
         handleUriLink(uri: uri);
@@ -2260,8 +2262,48 @@ setEnvTerminalAdmin() {
   bind.mainSetEnv(key: 'IS_TERMINAL_ADMIN', value: 'Y');
 }
 
+bool _enrollmentDialogOpen = false;
+Future<void> _showEnrollmentFromLink(String code) async {
+  if (_enrollmentDialogOpen) { await windowOnTop(null); return; }
+  _enrollmentDialogOpen = true;
+  try {
+    await windowOnTop(null);
+    final context = globalKey.currentContext;
+    if (context == null) return;
+    final service = ExantasCompanionService();
+    await showDialog<void>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Εγκατάσταση υπολογιστή πελάτη'),
+      content: SizedBox(width: 500, child: SingleChildScrollView(
+        child: ExantasDeviceEnrollment(initialCode: code,
+          loadStatus: () async {
+            final status = await service.loadStatus();
+            return ExantasDeviceEnrollmentStatus(enrolled: status.enrolled,
+              staffSignedIn: status.technicianLoggedIn, pending: status.enrollmentPending,
+              customerName: status.customerName);
+          },
+          preview: service.previewDeviceEnrollment,
+          enroll: (preview) async { await service.enrollDevice(preview); },
+          complete: service.completeDeviceEnrollment,
+        ),
+      )),
+      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Κλείσιμο'))],
+    ));
+  } catch (_) {
+    // Never log the enrollment URI, code, grant or network payload.
+    debugPrint('Customer installation link could not be opened');
+  } finally { _enrollmentDialogOpen = false; }
+}
+
 // uri link handler
 bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
+  final source = uri ?? Uri.tryParse(uriString ?? ((cmdArgs?.isNotEmpty ?? false) ? cmdArgs!.first : ''));
+  if (source?.scheme == 'exantas-support-enroll') {
+    final code = enrollmentCodeFromLink(source!);
+    if (isWindows && code != null) Future<void>(() => _showEnrollmentFromLink(code));
+    // Never fall through to remote/password/config routing. The dialog belongs
+    // to the main window, so keep that window visible on cold startup.
+    return false;
+  }
   List<String>? args;
   if (cmdArgs != null && cmdArgs.isNotEmpty) {
     args = cmdArgs;

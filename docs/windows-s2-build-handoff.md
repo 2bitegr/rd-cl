@@ -79,13 +79,43 @@ through those authorized phases without asking the user to approve them again.
 For an already running job, continue from its actual stage with the same approved
 SHAs/config/outputs; do not restart, change source or repeat completed phases
 merely to apply this approval. Preserve active processes, source and caches.
-This is task-scoped build approval, not permission for product installation,
+The2026-10-27 hosting policy also authorizes scoped verified artifact publication
+and native acceptance only inside an owned disposable Windows environment.
+This is not permission for product installation on the S2 host or customer PCs,
 deployment, production DB changes, real customer sessions, source/guard changes,
 credential disclosure, Git publication on S2 or unrelated destructive operations.
 It does not override sandbox/tool/UAC approval mechanisms: use required approvals
 normally, never disable/bypass them or claim a prompt removes them. When mandatory
 platform approval is still needed, explain the concrete action and platform rule;
 when automatic review rejects it, report its reason and preserve dependent work.
+
+## Mandatory latest-only server phase —2026-10-27
+
+For every changed-rd-cl build handoff include the reviewed hosting phase from
+Office docs/rdcl-installer-hosting.md. The technician operates the install on the
+customer computer; no customer confirmation or staff login on that PC is needed.
+After verified EXE/native acceptance, use existing verified server access and the
+exact Office publisher to stage/check the new public HTTPS file, atomically
+activate it and remove only the old manifest-owned EXE. Hosting retains only the
+latest approved installer; keep rollback delivery/caches on S2. Missing access,
+shared mounts, rollout or native evidence blocks only that dependent phase and
+must be reported. No guessed URL/receipt, broad cleanup, SQL, S2 Git publication
+or automatic Dokploy rollout. Carry this phase in the single prompt; do not ask
+for another prompt merely because build and hosting are separate steps.
+
+## New customer installation candidate —2026-10-27
+
+Version2.0.1+73 adds the customer enrollment panel and guarded technician preview/
+recovery flow coordinated with Office1.12.17. See customer-device-enrollment.md.
+It also includes published b948/af37 native lifecycle/analyzer corrections since
+completed1c7cff12. New source SHA comes from the coordinated publication receipt;
+never build an unpublished candidate or substitute the older2.0.0 EXE. This
+candidate supersedes the outstanding af37 handoff, not the completed baseline.
+Require the new exantas_device_enrollment_test.dart along with existing Dart
+regressions/analyzer before native compilation. Preserve SDK-aware codec receipt,
+ABI/SDK/tool pins and warm caches; product version change is not codec drift.
+No new SQL migration. The resulting EXE needs an agreed HTTPS hosting location
+and matching Office installer descriptor before customer download is enabled.
 
 ## Latest attempt: b94834c7 — analyzer BLOCKED, 2026-10-26
 
@@ -406,7 +436,18 @@ docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
    path/hash για σύγκριση με το payload manifest· ακολούθησε το diagnostic
    section του docs/windows-s2-build-integrity.md, χωρίς αυθαίρετο reinstall.
 
-8. Παράδωσε ενιαία αναφορά: στάδια tests/preflight/codecs/application/EXE/artifact
+8. Πρόσθετο υποχρεωτικό στάδιο για αλλαγμένο rd-cl: ακολούθησε το δημοσιευμένο
+   Office docs/rdcl-installer-hosting.md. Αφού περάσουν native acceptance και
+   maintenance, χρησιμοποίησε την υπάρχουσα επαληθευμένη πρόσβαση στον server
+   και τον συγκεκριμένο publisher για νέα λήψη HTTPS/αποτύπωμα, ατομικό current
+   και αφαίρεση μόνο του προηγούμενου EXE. Στον server μένει μόνο η τελευταία
+   έκδοση· τα rollback packages/caches διατηρούνται στον S2. Μην εγκαταστήσεις
+   προϊόν στον S2 host ή πελάτη ως μέρος build. Native acceptance γίνεται μόνο
+   σε εξουσιοδοτημένο αναλώσιμο Windows περιβάλλον με συνθετικές ταυτότητες.
+   Έλλειψη αυτού ή πρόσβασης/mounts/rollout σημαίνει σαφές pending/BLOCKED για
+   hosting, όχι ψευδές PASS ή αυθαίρετο deploy/restart/SQL.
+
+9. Παράδωσε ενιαία αναφορά: στάδια tests/preflight/codecs/application/EXE/artifact
    gate χωριστά, πραγματικές εντολές/log paths, source SHA και έκδοση. Αν το EXE
    υπάρχει και επαληθεύτηκε, ανέφερε υποχρεωτικά τον ακριβή απόλυτο κατάλογό του
    στο Desktop του S2, το πλήρες filename/path, μέγεθος και SHA-256. Πάρε τα από
@@ -414,12 +455,14 @@ docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
    παραχθεί, πες NOT_PRODUCED και δήλωσε μόνο την planned διαδρομή ως τέτοια.
 
 Χωρίς upgrades, source/authentication αλλαγές,
-commit/push στον S2, bypass guards, εγκατάσταση/εκτέλεση προϊόντος, signing,
-GitHub Release, Actions, Dokploy deployment ή σύνδεση στην παραγωγή.
+commit/push στον S2, bypass guards, εγκατάσταση προϊόντος στον S2 host/πελάτες, signing,
+GitHub Release, Actions, Dokploy deployment ή πραγματική συνεδρία πελάτη.
+Εξαίρεση μόνο η εγκεκριμένη διάθεση installer στον συγκεκριμένο server/volume
+και η απομονωμένη native acceptance του παραπάνω σταδίου· χωρίς SQL/restart.
 Η άδεια λήψεων αφορά απαιτούμενα build inputs, όχι παράκαμψη offline guards,
 αυτόματο upgrade ή κατασκευή receipt από downloaded/precompiled αποτελέσματα.
-Runtime/installation acceptance είναι ξεχωριστό στάδιο και παραμένει NOT_RUN
-μέχρι να εκτελεστεί με δική του εξουσιοδότηση. Σε πραγματική αποτυχία σταμάτα τα
+Runtime/installation acceptance παραμένει ξεχωριστό στάδιο με πραγματική απόδειξη
+απομονωμένου Windows ελέγχου· χωρίς τέτοιο περιβάλλον δηλώνεται NOT_RUN. Σε πραγματική αποτυχία σταμάτα τα
 εξαρτώμενα βήματα, διατήρησε diagnostics και επέστρεψε ένα συγκεντρωτικό BLOCKED.
 ```
 

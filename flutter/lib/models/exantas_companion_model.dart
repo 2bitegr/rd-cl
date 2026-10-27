@@ -8,6 +8,7 @@ import 'package:flutter_hbb/models/exantas_secure_store.dart';
 import 'package:flutter_hbb/models/exantas_native_auth.dart';
 import 'package:flutter_hbb/models/exantas_office_response.dart';
 import 'package:flutter_hbb/models/exantas_identity.dart';
+import 'package:flutter_hbb/models/exantas_device_enrollment.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/exantas_workflow_http_policy.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
@@ -28,6 +29,9 @@ const String kExantasNativeReady = 'exantas.office.native_ready';
 const String kExantasNativeExpiry = 'exantas.office.native_expiry';
 const String kExantasNativeConfirm = 'exantas.office.native_confirmation_required';
 
+const String kExantasEnrollmentPending = 'exantas.office.enrollment_pending';
+const String kExantasEnrollmentPassword = 'exantas.office.enrollment_password';
+
 const String kExantasTechnicianToken = 'exantas.office.technician_token';
 
 const String kDefaultExantasOfficeApiBase =
@@ -46,9 +50,10 @@ class ExantasCompanionStatus {
     required this.policy,
     required this.officeUserId,
     this.nativeReady = false,
+    this.enrollmentPending = false,
   });
 
-  final bool nativeReady;
+  final bool nativeReady, enrollmentPending;
   final String apiBase;
   final String officeUserId;
   final bool enrolled;
@@ -80,6 +85,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
     final companionToken = await _getSecretLocalOption(kExantasCompanionToken);
     final policyText = bind.mainGetLocalOption(key: kExantasDevicePolicy);
     return ExantasCompanionStatus(
+      enrollmentPending: bind.mainGetLocalOption(key: kExantasEnrollmentPending).isNotEmpty,
       nativeReady: bind.mainGetLocalOption(key: kExantasNativeReady) == 'Y' &&
           bind.mainGetLocalOption(key: kExantasNativeConfirm).isEmpty,
       apiBase: apiBase,
@@ -149,73 +155,131 @@ class ExantasCompanionService implements ExantasIdentityActions {
       officeSignedOut: signedOut, newId: _string(response['new_id']), backupPath: _string(response['backup_path']));
   }
 
-  Future<ExantasCompanionStatus> enrollDevice(String installCode) async {
-    final code = installCode.trim();
-    if (code.isEmpty) {
-      throw Exception('Install code is required.');
+  Future<ExantasDeviceEnrollmentPreview> previewDeviceEnrollment(String rawCode) async {
+    nativeApiOrigin(apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    final code = rawCode.trim().toUpperCase();
+    if (!RegExp(r'^EXA-[A-F0-9]{6}-[A-F0-9]{6}-[A-F0-9]{6}$').hasMatch(code)) {
+      throw const FormatException('Μη έγκυρος κωδικός εγκατάστασης.');
     }
+    final response = await _post('/rustdesk-devices/installation-info',
+      {'install_code': code}).timeout(const Duration(seconds: 12));
+    return ExantasDeviceEnrollmentPreview.parse(code, response);
+  }
 
+  Future<ExantasCompanionStatus> enrollDevice(ExantasDeviceEnrollmentPreview preview) =>
+      _nativeFence.run(() => _enrollDevice(preview));
+
+  Future<ExantasCompanionStatus> _enrollDevice(ExantasDeviceEnrollmentPreview preview) async {
+    final before = await loadStatus();
+    nativeApiOrigin(before.apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    if (before.enrolled || before.technicianLoggedIn || before.enrollmentPending ||
+        bind.mainGetLocalOption(key: 'access_token').isNotEmpty) {
+      throw StateError('Υπάρχει ήδη σύνδεση ή εκκρεμές αίτημα σε αυτόν τον υπολογιστή.');
+    }
     final peerId = (await bind.mainGetMyId()).trim();
-    if (peerId.isEmpty) {
-      throw Exception('RustDesk ID is not ready yet.');
-    }
-
+    if (!RegExp(r'^\d{6,10}$').hasMatch(peerId)) throw StateError('Το RustDesk ID δεν είναι έτοιμο.');
     final version = await bind.mainGetVersion();
-    final response = await _post('/rustdesk-devices/enroll', {
-      'install_code': code,
-      'peer_id': peerId,
-      'label': 'Exantas Support $peerId',
-      'device_name': 'Exantas Support $peerId',
-      'client_version': version,
-      'install_mode': isRunningInPortableMode() ? 'portable' : 'msi',
-      'platform': 'windows',
-    });
-
-    final deviceToken = _string(response['device_token']);
-    if (deviceToken.isEmpty) {
-      throw Exception('Office did not return a device token.');
-    }
-
-    final device = _decodeMap(response['device']);
-    final policy = _decodeMap(response['policy']);
-    final unattendedEnabled = policy['unattended_enabled'] == true;
-
-    if (unattendedEnabled) {
-      final unattendedPassword = _generatePassword();
-      try {
-        final passwordSet = await bind.mainSetPermanentPasswordWithResult(
-            password: unattendedPassword);
-        if (!passwordSet) {
-          throw Exception('Could not set per-device unattended password.');
-        }
-        await bind.mainSetOption(
-            key: 'verification-method', value: kUseBothPasswords);
-        await _post(
-            '/rustdesk-devices/credential',
-            {
-              'unattended_password': unattendedPassword,
-            },
-            bearerToken: deviceToken);
-      } catch (_) {
-        await bind.mainSetPermanentPasswordWithResult(password: '');
-        await bind.mainSetOption(
-            key: 'verification-method', value: kUseTemporaryPassword);
-        rethrow;
+    final marker = jsonEncode({'api_base': before.apiBase, 'peer_id': peerId,
+      'customer_id': preview.customerId, 'enrollment_id': preview.enrollmentId,
+      'customer_name': preview.customerName, 'unattended_enabled': preview.unattended});
+    // Persist before a potentially committed request. A lost reply must not redeem
+    // another use on refresh/restart; no automatic enrollment replay is allowed.
+    await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: marker);
+    final httpResponse = await http.post(Uri.parse('${before.apiBase}/rustdesk-devices/enroll'),
+      headers: _headers(null), body: jsonEncode({
+        'install_code': preview.code, 'peer_id': peerId,
+        'expected_customer_id': preview.customerId,
+        'expected_enrollment_id': preview.enrollmentId,
+        'expected_unattended_enabled': preview.unattended,
+        'label': 'Exantas Support $peerId', 'device_name': 'Exantas Support $peerId',
+        'client_version': version, 'install_mode': isRunningInPortableMode() ? 'portable' : 'msi',
+        'platform': 'windows',
+      })).timeout(const Duration(seconds: 20));
+    if (httpResponse.statusCode >= 400 && httpResponse.statusCode < 500) {
+      Map<String, dynamic> error = {};
+      try { error = _decodeMap(jsonDecode(httpResponse.body)); } catch (_) {}
+      if (['enrollment_confirmation_changed', 'invalid_enrollment_code',
+          'enrollment_link_revoked', 'enrollment_link_expired',
+          'enrollment_link_exhausted', 'customer_inactive', 'enrollment_customer_conflict',
+          'device_already_managed'].contains(error['status']) &&
+          bind.mainGetLocalOption(key: kExantasEnrollmentPending) == marker) {
+        await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: '');
       }
-    } else {
-      await bind.mainSetOption(
-          key: 'verification-method', value: kUseTemporaryPassword);
     }
-
+    final response = _decodeResponse(httpResponse.statusCode, httpResponse.body);
+    final current = await loadStatus();
+    final device = _decodeMap(response['device']);
+    final deviceToken = _string(response['device_token']);
+    if (current.apiBase != before.apiBase || current.enrolled || current.technicianLoggedIn ||
+        bind.mainGetLocalOption(key: kExantasEnrollmentPending) != marker ||
+        (await bind.mainGetMyId()).trim() != peerId || deviceToken.isEmpty ||
+        device['customer_id'] != preview.customerId || device['enrollment_link_id'] != preview.enrollmentId) {
+      throw StateError('Η σύνδεση δεν επιβεβαιώθηκε για αυτόν τον υπολογιστή.');
+    }
+    final policy = _decodeMap(response['policy']);
+    if ((policy['unattended_enabled'] == true) != preview.unattended) {
+      throw StateError('Η πολιτική πρόσβασης άλλαξε. Επικοινωνήστε με την υποστήριξη.');
+    }
+    // Persist the confirmed metadata before the grant. Explicit completion can
+    // repair interrupted local writes without redeeming another enrollment use.
+    final grantedMarker = jsonEncode({..._decodeMap(marker),
+      'device_id': _string(device['id']), 'policy': policy});
+    await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: grantedMarker);
     await _setSecretLocalOption(kExantasDeviceToken, deviceToken);
-    await bind.mainSetLocalOption(
-        key: kExantasDeviceId, value: _string(device['id']));
-    await bind.mainSetLocalOption(
-        key: kExantasDeviceCustomerName,
-        value: _string(device['customer_name']));
-    await bind.mainSetLocalOption(
-        key: kExantasDevicePolicy, value: jsonEncode(policy));
+    await _completeDeviceEnrollment();
     return loadStatus();
+  }
+
+  Future<void> completeDeviceEnrollment() => _nativeFence.run(_completeDeviceEnrollment);
+
+  Future<void> _completeDeviceEnrollment() async {
+    final status = await loadStatus();
+    final marker = bind.mainGetLocalOption(key: kExantasEnrollmentPending);
+    final attempt = _decodeMap(marker);
+    nativeApiOrigin(status.apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    if (!status.enrolled || status.technicianLoggedIn || marker.isEmpty ||
+        attempt['api_base'] != status.apiBase ||
+        attempt['peer_id'] != (await bind.mainGetMyId()).trim()) {
+      throw StateError('Δεν επιβεβαιώθηκε η εκκρεμής εγκατάσταση.');
+    }
+    final policy = _decodeMap(attempt['policy']);
+    if (_string(attempt['device_id']).isEmpty || attempt['unattended_enabled'] is! bool ||
+        policy['unattended_enabled'] != attempt['unattended_enabled']) {
+      throw StateError('Δεν επιβεβαιώθηκαν οι ρυθμίσεις εγκατάστασης.');
+    }
+    await bind.mainSetLocalOption(key: kExantasDeviceId, value: _string(attempt['device_id']));
+    await bind.mainSetLocalOption(key: kExantasDeviceCustomerName, value: _string(attempt['customer_name']));
+    await bind.mainSetLocalOption(key: kExantasDevicePolicy, value: jsonEncode(policy));
+    if (policy['unattended_enabled'] == true) {
+      var password = await _getSecretLocalOption(kExantasEnrollmentPassword);
+      if (password.isEmpty) {
+        password = _generatePassword();
+        await _setSecretLocalOption(kExantasEnrollmentPassword, password);
+      }
+      if (!await bind.mainSetPermanentPasswordWithResult(password: password)) {
+        throw StateError('Δεν ολοκληρώθηκε η ρύθμιση πρόσβασης.');
+      }
+      await bind.mainSetOption(key: 'verification-method', value: kUseBothPasswords);
+      // Explicit resume uses the same persisted per-device password. A lost
+      // response does not generate another password or clear existing access.
+      final credentialReply = await http.post(
+        Uri.parse('${status.apiBase}/rustdesk-devices/credential'),
+        headers: _headers(status.deviceToken),
+        body: jsonEncode({'unattended_password': password}),
+      ).timeout(const Duration(seconds: 20));
+      _decodeResponse(credentialReply.statusCode, credentialReply.body);
+    } else {
+      await bind.mainSetOption(key: 'verification-method', value: kUseTemporaryPassword);
+    }
+    final current = await loadStatus();
+    if (current.deviceToken != status.deviceToken || current.apiBase != status.apiBase ||
+        (await bind.mainGetMyId()).trim() != attempt['peer_id'] ||
+        bind.mainGetLocalOption(key: kExantasEnrollmentPending) != marker) {
+      throw StateError('Η κατάσταση του υπολογιστή άλλαξε.');
+    }
+    await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: '');
+    await _setSecretLocalOption(kExantasEnrollmentPassword, '');
+    accountChanges.notifyListeners();
   }
 
   Future<ExantasCompanionStatus> loginTechnician(String email, String password) =>
@@ -224,6 +288,9 @@ class ExantasCompanionService implements ExantasIdentityActions {
   Future<ExantasCompanionStatus> _loginTechnician(
       String email, String password) async {
     nativeApiOrigin(apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    if (bind.mainGetLocalOption(key: kExantasEnrollmentPending).isNotEmpty) {
+      throw StateError('Ολοκληρώστε πρώτα την εκκρεμή εγκατάσταση πελάτη.');
+    }
     if (Platform.isWindows && bind.mainGetLocalOption(key: 'access_token').isNotEmpty) {
       throw StateError('Αποσυνδεθείτε πρώτα από τον ξεχωριστό λογαριασμό RustDesk.');
     }

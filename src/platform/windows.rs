@@ -1527,6 +1527,9 @@ fn get_after_install(
     reg add \"HKEY_CLASSES_ROOT\\{ext}\\shell\\open\" /f
     reg add \"HKEY_CLASSES_ROOT\\{ext}\\shell\\open\\command\" /f
     reg add \"HKEY_CLASSES_ROOT\\{ext}\\shell\\open\\command\" /f /ve /t REG_SZ /d \"\\\"{exe}\\\" \\\"%%1\\\"\"
+    reg add \"HKEY_CLASSES_ROOT\\exantas-support-enroll\" /f /ve /t REG_SZ /d \"URL:Exantas Support Installation\"
+    reg add \"HKEY_CLASSES_ROOT\\exantas-support-enroll\" /f /v \"URL Protocol\" /t REG_SZ /d \"\"
+    reg add \"HKEY_CLASSES_ROOT\\exantas-support-enroll\\shell\\open\\command\" /f /ve /t REG_SZ /d \"\\\"{exe}\\\" \\\"%%1\\\"\"
     netsh advfirewall firewall add rule name=\"{app_name} Service\" dir=out action=allow program=\"{exe}\" enable=yes
     netsh advfirewall firewall add rule name=\"{app_name} Service\" dir=in action=allow program=\"{exe}\" enable=yes
     {create_service}
@@ -1766,6 +1769,7 @@ fn get_before_uninstall(kill_self: bool) -> String {
     taskkill /F /IM \"{app_name}.exe\"{filter}
     reg delete \"HKEY_CLASSES_ROOT\\.{ext}\" /f
     reg delete \"HKEY_CLASSES_ROOT\\{ext}\" /f
+    reg delete \"HKEY_CLASSES_ROOT\\exantas-support-enroll\" /f
     netsh advfirewall firewall delete rule name=\"{app_name} Service\"
     ",
         broker_exe = WIN_TOPMOST_INJECTED_PROCESS_EXE,

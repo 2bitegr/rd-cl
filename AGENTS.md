@@ -215,7 +215,9 @@ do not launch a parallel PackageExe or delete busy/stale/changed locks. Investig
 ownership/process state instead. Keep the current complete prompt, required
 verified preparation downloads, artifact gate and exact EXE path/hash reporting.
 Local guard/PowerShell/CMake PASS is not native S2 build/runtime acceptance.
-User-authorized current source release is2.0.0 (Flutter2.0.0+72). See
+Historical installer correction release is2.0.0 (Flutter2.0.0+72).
+User-authorized customer installation repair candidate is2.0.1+73; see
+rd-cl/docs/customer-device-enrollment.md. New Windows acceptance is required. See
 rd-cl/docs/windows-installer-2.0.0.md for the installer correction and required
 native clean-install/upgrade acceptance. The old1.4.13+71 packaging PASS remains
 historical; user-reported installation/upgrade failed (old core, broken shortcut,
@@ -276,6 +278,27 @@ It does not override sandbox/tool/UAC approval mechanisms: use required approval
 normally, never disable/bypass them or claim a prompt removes them. When mandatory
 platform approval is still needed, explain the concrete action and platform rule;
 when automatic review rejects it, report its reason and preserve dependent work.
+
+## Installer hosting after changed rd-cl — user policy2026-10-27
+
+Every future S2 prompt for changed rd-cl includes building/verifying the latest
+EXE and publishing only that approved version to the dedicated server installer
+volume after matching native acceptance evidence. The technician installs it on
+the customer's PC; customer confirmation/login is not part of this workflow.
+Keep EXE for this supported interactive path; MSI packaging exists but is not a
+substitute for required EXE/install/upgrade acceptance or MSI migration ownership.
+S2 may use existing verified server access for this scoped artifact publication,
+without source development/Git publication, Dokploy deployment/restart or SQL.
+Use Office docs/rdcl-installer-hosting.md and its exact reviewed publisher: verify
+EXE/build/acceptance receipts, real x64 bytes and the public HTTPS download BEFORE
+activating current.json/removing the old file. Retain one EXE on the hosting
+server; preserve the last verified S2 delivery and build caches separately.
+Remove only the previous manifest-owned installer in that dedicated volume;
+never broad-delete historical files or touch another application's storage.
+Missing server access/shared mounts/native evidence means report the precise
+pending phase, not a fabricated publication or request to rebuild older source.
+Source/build-only prompts must carry the hosting phase even when blocked, and
+NO_RDCL_BUILD_NEEDED must not trigger a redundant build or installer replacement.
 
 ## Mandatory cleanup before commit, push and release
 

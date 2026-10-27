@@ -11,6 +11,8 @@ import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'exantas_sessions_page.dart';
 import '../widgets/exantas_identity_settings.dart';
 import '../widgets/exantas_account_settings.dart';
+import '../widgets/exantas_device_enrollment.dart';
+import '../../models/exantas_device_enrollment.dart';
 import '../../models/exantas_companion_model.dart';
 import '../../models/exantas_report_outbox.dart';
 import 'package:flutter_hbb/consts.dart';
@@ -2093,7 +2095,20 @@ class _Account extends StatelessWidget {
     final service = ExantasCompanionService();
     return ListView(
       children: [
-        _Card(title: 'Account', children: [
+        _Card(title: 'Υποστήριξη πελάτη', children: [
+          Padding(padding: const EdgeInsets.all(18), child: ExantasDeviceEnrollment(
+            loadStatus: () async {
+              final status = await service.loadStatus();
+              return ExantasDeviceEnrollmentStatus(enrolled: status.enrolled,
+                staffSignedIn: status.technicianLoggedIn,
+                customerName: status.customerName, pending: status.enrollmentPending);
+            },
+            preview: service.previewDeviceEnrollment,
+            enroll: (preview) => _action(() => service.enrollDevice(preview)),
+            complete: () => _action(service.completeDeviceEnrollment),
+          )),
+        ]),
+        _Card(title: 'Σύνδεση τεχνικού στο Office', children: [
           Padding(
             padding: const EdgeInsets.all(18),
             child: ExantasAccountSettings(
