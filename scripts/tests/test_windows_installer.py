@@ -114,15 +114,15 @@ class VersionAndCoreIdentity(unittest.TestCase):
         lock = tomllib.loads((ROOT / 'Cargo.lock').read_text())
         profile = json.loads((ROOT / 'scripts/windows-native-profile.json').read_text())
         pins = json.loads((ROOT / 'scripts/windows-codec-bootstrap-inputs.json').read_text())
-        self.assertEqual(cargo['package']['version'], '2.0.1')
-        self.assertEqual(packer['package']['version'], '2.0.1')
-        self.assertEqual(profile['version'], '2.0.1+73')
+        self.assertEqual(cargo['package']['version'], '2.0.2')
+        self.assertEqual(packer['package']['version'], '2.0.2')
+        self.assertEqual(profile['version'], '2.0.2+74')
         self.assertEqual(pins['product_version'], profile['version'])
         self.assertIn('version: ' + profile['version'], (ROOT / 'flutter/pubspec.yaml').read_text())
         for name in ['rustdesk', 'rustdesk-portable-packer']:
-            self.assertEqual(next(p['version'] for p in lock['package'] if p['name'] == name), '2.0.1')
+            self.assertEqual(next(p['version'] for p in lock['package'] if p['name'] == name), '2.0.2')
         for key in ['ProductVersion', 'FileVersion']:
-            self.assertEqual(packer['package']['metadata']['winres'][key], '2.0.1.73')
+            self.assertEqual(packer['package']['metadata']['winres'][key], '2.0.2.74')
         for name, expected in profile['input_sha256'].items():
             self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), expected, name)
 
@@ -154,3 +154,13 @@ class VersionAndCoreIdentity(unittest.TestCase):
             (bundle / 'librustdesk.dll').write_bytes(b'new-core')
             runner.require_native_core(bundle, root)
             self.assertEqual(json.loads((runner.logs / 'native-core-identity.json').read_text())['version'], '2.0.0')
+
+
+@unittest.skipUnless(RUSTC, 'Existing Rust compiler required for bootstrap parser')
+class InstallerBootstrap(unittest.TestCase):
+    def test_actual_filename_parser_handles_context_and_browser_duplicates(self):
+        with tempfile.TemporaryDirectory(prefix='rdcl-bootstrap-') as folder:
+            target = Path(folder) / ('bootstrap.exe' if os.name == 'nt' else 'bootstrap')
+            subprocess.run([RUSTC, '--edition=2021', '--test', str(ROOT / 'src/platform/installer_bootstrap.rs'), '-o', str(target)], check=True, capture_output=True, text=True)
+            result = subprocess.run([str(target)], check=True, capture_output=True, text=True)
+            self.assertIn('2 passed', result.stdout)

@@ -1,5 +1,29 @@
 # One complete rd-cl build prompt for S2
 
+## Current next build — automatic installation2.0.2+74 (2026-10-28)
+
+New source spans Office1.12.18 and rd-cl2.0.2+74. The card COPIES a device-scoped
+installation link for the customer browser;successful interactive Windows install
+passes the capability to native automatic enrollment and same-grant completion
+ACK. Common latest download is also available. One PC can have multiple contacts
+and callers;changes of caller do not change the managed identity. See published
+Office docs/rdcl-automatic-enrollment.md and current rdcl-installer-hosting.md.
+New pure Rust filename/parser and automatic Flutter cases are mandatory existing
+runner tests. No dependencies/codecs/SDK/icons or session protocol pins change.
+New reviewed source requires exact publication before S2;no invented future SHA.
+The completed4c6787922.0.1+73 package is retained as baseline,not rebuilt or copied
+as proof of this new feature. Reuse its genuine codec receipt and warm caches.
+
+The user has no disposable Windows environment. Successful build/package/integrity/
+maintenance may be uploaded through verified SSH with explicit native NOT_RUN;
+this supersedes the older mandatory acceptance-PASS/VM hosting block below.
+Do not manufacture PASS or hide FAIL. Source/bytes/PE/HTTPS/atomic latest-only and
+maintenance gates remain. S2 reports native runtime separately and never installs
+on host/customer PCs or deploys/restarts Office as part of building. The user
+manually rolls out Office1.12.18 with existing shared installer volume/config.
+No migration/replay. Always include the scoped hosting phase in the one prompt.
+
+
 Trigger: when the user requests Office commit/push, inspect both repositories
 before publication. Include related reviewed task-owned rd-cl changes in that
 coordinated publication unless the user explicitly limits scope. Apply each
@@ -94,7 +118,7 @@ when automatic review rejects it, report its reason and preserve dependent work.
 For every changed-rd-cl build handoff include the reviewed hosting phase from
 Office docs/rdcl-installer-hosting.md. The technician operates the install on the
 customer computer; no customer confirmation or staff login on that PC is needed.
-After verified EXE/native acceptance, use existing verified server access and the
+After verified EXE/build/maintenance and honest native status, use existing verified server access and the
 exact Office publisher to stage/check the new public HTTPS file, atomically
 activate it and remove only the old manifest-owned EXE. Hosting retains only the
 latest approved installer; keep rollback delivery/caches on S2. Missing access,
@@ -103,7 +127,7 @@ must be reported. No guessed URL/receipt, broad cleanup, SQL, S2 Git publication
 or automatic Dokploy rollout. Carry this phase in the single prompt; do not ask
 for another prompt merely because build and hosting are separate steps.
 
-## Latest attempt87e01f40 — notifier analyzer BLOCKED,2026-10-27
+## Earlier attempt87e01f40 — notifier analyzer BLOCKED,2026-10-27
 
 User S2 receipt:source/pins/codec reuse/SDK/ABI/plan/Preflight PASS;guards89PASS/
 1Linux-onlySKIP. Analyzer exit2,0ERROR/4WARNING/30INFO. External notifyListeners
@@ -120,8 +144,9 @@ Completed baseline remains1c7cff12,2.0.0+72; candidate remains2.0.1+73.
 
 Independent S2 read-only findings:owned Windows VM unavailable, Sandbox disabled;
 running Office API1.12.16 has no common installer mount/config/download route.
-Acceptance/hosting remain BLOCKED until actual disposable Windows proof and user
-manual Office1.12.17 rollout. No upload/deploy/restart. Build stages may proceed
+Historical attempt:acceptance/hosting were BLOCKED by unavailable Windows proof
+and manual rollout. Current2.0.2 policy allows honest NOT_RUN hosting after verified
+package/maintenance and user manual Office1.12.18 rollout. No upload/deploy/restart. Build stages may proceed
 independently after source correction; retain the hosting phase with its actual
 blocker instead of inventing acceptance. No migration replay or sandbox enabling
 is implied by this report. Office source staysde040725852f49761d602a81b6420e80f028f9e8.
@@ -153,7 +178,32 @@ before native compilation, with unchanged diagnostics policy. Reuse genuine
 receipt784aba54...6572 and compatible warm application caches; no codec rebuild
 is justified by this import-only correction. Office remains74142de7...234e4.
 
-## Current completed application/EXE baseline
+## Current completed application/EXE baseline —4c678792
+
+User-forwarded S2 receipt received2026-10-28;Windows bytes/logs were not
+independently accessed here. Source`4c6787926a46a2a981f1b251b0223c8853fce54b`,branch
+codex/s2-codec-bootstrap-1.4.13,version2.0.1+73,Windows x64 EXE UNSIGNED.
+Directory:`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.1+73\delivery-s2-4c678792`.
+Filename:`rd-cl-2.0.1+73-windows-x64-install.exe`;size24332288bytes.
+SHA256:`7a46b86664abacc9ec46adea51d35df664f6c3852886be19a87c9c8ff12641ec`.
+Pull/pins/snapshot,codec reuse/SDK/ABI (no bootstrap),guards89PASS/1Linux-onlySKIP,
+analyzer0ERROR/0WARNING/30INFO,Dart80PASS,native/EXE/ZIP/integrity122checksum entries
+and maintenance plan/apply/verify PASS. ZIP/manifests/SHA256SUMS/INSTALLATION-EL.md,
+BUILD-STATUS.md and real acceptance.json with NOT_RUN are beside EXE per report.
+Windows acceptance NOT_RUN;hosting BLOCKED/NOT_PUBLISHED. No owned disposable
+Windows environment is available. Last hosting check found API1.12.16 without
+shared installer volume/config/route;user manual Office1.12.17 rollout remains
+pending. No upload/publication/deploy/restart occurred. Do not invent signing or
+runtime proof. No repeat build/handoff for this unchanged source:
+NO_RDCL_BUILD_NEEDED. Any hosting-only continuation uses this actual package and
+preserves pending acceptance;current publisher records honest PASS or NOT_RUN and requires maintenance PASS.
+
+Retain prior packages/caches and failed87e01f40 evidence. Automatic managed-device
+activation from contact association/download is proposed,not implemented in this
+EXE. It supports the existing explicit installation-link activation path.
+
+## Previous completed baseline —1c7cff12 (historical)
+
 
 Latest S2 completion, user report on 2026-10-24. Package/log bytes on Windows
 were not independently accessed here; these are reported native S2 results.
@@ -305,7 +355,7 @@ Current toolchain SHA256:
 Επαλήθευσε πραγματικό path/hash/tool/SDK/ABI στον S2 και κράτησέ τα αμετάβλητα.
 Αυτό είναι ανεξάρτητο codec proof, όχι επιτυχής εφαρμογή ή νέο completed baseline.
 Προηγούμενο completed application/EXE baseline: 1c7cff1289438b84788b3b2b78ab30c05ce25202
-Baseline version: 2.0.0+72
+Baseline version: 2.0.1+73
 Baseline EXE SHA-256: e567886417f4d779299937ff626ca7da31aee790b4f33c4a9e6ffa417080d088
 (Ο αποστολέας ενημερώνει αυτά τα baseline πεδία από την τελευταία completed αναφορά.)
 Αλλαγές rd-cl: <verified comparison and changed source/build-input paths>
@@ -460,15 +510,15 @@ docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
    section του docs/windows-s2-build-integrity.md, χωρίς αυθαίρετο reinstall.
 
 8. Πρόσθετο υποχρεωτικό στάδιο για αλλαγμένο rd-cl: ακολούθησε το δημοσιευμένο
-   Office docs/rdcl-installer-hosting.md. Αφού περάσουν native acceptance και
-   maintenance, χρησιμοποίησε την υπάρχουσα επαληθευμένη πρόσβαση στον server
+   Office docs/rdcl-installer-hosting.md. Αφού περάσουν build/package και maintenance και καταγραφεί ειλικρινώς
+   native acceptance PASS ή NOT_RUN, χρησιμοποίησε την υπάρχουσα επαληθευμένη πρόσβαση στον server
    και τον συγκεκριμένο publisher για νέα λήψη HTTPS/αποτύπωμα, ατομικό current
    και αφαίρεση μόνο του προηγούμενου EXE. Στον server μένει μόνο η τελευταία
    έκδοση· τα rollback packages/caches διατηρούνται στον S2. Μην εγκαταστήσεις
    προϊόν στον S2 host ή πελάτη ως μέρος build. Native acceptance γίνεται μόνο
    σε εξουσιοδοτημένο αναλώσιμο Windows περιβάλλον με συνθετικές ταυτότητες.
-   Έλλειψη αυτού ή πρόσβασης/mounts/rollout σημαίνει σαφές pending/BLOCKED για
-   hosting, όχι ψευδές PASS ή αυθαίρετο deploy/restart/SQL.
+   Έλλειψη Windows περιβάλλοντος σημαίνει acceptance NOT_RUN και δεν μπλοκάρει
+   verified upload. Έλλειψη πρόσβασης/mounts/rollout σημαίνει pending/BLOCKED για hosting, όχι ψευδές PASS ή αυθαίρετο deploy/restart/SQL.
 
 9. Παράδωσε ενιαία αναφορά: στάδια tests/preflight/codecs/application/EXE/artifact
    gate χωριστά, πραγματικές εντολές/log paths, source SHA και έκδοση. Αν το EXE

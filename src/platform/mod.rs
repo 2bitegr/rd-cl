@@ -10,6 +10,8 @@ pub mod windows;
 
 #[cfg(windows)]
 mod windows_install;
+#[cfg(windows)]
+mod installer_bootstrap;
 
 #[cfg(windows)]
 pub mod win_device;

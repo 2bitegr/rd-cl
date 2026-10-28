@@ -2263,7 +2263,7 @@ setEnvTerminalAdmin() {
 }
 
 bool _enrollmentDialogOpen = false;
-Future<void> _showEnrollmentFromLink(String code) async {
+Future<void> _showEnrollmentFromLink(String code, {bool automatic = false}) async {
   if (_enrollmentDialogOpen) { await windowOnTop(null); return; }
   _enrollmentDialogOpen = true;
   try {
@@ -2274,7 +2274,7 @@ Future<void> _showEnrollmentFromLink(String code) async {
     await showDialog<void>(context: context, builder: (context) => AlertDialog(
       title: const Text('Εγκατάσταση υπολογιστή πελάτη'),
       content: SizedBox(width: 500, child: SingleChildScrollView(
-        child: ExantasDeviceEnrollment(initialCode: code,
+        child: ExantasDeviceEnrollment(initialCode: code, automatic: automatic,
           loadStatus: () async {
             final status = await service.loadStatus();
             return ExantasDeviceEnrollmentStatus(enrolled: status.enrolled,
@@ -2292,6 +2292,21 @@ Future<void> _showEnrollmentFromLink(String code) async {
     // Never log the enrollment URI, code, grant or network payload.
     debugPrint('Customer installation link could not be opened');
   } finally { _enrollmentDialogOpen = false; }
+}
+
+Future<void> activateInstallerEnrollment(String launchCode) async {
+  if (!isWindows) return;
+  // Consume the launch environment once; never propagate capabilities to later
+  // tray/update/session children. Durable POST ambiguity is fenced by service.
+  bind.mainSetEnv(key: 'EXANTAS_OFFICE_ENROLLMENT_CODE', value: '');
+  if (launchCode.isNotEmpty) bind.mainSetEnv(key: 'RUSTDESK_APPNAME', value: '');
+  if (!bind.mainIsInstalled()) return;
+  try {
+    final service=ExantasCompanionService();
+    final code = await service.installerBootstrapCode(launchCode);
+    if (code.isNotEmpty) { await _showEnrollmentFromLink(code, automatic: true); }
+    else if (await service.automaticCompletionPending()) { await _showEnrollmentFromLink('', automatic: true); }
+  } catch (_) { debugPrint('Customer installer activation is unavailable'); }
 }
 
 // uri link handler

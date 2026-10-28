@@ -1,10 +1,30 @@
-# Customer computer enrollment —2.0.1+73 candidate
+# Automatic customer installation —2.0.2+74 candidate
+
+The2026-10-28 user-approved automatic flow is specified in Office
+docs/rdcl-automatic-enrollment.md and docs/rdcl-installer-hosting.md. Copy a device
+link in the customer card,paste it in the customer browser,install the shared EXE.
+Successful Windows install passes its peer-bound capability to the app;it enrolls
+and acknowledges local setup automatically. Office confirms only after that ACK.
+Many contacts/callers share one computer/token;no per-contact re-enrollment.
+The common download has no enrollment context. Attended policy is the default.
+No new SQL/dependencies/remote session protocol. Client HTTP completion is
+idempotent;pre-POST bootstrap is protected/short-lived and post ambiguity never
+replays enrollment. Confirmed-grant completion can safely resume on restart.
+
+This source needs a new exact-SHA S2 build;completed4c6787922.0.1+73 remains the
+retained baseline. Hosting after verified package/maintenance may record native
+acceptance NOT_RUN;no unavailable VM prerequisite and no fabricated runtime PASS.
+The following2.0.1 manual-link history remains compatible.
+
+# Customer computer enrollment —2.0.1+73
 
 User-authorized repair of the broken Office installation flow. The prior
 2.0.0+72 EXE had an enrollment method with no reachable customer settings panel.
 Office1.12.17 adds a public /install/:code page and read-only capability preview.
 It advertises only an explicitly configured, verified compatible installer.
-This source candidate requires a new S2 build; no native artifact is claimed.
+User S2 receipt received2026-10-28 confirms build/package/maintenance PASS at
+4c6787926a46a2a981f1b251b0223c8853fce54b. Windows acceptance and hosting pending;
+no new build for unchanged source. See the current handoff guide baseline.
 
 ## Customer path and authority
 
@@ -49,15 +69,15 @@ The new widget/preview tests are in the mandatory native Dart regression list.
 
 Cloud guards82 PASS/8 platform SKIP and eight changed Dart files syntax PASS.
 Widget behavior/analyzer and Windows build/EXE/runtime/DPAPI/service/installation
-remain NOT_RUN here. The current source replaces the outstanding af37 handoff,
-but cannot advance the last completed1c7cff12 build baseline without S2 receipts.
+remain NOT_RUN locally. User S2 receipt now advances the completed build baseline
+to4c678792:Dart80PASS,analyzer0ERROR/0WARNING/30INFO,native/EXE/ZIP/integrity and
+maintenance PASS;122checksum entries. This does not establish runtime acceptance.
 Preserve that completed2.0.0+72 package, failed b948 evidence and compatible warm
 Cargo/Flutter/vcpkg/SDK22621 state. Follow windows-s2-build-handoff.md for one
 exact published-SHA guarded build and verified package/maintenance gates.
 
 Every S2 prompt for changed rd-cl also carries the latest-only hosting phase per
-Office docs/rdcl-installer-hosting.md. After native build/maintenance and actual
-owned Windows acceptance, use that reviewed publisher through existing verified
+Office docs/rdcl-installer-hosting.md. After verified native build/maintenance and honest native acceptance status, use that reviewed publisher through existing verified
 server access. API/Web share one dedicated read-only installer volume; API reads
 current.json and verifies real bytes. Public HTTPS byte/hash check precedes the
 atomic active pointer and removal of the sole previous manifest-owned EXE.
@@ -87,3 +107,9 @@ remain pending; never replace the completed build baseline with this failure.
 
 Fresh cloud correction checks:82guards PASS/8platform SKIP;3Dart files syntax
 PASS. These do not run or replace the pinned Flutter analyzer.
+
+User confirmed no disposable Windows environment;acceptance remains NOT_RUN and
+hosting NOT_PUBLISHED. No rebuild is requested. Proposed automatic enrollment
+from contact association/download is not in this package;current installation
+link still supplies the activation capability. Copy/install of the shared EXE
+alone and manual contact mapping do not install the managed-device token.

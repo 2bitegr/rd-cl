@@ -8,9 +8,12 @@ const preview = ExantasDeviceEnrollmentPreview(code: code,
   enrollmentId: '11111111-1111-4111-8111-111111111111',
   customerId: '22222222-2222-4222-8222-222222222222',
   customerName: 'Synthetic customer', unattended: true);
+const automaticPreview = ExantasDeviceEnrollmentPreview(code: code, enrollmentId: '11111111-1111-4111-8111-111111111111',
+  customerId: '22222222-2222-4222-8222-222222222222', customerName: 'Synthetic customer', unattended: true,
+  automatic: true, expectedPeerId: '123456789');
 class FakeDevice {
   bool enrolled = false, staff = false, pending = false, failPreview = false;
-  bool unknownReply = false;
+  bool unknownReply = false, automatic = false;
   int previews = 0, enrolls = 0, completions = 0;
   Future<ExantasDeviceEnrollmentStatus> load() async => ExantasDeviceEnrollmentStatus(
     enrolled: enrolled, staffSignedIn: staff, pending: pending,
@@ -18,7 +21,7 @@ class FakeDevice {
   Future<ExantasDeviceEnrollmentPreview> check(String raw) async {
     previews++;
     if (failPreview) throw const FormatException('synthetic unavailable');
-    return preview;
+    return automatic ? automaticPreview : preview;
   }
   Future<void> enroll(ExantasDeviceEnrollmentPreview value) async {
     expect(value.customerId, preview.customerId); enrolls++; pending = true;
@@ -27,9 +30,9 @@ class FakeDevice {
   }
   Future<void> complete() async { completions++; pending = false; }
 }
-Future<void> mount(WidgetTester tester, FakeDevice fake, {String? initialCode}) async {
+Future<void> mount(WidgetTester tester, FakeDevice fake, {String? initialCode, bool automatic = false}) async {
   await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(
-    child: ExantasDeviceEnrollment(initialCode: initialCode, loadStatus: fake.load, preview: fake.check,
+    child: ExantasDeviceEnrollment(initialCode: initialCode, automatic: automatic, loadStatus: fake.load, preview: fake.check,
       enroll: fake.enroll, complete: fake.complete),
   ))));
   await tester.pumpAndSettle();
@@ -39,6 +42,40 @@ Future<void> check(WidgetTester tester) async {
   await tester.tap(find.text('Έλεγχος πελάτη')); await tester.pumpAndSettle();
 }
 void main() {
+  testWidgets('known automatic grant resumes completion and acknowledgement without reenrollment', (tester) async {
+    final fake=FakeDevice()..enrolled=true..pending=true..automatic=true;
+    await mount(tester,fake,initialCode:'',automatic:true);
+    expect(fake.enrolls,0);expect(fake.completions,1);expect(fake.previews,0);
+    expect(find.text('Ο υπολογιστής συνδέθηκε με την υποστήριξη.'),findsOneWidget);
+  });
+
+  test('bound peer is the computer, not the current caller', () {
+    requireEnrollmentPeer(automaticPreview, '123456789');
+    expect(() => requireEnrollmentPeer(automaticPreview, '987654321'), throwsA(isA<ExantasEnrollmentFailure>()));
+  });
+  testWidgets('installer activates automatically once without code typing or confirmation', (tester) async {
+    final fake=FakeDevice()..automatic=true;await mount(tester,fake,initialCode:code,automatic:true);
+    expect(fake.previews,1);expect(fake.enrolls,1);expect(find.byType(TextField),findsNothing);
+    expect(find.text('Ο υπολογιστής συνδέθηκε με την υποστήριξη.'),findsOneWidget);
+  });
+  testWidgets('ordinary links do not silently authorize automatic installation', (tester) async {
+    final fake=FakeDevice();await mount(tester,fake,initialCode:code,automatic:true);
+    expect(fake.enrolls,0);expect(find.textContaining('Η λήψη δεν υποστηρίζει αυτόματη ενεργοποίηση'),findsOneWidget);
+  });
+  testWidgets('lost automatic reply and restart never repeat enrollment', (tester) async {
+    final fake=FakeDevice()..automatic=true..unknownReply=true;
+    await mount(tester,fake,initialCode:code,automatic:true);expect(fake.enrolls,1);
+    await tester.pumpWidget(const SizedBox.shrink());await mount(tester,fake,initialCode:code,automatic:true);
+    expect(fake.enrolls,1);expect(fake.previews,1);expect(find.byType(TextField),findsNothing);
+  });
+  testWidgets('managed or staff identity blocks automatic bootstrap', (tester) async {
+    for(final staff in [false,true]) {
+      final fake=FakeDevice()..automatic=true..enrolled=!staff..staff=staff;
+      await tester.pumpWidget(const SizedBox.shrink());await mount(tester,fake,initialCode:code,automatic:true);
+      expect(fake.enrolls,0);expect(fake.previews,0);
+    }
+  });
+
   test('installation URI accepts only the exact code namespace without origin/auth overrides', () {
     expect(enrollmentCodeFromLink(Uri.parse('exantas-support-enroll://install?code=$code')), code);
     for (final link in ['rustdesk://install?code=$code', 'exantas-support-enroll://other?code=$code',

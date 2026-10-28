@@ -130,12 +130,17 @@ baseline/handoff/completion evidence to avoid duplicate prompts/builds. If rd-cl
 is unchanged, report NO_RDCL_BUILD_NEEDED. No automatic builds, Actions, product
 installation or deployment is implied. The former cloud build plan is superseded.
 
-The latest completed S2 application/EXE baseline, reported by the user on
-2026-10-24, is `1c7cff1289438b84788b3b2b78ab30c05ce25202`, version `2.0.0+72`.
+The latest completed S2 application/EXE baseline, user receipt received
+2026-10-28, is `4c6787926a46a2a981f1b251b0223c8853fce54b`, version `2.0.1+73`.
+Guards89PASS/1LinuxSKIP,Dart80,analyzer0ERROR/0WARNING/30INFO,native/package/
+integrity122checksum entries/maintenance PASS. EXE24332288bytes,UNSIGNED,
+SHA256 `7a46b86664abacc9ec46adea51d35df664f6c3852886be19a87c9c8ff12641ec`.
+Windows acceptance NOT_RUN and hosting NOT_PUBLISHED;no repeat build for this SHA.
+Preserve the prior1c7cff12 delivery, failed87e01f40 evidence and compatible caches.
 Read the maintained handoff guide's completed baseline for the EXE hash, size,
 codec receipt and acceptance limits; do not use earlier blocked/codec-only states.
 Reported EXE directory:
-`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-1c7cff12`.
+`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.1+73\delivery-s2-4c678792`.
 Keep that verified delivery unchanged and use an unused owned output directory
 for the next build. An unchanged published SHA needs no repeat build.
 
@@ -216,7 +221,7 @@ ownership/process state instead. Keep the current complete prompt, required
 verified preparation downloads, artifact gate and exact EXE path/hash reporting.
 Local guard/PowerShell/CMake PASS is not native S2 build/runtime acceptance.
 Historical installer correction release is2.0.0 (Flutter2.0.0+72).
-User-authorized customer installation repair candidate is2.0.1+73; see
+User-authorized customer installation repair candidate is2.0.2+74; see
 rd-cl/docs/customer-device-enrollment.md. New Windows acceptance is required. See
 rd-cl/docs/windows-installer-2.0.0.md for the installer correction and required
 native clean-install/upgrade acceptance. The old1.4.13+71 packaging PASS remains
@@ -279,11 +284,31 @@ normally, never disable/bypass them or claim a prompt removes them. When mandato
 platform approval is still needed, explain the concrete action and platform rule;
 when automatic review rejects it, report its reason and preserve dependent work.
 
+## Automatic enrollment / first-install hosting — user policy2026-10-28
+
+Office1.12.18 + rd-cl2.0.2+74 implements the approved card workflow:copy a device
+installation link,paste in the customer's browser,install the shared EXE and let
+it activate automatically. One customer computer can have many contacts/callers;
+never create/rotate managed identity per contact/call. The card confirms success
+only after the real client ACK;row creation alone is pending. Common generic
+download also exists and carries no customer enrollment authority. Preserve all
+existing code/token/revocation/branch and financial/report boundaries.
+No disposable Windows environment is available. Hosting of a verified successful
+package with honest native acceptance NOT_RUN and maintenance PASS is authorized
+for first technician installation. This supersedes the earlier mandatory native
+acceptance PASS/VM hosting block. Never fabricate PASS or publish FAIL; keep native
+results separate. Use the updated Office publisher and hosting/automatic-enrollment
+guides;all source/hash/PE/HTTPS/atomic-retention gates remain. No extra confirmation
+for the same reviewed scoped upload. No automatic Dokploy deploy/SQL/reboot or
+host/customer installation is granted to the S2 build job by this policy.
+Current completed S2 baseline remains4c6787922.0.1+73 until a real new receipt;
+its bytes and caches are retained. The next native candidate is2.0.2+74.
+
 ## Installer hosting after changed rd-cl — user policy2026-10-27
 
 Every future S2 prompt for changed rd-cl includes building/verifying the latest
 EXE and publishing only that approved version to the dedicated server installer
-volume after matching native acceptance evidence. The technician installs it on
+volume with matching honest native acceptance status and maintenance PASS. The technician installs it on
 the customer's PC; customer confirmation/login is not part of this workflow.
 Keep EXE for this supported interactive path; MSI packaging exists but is not a
 substitute for required EXE/install/upgrade acceptance or MSI migration ownership.

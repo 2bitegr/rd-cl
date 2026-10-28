@@ -31,6 +31,7 @@ const String kExantasNativeConfirm = 'exantas.office.native_confirmation_require
 
 const String kExantasEnrollmentPending = 'exantas.office.enrollment_pending';
 const String kExantasEnrollmentPassword = 'exantas.office.enrollment_password';
+const String kExantasInstallerBootstrap = 'exantas.office.installer_bootstrap';
 
 const String kExantasTechnicianToken = 'exantas.office.technician_token';
 
@@ -161,15 +162,51 @@ class ExantasCompanionService implements ExantasIdentityActions {
       officeSignedOut: signedOut, newId: _string(response['new_id']), backupPath: _string(response['backup_path']));
   }
 
+  Future<bool> automaticCompletionPending() async {
+    final status = await loadStatus();
+    final attempt = _decodeMap(bind.mainGetLocalOption(key: kExantasEnrollmentPending));
+    return status.enrolled && status.enrollmentPending && !status.technicianLoggedIn && attempt['automatic'] == true && attempt['automatic_retry_allowed'] != false;
+  }
+
+  Future<String> installerBootstrapCode(String launchCode) => _nativeFence.run(() async {
+    final status = await loadStatus();
+    nativeApiOrigin(status.apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    if (status.enrolled || status.technicianLoggedIn || status.enrollmentPending ||
+        bind.mainGetLocalOption(key: 'access_token').isNotEmpty) {
+      await _setSecretLocalOption(kExantasInstallerBootstrap, '');
+      return status.enrollmentPending ? launchCode : '';
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (RegExp(r'^EXA-[A-F0-9]{6}-[A-F0-9]{6}-[A-F0-9]{6}$').hasMatch(launchCode)) {
+      await _setSecretLocalOption(kExantasInstallerBootstrap, jsonEncode({
+        'code': launchCode, 'api_base': status.apiBase, 'expires_at': now + 3600000,
+      }));
+    }
+    final queued = _decodeMap(await _getSecretLocalOption(kExantasInstallerBootstrap));
+    final code = _string(queued['code']);
+    if (queued['api_base'] != status.apiBase || queued['expires_at'] is! int ||
+        (queued['expires_at'] as int) <= now || (queued['expires_at'] as int) > now + 3600000 ||
+        !RegExp(r'^EXA-[A-F0-9]{6}-[A-F0-9]{6}-[A-F0-9]{6}$').hasMatch(code)) {
+      await _setSecretLocalOption(kExantasInstallerBootstrap, '');
+      return '';
+    }
+    return code;
+  });
+
   Future<ExantasDeviceEnrollmentPreview> previewDeviceEnrollment(String rawCode) async {
-    nativeApiOrigin(apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    final previewApi = apiBase;
+    nativeApiOrigin(previewApi.replaceFirst(RegExp(r'/api/v1/?$'), ''));
     final code = rawCode.trim().toUpperCase();
     if (!RegExp(r'^EXA-[A-F0-9]{6}-[A-F0-9]{6}-[A-F0-9]{6}$').hasMatch(code)) {
       throw const FormatException('Μη έγκυρος κωδικός εγκατάστασης.');
     }
-    final response = await _post('/rustdesk-devices/installation-info',
-      {'install_code': code}).timeout(const Duration(seconds: 12));
-    return ExantasDeviceEnrollmentPreview.parse(code, response);
+    final reply = await http.post(Uri.parse('$previewApi/rustdesk-devices/installation-info'),
+      headers: _headers(null), body: jsonEncode({'install_code': code}),
+    ).timeout(const Duration(seconds: 12));
+    if (reply.statusCode == 410) throw const ExantasEnrollmentFailure('Το link έληξε ή άλλαξε η συσκευή. Αντιγράψτε νέο link από την καρτέλα του υπολογιστή στο Office.');
+    if (reply.statusCode == 429) throw const ExantasEnrollmentFailure('Περιμένετε ένα λεπτό πριν δοκιμάσετε ξανά.');
+    final response = _decodeResponse(reply.statusCode, reply.body);
+    return ExantasDeviceEnrollmentPreview.parse(code, response, apiBase: previewApi);
   }
 
   Future<ExantasCompanionStatus> enrollDevice(ExantasDeviceEnrollmentPreview preview) =>
@@ -178,19 +215,28 @@ class ExantasCompanionService implements ExantasIdentityActions {
   Future<ExantasCompanionStatus> _enrollDevice(ExantasDeviceEnrollmentPreview preview) async {
     final before = await loadStatus();
     nativeApiOrigin(before.apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
+    if (preview.apiBase != null && preview.apiBase != before.apiBase) throw const ExantasEnrollmentFailure('Η σύνδεση με το Office άλλαξε. Κάντε νέα λήψη από την επαφή.');
     if (before.enrolled || before.technicianLoggedIn || before.enrollmentPending ||
         bind.mainGetLocalOption(key: 'access_token').isNotEmpty) {
       throw StateError('Υπάρχει ήδη σύνδεση ή εκκρεμές αίτημα σε αυτόν τον υπολογιστή.');
     }
-    final peerId = (await bind.mainGetMyId()).trim();
+    var peerId = (await bind.mainGetMyId()).trim();
+    // ID readiness is a read-only wait before any enrollment attempt marker/POST.
+    for (var i = 0; preview.automatic && peerId.isEmpty && i < 8; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      peerId = (await bind.mainGetMyId()).trim();
+    }
     if (!RegExp(r'^\d{6,10}$').hasMatch(peerId)) throw StateError('Το RustDesk ID δεν είναι έτοιμο.');
+    requireEnrollmentPeer(preview, peerId);
     final version = await bind.mainGetVersion();
     final marker = jsonEncode({'api_base': before.apiBase, 'peer_id': peerId,
       'customer_id': preview.customerId, 'enrollment_id': preview.enrollmentId,
-      'customer_name': preview.customerName, 'unattended_enabled': preview.unattended});
+      'customer_name': preview.customerName, 'unattended_enabled': preview.unattended, 'automatic': preview.automatic});
     // Persist before a potentially committed request. A lost reply must not redeem
     // another use on refresh/restart; no automatic enrollment replay is allowed.
     await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: marker);
+    // From this point a POST may commit: never automatically replay the code.
+    await _setSecretLocalOption(kExantasInstallerBootstrap, '');
     final httpResponse = await http.post(Uri.parse('${before.apiBase}/rustdesk-devices/enroll'),
       headers: _headers(null), body: jsonEncode({
         'install_code': preview.code, 'peer_id': peerId,
@@ -198,7 +244,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
         'expected_enrollment_id': preview.enrollmentId,
         'expected_unattended_enabled': preview.unattended,
         'label': 'Exantas Support $peerId', 'device_name': 'Exantas Support $peerId',
-        'client_version': version, 'install_mode': isRunningInPortableMode() ? 'portable' : 'msi',
+        'client_version': version, 'install_mode': isRunningInPortableMode() ? 'portable' : 'unknown',
         'platform': 'windows',
       })).timeout(const Duration(seconds: 20));
     if (httpResponse.statusCode >= 400 && httpResponse.statusCode < 500) {
@@ -207,7 +253,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
       if (['enrollment_confirmation_changed', 'invalid_enrollment_code',
           'enrollment_link_revoked', 'enrollment_link_expired',
           'enrollment_link_exhausted', 'customer_inactive', 'enrollment_customer_conflict',
-          'device_already_managed'].contains(error['status']) &&
+          'device_already_managed', 'device_access_conflict'].contains(error['status']) &&
           bind.mainGetLocalOption(key: kExantasEnrollmentPending) == marker) {
         await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: '');
       }
@@ -282,6 +328,22 @@ class ExantasCompanionService implements ExantasIdentityActions {
         (await bind.mainGetMyId()).trim() != attempt['peer_id'] ||
         bind.mainGetLocalOption(key: kExantasEnrollmentPending) != marker) {
       throw StateError('Η κατάσταση του υπολογιστή άλλαξε.');
+    }
+    if (attempt['automatic'] == true) {
+      final reply = await http.post(Uri.parse('${status.apiBase}/rustdesk-devices/activation-complete'),
+        headers: _headers(status.deviceToken), body: jsonEncode({'device_id': attempt['device_id'], 'peer_id': attempt['peer_id']}),
+      ).timeout(const Duration(seconds: 20));
+      if ([401,403,409].contains(reply.statusCode) && bind.mainGetLocalOption(key: kExantasEnrollmentPending) == marker) {
+        await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: jsonEncode({...attempt, 'automatic_retry_allowed': false}));
+      }
+      final acknowledged = _decodeResponse(reply.statusCode, reply.body);
+      if (acknowledged['device_id'] != attempt['device_id'] || acknowledged['peer_id'] != attempt['peer_id'] ||
+          acknowledged['activation_status'] != 'active') throw StateError('Δεν επιβεβαιώθηκε η ενεργοποίηση από το Office.');
+      final afterAck = await loadStatus();
+      if (afterAck.deviceToken != status.deviceToken || afterAck.apiBase != status.apiBase ||
+          (await bind.mainGetMyId()).trim() != attempt['peer_id'] || bind.mainGetLocalOption(key: kExantasEnrollmentPending) != marker) {
+        throw StateError('Η κατάσταση του υπολογιστή άλλαξε.');
+      }
     }
     await bind.mainSetLocalOption(key: kExantasEnrollmentPending, value: '');
     await _setSecretLocalOption(kExantasEnrollmentPassword, '');
@@ -419,7 +481,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
         {
           'peer_id': peerId,
           'client_version': version,
-          'install_mode': isRunningInPortableMode() ? 'portable' : 'msi',
+          'install_mode': isRunningInPortableMode() ? 'portable' : 'unknown',
           'platform': 'windows',
         },
         bearerToken: status.deviceToken);

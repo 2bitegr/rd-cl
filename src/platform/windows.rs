@@ -3717,9 +3717,20 @@ fn run_after_run_cmds(silent: bool) {
     let (_, _, _, exe) = get_install_info();
     if !silent {
         log::debug!("Spawn new window");
-        allow_err!(std::process::Command::new(&exe)
-            .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
-            .spawn());
+        const ENROLLMENT_ENV: &str = "EXANTAS_OFFICE_ENROLLMENT_CODE";
+        let mut command = std::process::Command::new(&exe);
+        command.creation_flags(winapi::um::winbase::CREATE_NO_WINDOW);
+        command.env_remove(ENROLLMENT_ENV);
+        // This runs only after successful install/update commands. No key is
+        // inserted into the generic EXE, service command or Windows registry.
+        if let Ok(name) = std::env::var(PORTABLE_APPNAME_RUNTIME_ENV_KEY) {
+            if super::installer_bootstrap::is_installer_filename(&name) {
+              if let Some(code) = super::installer_bootstrap::enrollment_code(&name) {
+                command.env(ENROLLMENT_ENV, code);
+              }
+            }
+        }
+        allow_err!(command.spawn());
     }
     if Config::get_option("stop-service") != "Y" {
         allow_err!(std::process::Command::new(&exe).arg("--tray").spawn());

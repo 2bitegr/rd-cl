@@ -175,6 +175,7 @@ void runMainApp(bool startService) async {
     windowManager.setTitle(getWindowName());
     // Do not use `windowManager.setResizable()` here.
     setResizable(!bind.isIncomingOnly());
+    if (isWindows) await activateInstallerEnrollment(Platform.environment['EXANTAS_OFFICE_ENROLLMENT_CODE'] ?? '');
   });
 }
 

@@ -8,6 +8,8 @@ use std::{
 use bin_reader::BinaryReader;
 
 pub mod bin_reader;
+#[path = "../../../src/platform/installer_bootstrap.rs"]
+mod installer_bootstrap;
 #[cfg(windows)]
 mod ui;
 
@@ -186,7 +188,7 @@ fn main() {
         }
         i += 1;
     }
-    let click_setup = args.is_empty() && arg_exe.to_lowercase().ends_with("install.exe");
+    let click_setup = args.is_empty() && (installer_bootstrap::enrollment_code(&arg_exe).is_some() || installer_bootstrap::is_installer_filename(&arg_exe));
     #[cfg(windows)]
     let quick_support = args.is_empty() && win::is_quick_support_exe(&arg_exe);
     #[cfg(not(windows))]

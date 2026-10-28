@@ -4,8 +4,9 @@ import '../../models/exantas_device_enrollment.dart';
 /// A customer needs a device code, never an Office staff login.
 class ExantasDeviceEnrollment extends StatefulWidget {
   const ExantasDeviceEnrollment({super.key, required this.loadStatus,
-    required this.preview, required this.enroll, required this.complete, this.initialCode});
+    required this.preview, required this.enroll, required this.complete, this.initialCode, this.automatic = false});
   final String? initialCode;
+  final bool automatic;
   final Future<ExantasDeviceEnrollmentStatus> Function() loadStatus;
   final Future<ExantasDeviceEnrollmentPreview> Function(String) preview;
   final Future<void> Function(ExantasDeviceEnrollmentPreview) enroll;
@@ -26,14 +27,25 @@ class _ExantasDeviceEnrollmentState extends State<ExantasDeviceEnrollment> {
     _code.text = widget.initialCode ?? '';
     _refresh().then((_) async {
       final status = _status;
-      if (mounted && widget.initialCode != null && status != null &&
+      if (mounted && widget.automatic && status != null && status.enrolled && status.pending && !status.staffSignedIn) {
+        await _run(widget.complete);
+      } else if (mounted && widget.initialCode != null && status != null &&
           !status.enrolled && !status.staffSignedIn && !status.pending) {
-        await _run(() async {
-          final preview = await widget.preview(_code.text);
-          if (mounted) setState(() => _preview = preview);
-        });
+        await _run(_previewAndActivate);
       }
     });
+  }
+  Future<void> _previewAndActivate() async {
+    final preview = await widget.preview(_code.text);
+    if (!mounted) return;
+    setState(() => _preview = preview);
+    if (widget.automatic) {
+      if (!preview.automatic || preview.expectedPeerId == null) {
+        throw const ExantasEnrollmentFailure('Η λήψη δεν υποστηρίζει αυτόματη ενεργοποίηση. Κάντε νέα λήψη από την επαφή στο Office.');
+      }
+      await widget.enroll(preview);
+      if (mounted) { _code.clear(); setState(() => _preview = null); }
+    }
   }
   @override
   void dispose() { _code.dispose(); super.dispose(); }
@@ -49,8 +61,8 @@ class _ExantasDeviceEnrollmentState extends State<ExantasDeviceEnrollment> {
     if (_busy) return;
     setState(() { _busy = true; _error = null; });
     try { await action(); }
-    catch (_) { if (mounted) setState(() {
-      _error = 'Η ενέργεια δεν ολοκληρώθηκε. Ελέγξτε τη σύνδεση και την κατάσταση παρακάτω.';
+    catch (error) { if (mounted) setState(() {
+      _error = error is ExantasEnrollmentFailure ? error.message : 'Η ενέργεια δεν ολοκληρώθηκε. Ελέγξτε τη σύνδεση και την κατάσταση παρακάτω.';
     }); }
     finally { await _refresh(); if (mounted) setState(() => _busy = false); }
   }
@@ -61,7 +73,7 @@ class _ExantasDeviceEnrollmentState extends State<ExantasDeviceEnrollment> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Σύνδεση υπολογιστή πελάτη', style: TextStyle(fontWeight: FontWeight.bold)),
       const SizedBox(height: 8),
-      const Text('Για τον τεχνικό: ελέγξτε τον πελάτη πριν ολοκληρώσετε την εγκατάσταση. Δεν χρειάζεται σύνδεση με λογαριασμό Office.'),
+      Text(widget.automatic ? 'Αυτόματη ενεργοποίηση για τον πελάτη και τον υπολογιστή που επιλέχθηκαν στο Office.' : 'Για τον τεχνικό: ελέγξτε τον πελάτη πριν ολοκληρώσετε την εγκατάσταση. Δεν χρειάζεται σύνδεση με λογαριασμό Office.'),
       if (_busy) const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: LinearProgressIndicator()),
       if (status?.enrolled == true) ...[
         const SizedBox(height: 12),
@@ -82,17 +94,14 @@ class _ExantasDeviceEnrollmentState extends State<ExantasDeviceEnrollment> {
         if (widget.initialCode == null) TextField(controller: _code, enabled: !_busy, autocorrect: false,
           enableSuggestions: false, decoration: const InputDecoration(labelText: 'Κωδικός εγκατάστασης'),
           onChanged: (_) => setState(() { _preview = null; })),
-        OutlinedButton(onPressed: _busy ? null : () => _run(() async {
-          final preview = await widget.preview(_code.text);
-          if (mounted) setState(() { _preview = preview; });
-        }), child: Text(widget.initialCode == null ? 'Έλεγχος πελάτη' : 'Επανέλεγχος πελάτη')),
+        OutlinedButton(onPressed: _busy ? null : () => _run(_previewAndActivate), child: Text(widget.initialCode == null ? 'Έλεγχος πελάτη' : 'Επανέλεγχος πελάτη')),
         if (_preview != null) ...[
           const SizedBox(height: 12),
           Text('Πελάτης: ${_preview!.customerName}', style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(_preview!.unattended
             ? 'Η υποστήριξη θα επιτρέπεται και χωρίς την παρουσία σας.'
             : 'Η υποστήριξη θα απαιτεί την αποδοχή σας στον υπολογιστή.'),
-          ElevatedButton(onPressed: _busy ? null : () => _run(() async {
+          if (!widget.automatic) ElevatedButton(onPressed: _busy ? null : () => _run(() async {
             await widget.enroll(_preview!);
             if (mounted) { _code.clear(); setState(() { _preview = null; }); }
           }), child: const Text('Ολοκλήρωση σύνδεσης στον πελάτη')),

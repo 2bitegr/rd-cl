@@ -10,12 +10,15 @@ class ExantasDeviceEnrollmentStatus {
 class ExantasDeviceEnrollmentPreview {
   const ExantasDeviceEnrollmentPreview({required this.code,
     required this.enrollmentId, required this.customerId,
-    required this.customerName, required this.unattended});
+    required this.customerName, required this.unattended, this.automatic = false, this.expectedPeerId, this.apiBase});
   final String code, enrollmentId, customerId, customerName;
   final bool unattended;
+  final bool automatic;
+  final String? expectedPeerId;
+  final String? apiBase;
 
   factory ExantasDeviceEnrollmentPreview.parse(String raw,
-      Map<String, dynamic> response) {
+      Map<String, dynamic> response, {String? apiBase}) {
     final code = raw.trim().toUpperCase();
     final installation = response['installation'];
     final uuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
@@ -28,14 +31,18 @@ class ExantasDeviceEnrollmentPreview {
         || !uuid.hasMatch(installation['customer_id'])
         || installation['customer_name'] is! String
         || (installation['customer_name'] as String).trim().isEmpty
-        || installation['unattended_enabled'] is! bool) {
+        || installation['unattended_enabled'] is! bool
+        || (installation['automatic_enrollment'] == true &&
+            (installation['expected_peer_id'] is! String || !RegExp(r'^\d{6,10}$').hasMatch(installation['expected_peer_id'])))) {
       throw const FormatException('Δεν επιβεβαιώθηκε ο πελάτης της εγκατάστασης.');
     }
     return ExantasDeviceEnrollmentPreview(code: code,
       enrollmentId: installation['enrollment_id'],
       customerId: installation['customer_id'],
       customerName: installation['customer_name'],
-      unattended: installation['unattended_enabled']);
+      unattended: installation['unattended_enabled'],
+      automatic: installation['automatic_enrollment'] == true,
+      expectedPeerId: installation['expected_peer_id'] is String ? installation['expected_peer_id'] : null, apiBase: apiBase);
   }
 }
 
@@ -48,4 +55,15 @@ String? enrollmentCodeFromLink(Uri uri) {
   final code = uri.queryParameters['code']?.trim().toUpperCase() ?? '';
   return RegExp(r'^EXA-[A-F0-9]{6}-[A-F0-9]{6}-[A-F0-9]{6}$').hasMatch(code) ? code : null;
   } on FormatException { return null; }
+}
+
+class ExantasEnrollmentFailure implements Exception {
+  const ExantasEnrollmentFailure(this.message);
+  final String message;
+}
+
+void requireEnrollmentPeer(ExantasDeviceEnrollmentPreview preview, String peerId) {
+  if (preview.expectedPeerId != null && preview.expectedPeerId != peerId) {
+    throw const ExantasEnrollmentFailure('Το ID αυτού του υπολογιστή δεν ταιριάζει με την επαφή. Ελέγξτε την αντιστοίχιση στο Office και κάντε νέα λήψη.');
+  }
 }
