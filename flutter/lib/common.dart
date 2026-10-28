@@ -2351,11 +2351,13 @@ bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
   String? password;
   String? switchUuid;
   String? officeTicket;
+  bool playback = false;
   bool? forceRelay;
   for (int i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--connect':
       case '--play':
+        playback = args[i] == '--play';
         type = UriLinkType.remoteDesktop;
         id = args[i + 1];
         i++;
@@ -2412,12 +2414,22 @@ bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
   if (type != null && id != null) {
     switch (type) {
       case UriLinkType.remoteDesktop:
-        Future.delayed(Duration.zero, () {
-          rustDeskWinManager.newRemoteDesktop(id!,
-              password: password,
-              officeTicket: officeTicket,
-              switchUuid: switchUuid,
-              forceRelay: forceRelay);
+        Future.delayed(Duration.zero, () async {
+          if (playback) {
+            // Local recording playback does not require a network sign-in.
+            await rustDeskWinManager.newRemoteDesktop(id!,
+                password: password,
+                switchUuid: switchUuid,
+                forceRelay: forceRelay);
+          } else {
+            // Caller Popup/deep links require the SAME native readiness check
+            // as a connection started from the main window. Keep the ticket.
+            await connectMainDesktop(id!,
+                isFileTransfer: false, isViewCamera: false, isTerminal: false,
+                isTcpTunneling: false, isRDP: false, password: password,
+                officeTicket: officeTicket, switchUuid: switchUuid,
+                forceRelay: forceRelay);
+          }
         });
         break;
       case UriLinkType.fileTransfer:
@@ -2606,9 +2618,18 @@ connectMainDesktop(String id,
     bool? forceRelay,
     String? password,
     String? connToken,
+    String? officeTicket,
+    String? switchUuid,
     bool? isSharedPassword}) async {
   try {
-    await ExantasCompanionService().ensureNativeReady();
+    final office = ExantasCompanionService();
+    await office.ensureNativeReady();
+    if (officeTicket != null) {
+      final status = await office.loadStatus();
+      if (!status.technicianLoggedIn || !status.nativeReady) {
+        throw StateError('The Office launch requires the current technician identity.');
+      }
+    }
   } catch (_) {
     showToast('Δεν επιβεβαιώθηκε η σύνδεση Office–RustDesk. Ελέγξτε τη σύνδεση τεχνικού στην αρχική οθόνη.');
     return;
@@ -2639,6 +2660,8 @@ connectMainDesktop(String id,
         forceRelay: forceRelay);
   } else {
     await rustDeskWinManager.newRemoteDesktop(id,
+        officeTicket: officeTicket,
+        switchUuid: switchUuid,
         password: password,
         isSharedPassword: isSharedPassword,
         forceRelay: forceRelay);

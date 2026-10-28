@@ -288,6 +288,16 @@ normally, never disable/bypass them or claim a prompt removes them. When mandato
 platform approval is still needed, explain the concrete action and platform rule;
 when automatic review rejects it, report its reason and preserve dependent work.
 
+## Current native candidate —Caller Popup readiness2.0.3+75,2026-10-28
+
+Reviewed source routes Caller Popup network URIs through the same existing native
+preflight as main-window connect,preserving the protected ticket/flags and local
+playback. No issuer/role/token fallback or server-login weakening. See
+`docs/office-native-auth.md`. Requires new exact-published-SHA S2 build/package and
+latest-only hosting after review;never rebuild completed2.0.2 or invent a future
+SHA. Reuse codecs/SDK/caches. Native Windows acceptance must verify both launch
+paths and protected call binding;source checks alone do not prove a runtime fix.
+
 ## Automatic enrollment / first-install hosting — user policy2026-10-28
 
 Office1.12.18 + rd-cl2.0.2+74 implements the approved card workflow:copy a device

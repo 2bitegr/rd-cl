@@ -114,15 +114,15 @@ class VersionAndCoreIdentity(unittest.TestCase):
         lock = tomllib.loads((ROOT / 'Cargo.lock').read_text())
         profile = json.loads((ROOT / 'scripts/windows-native-profile.json').read_text())
         pins = json.loads((ROOT / 'scripts/windows-codec-bootstrap-inputs.json').read_text())
-        self.assertEqual(cargo['package']['version'], '2.0.2')
-        self.assertEqual(packer['package']['version'], '2.0.2')
-        self.assertEqual(profile['version'], '2.0.2+74')
+        self.assertEqual(cargo['package']['version'], '2.0.3')
+        self.assertEqual(packer['package']['version'], '2.0.3')
+        self.assertEqual(profile['version'], '2.0.3+75')
         self.assertEqual(pins['product_version'], profile['version'])
         self.assertIn('version: ' + profile['version'], (ROOT / 'flutter/pubspec.yaml').read_text())
         for name in ['rustdesk', 'rustdesk-portable-packer']:
-            self.assertEqual(next(p['version'] for p in lock['package'] if p['name'] == name), '2.0.2')
+            self.assertEqual(next(p['version'] for p in lock['package'] if p['name'] == name), '2.0.3')
         for key in ['ProductVersion', 'FileVersion']:
-            self.assertEqual(packer['package']['metadata']['winres'][key], '2.0.2.74')
+            self.assertEqual(packer['package']['metadata']['winres'][key], '2.0.3.75')
         for name, expected in profile['input_sha256'].items():
             self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), expected, name)
 

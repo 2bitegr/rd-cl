@@ -1,5 +1,36 @@
 # Office native sign-in source preparation
 
+## Caller Popup native readiness fix —candidate2.0.3+75 (2026-10-28)
+
+User reports:Office was already signed in and showing native readiness. The SAME
+peer connects from the main rd-cl screen,but Caller Popup launch receives server
+"Connection failed, please login!". Verified source gap:handleUriLink launched the
+remote window directly,while manual connectMainDesktop first runs the existing
+ensureNativeReady flow. Route network desktop URIs through that SAME gateway;
+preserve officeTicket,switchUuid,password and relay. Protected Office tickets also
+require actual current companion/native readiness;legacy manual login behavior
+and local recording playback remain separate. No copying Office tokens into the
+legacy access_token,no server MUST_LOGIN/JWT change or new issuer/permission.
+
+Candidate source requires coordinator publication before the S2 build. New Windows
+rd-cl2.0.3+75 is required;installed2.0.2+74 cannot acquire a Dart change from an Office
+deploy. Reuse verified codecs/SDK/warm app caches;no bootstrap/dependency/FFI change.
+Do not rebuild completed680628f2 or issue an executable S2 prompt with an invented
+new SHA. After publication include the full build+latest-only hosting phase with
+Office's exact-volume/single-old-EXE deletion guard. Keep current2.0.2 hosted until
+new bytes pass. Compilation/source guards are not proof this live issue is solved.
+
+Acceptance after new build:Caller Popup cold/warm launch and idle/expired lease
+must complete native preflight before a remote window opens;explicit confirmation
+or API/lease failure opens no connection and does not replay issuance. Verify the
+opaque ticket still scopes the actual call/work/session and flags are preserved.
+Also test ordinary manual connection,legacy native account and local recording
+playback. Main/remote DLL paths/hashes must match the delivery;do not install on
+S2 host/customer PCs as an automatic build step. Actual Windows/DPAPI/runtime
+acceptance remains NOT_RUN until real evidence. Manual main-window connection is
+the current working workaround;no customer re-enrollment or logout is required.
+
+
 ## Windows account entry point (2026-10-22)
 
 Settings → Account is the only Windows Office sign-in form. It accepts Office

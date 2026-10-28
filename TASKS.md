@@ -1,46 +1,33 @@
-# Active rd-cl delivery —2026-10-28
+# Native Caller Popup connection fix —2026-10-28
 
-## DONE — native build/package2.0.2+74 (user S2 receipt)
+## REVIEW — rd-cl2.0.3+75 source;S2 build pending
 
-Current completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
-not independently inspected on Windows here):
-`680628f2b9e798ef63e6d29c73954807d9012e12`,rd-cl `2.0.2+74`,Windows x64,UNSIGNED.
-Directory:`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.2+74\delivery-s2-680628f2`.
-EXE:`rd-cl-2.0.2+74-windows-x64-install.exe`,24343040bytes.
-SHA256:`d4843ebf32759b78f2663247d6fd72cb4ba7a2ce2229c9f59131186a4fa292a1`.
-Codec/cache reuse without bootstrap,guards90PASS/1SKIP,analyzer0ERROR/0WARNING/30INFO,
-Dart86PASS,native/EXE/ZIP/integrity125checksums/maintenance PASS;release23m04s.
-Native installation/enrollment acceptance remains NOT_RUN. User-forwarded S2
-PUBLISH-COMPLETED receipt confirms hosting PUBLISHED:exact24343040bytes/hash verified
-via HTTPS from DEV/S2,one server EXE,transfer staging cleaned/verified. No repeated
-build or deploy/restart in that publication. Exact public URL was not included in
-the forwarded report;do not invent a verified URL. Do NOT rebuild unchanged source.
-The additional volume/deletion guard is delivered by the coordinated Office1.12.19
-source change;it is not claimed as executed proof for the prior publication.
-Preserve prior4c678792 package/caches and useful failed evidence. No runtime,
-signing or hosting success is inferred from build PASS.
+User confirms existing Office sign-in/native-ready status BEFORE failure. Manual
+main-window connection to same peer works;Caller Popup returns please login.
+Source gap:URI desktop dispatch bypasses ensureNativeReady. Now delegates to the
+same connectMainDesktop gateway,retaining officeTicket/switchUuid/password/relay.
+Protected tickets require current companion/native readiness;local playback and
+legacy account behavior preserved. No server policy/issuer/permission change.
+No new FFI/dependency/SDK/codec/icon or protocol pins. Profile/product versions
+updated;new Windows EXE required,not an Office redeploy. Manual connection works
+as temporary path;no logout/customer re-registration is needed.
 
-## DONE — reviewed deletion guard / Office1.12.19 source
+Source guards83PASS/8platformSKIP and Dart syntax PASS;these are not Windows
+behavioral acceptance. Evidence:Reports/native-login-ready-current. Pinned
+Flutter analyzer/behavioral route/native DLL/Windows/DPAPI acceptance NOT_RUN here;
+new2.0.3 EXE NOT_PRODUCED/hosting NOT_PUBLISHED. Native entrypoint acceptance gap
+is documented in docs/office-native-auth.md. Exact published SHA is required before
+an executable S2 build prompt;preserve current packages/caches and don't duplicate
+completed builds. After review/publication use one build+hosting prompt with the
+Office exact-volume guard and single previous-EXE retirement,never broad cleanup.
 
-Publisher pins exact Docker volume/daemon/path/driver options and directory inode;
-checks before every unlink,old-file hash and current manifest. Any failure retains
-files;no manual rm/force fallback. Use the Office1.12.19 publisher+guard
-for future S2 retirement;no new rd-cl build.
+## DONE — completed/native hosted baseline2.0.2+74
 
-## DONE — latest-only hosting (reported by S2)
-
-Standing user requirement:EVERY changed-rd-cl delivery includes publishing the
-latest verified EXE,verifying public bytes,atomically activating current.json and
-removing ONLY the previous manifest-owned server EXE. Final server keeps one
-installer;useful rollback packages/caches remain on S2. Hosting pending is not
-build pending. Continue publish-only for completed680628f2;no duplicate build.
-Hosting is now PUBLISHED per S2 receipt;no hosting retry/new build needed.
-Use the coordinated Office1.12.19 publisher+guard for future retirement.
-Production baseline:Office1.12.18 /66b4f17.
-Caller Popup1.4.12 adds common-link copy with manual clipboard fallback;108app
-tests PASS. Reviewed source in this publication;verified cross-published/NSIS package under
-Builds/CallerPopup/1.4.12-local-66b4f17;Windows acceptance NOT_RUN. Common download has no customer authority;scoped
-copy-link is in Popup/customer card,one PC/token across multiple callers,success
-only after actual device ACK. Local API23/browser40 PASS;native guard83PASS/8SKIP
-and6Dart syntax parses are distinct from the actual S2 results above.
-Receipts:Reports/auto-enrollment-current.
+Source680628f2b9e798ef63e6d29c73954807d9012e12;24343040bytes,UNSIGNED,SHA256
+ d4843ebf32759b78f2663247d6fd72cb4ba7a2ce2229c9f59131186a4fa292a1.
+S2 reports build/package/maintenance/HTTPS publication PASS,86Dart tests,90guards
+plus1SKIP,125checksums;Windows installation/enrollment NOT_RUN. Keep hosted EXE
+until new verified publication;S2 rollback/caches remain. Docs-only3f3fcd308 was
+published after baseline;no extra native build was needed for those instructions.
+Office current published67c7d775deb152405f2e83b797a24a14292ad774,1.12.20;
+Popup1.4.13 package verified,111contract cases,Windows acceptance NOT_RUN.
