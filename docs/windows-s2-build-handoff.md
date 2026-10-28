@@ -1,6 +1,29 @@
 # One complete rd-cl build prompt for S2
 
-## Current next build — automatic installation2.0.2+74 (2026-10-28)
+## Current completed build —2.0.2+74;hosting pending (2026-10-28)
+
+Current completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
+not independently inspected on Windows here):
+`680628f2b9e798ef63e6d29c73954807d9012e12`,rd-cl `2.0.2+74`,Windows x64,UNSIGNED.
+Directory:`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.2+74\delivery-s2-680628f2`.
+EXE:`rd-cl-2.0.2+74-windows-x64-install.exe`,24343040bytes.
+SHA256:`d4843ebf32759b78f2663247d6fd72cb4ba7a2ce2229c9f59131186a4fa292a1`.
+Codec/cache reuse without bootstrap,guards90PASS/1SKIP,analyzer0ERROR/0WARNING/30INFO,
+Dart86PASS,native/EXE/ZIP/integrity125checksums/maintenance PASS;release23m04s.
+Native installation/enrollment acceptance remains NOT_RUN. User-forwarded S2
+PUBLISH-COMPLETED receipt confirms hosting PUBLISHED:exact24343040bytes/hash verified
+via HTTPS from DEV/S2,one server EXE,transfer staging cleaned/verified. No repeated
+build or deploy/restart in that publication. Exact public URL was not included in
+the forwarded report;do not invent a verified URL. Do NOT rebuild unchanged source.
+The additional volume/deletion guard is delivered by the coordinated Office1.12.19
+source change;it is not claimed as executed proof for the prior publication.
+Preserve prior4c678792 package/caches and useful failed evidence. No runtime,
+signing or hosting success is inferred from build PASS.
+
+The following implementation/build description applies to future changed source;
+for unchanged680628f2 reuse its completed package and continue publication only.
+
+### Automatic installation implementation
 
 New source spans Office1.12.18 and rd-cl2.0.2+74. The card COPIES a device-scoped
 installation link for the customer browser;successful interactive Windows install
@@ -10,8 +33,8 @@ and callers;changes of caller do not change the managed identity. See published
 Office docs/rdcl-automatic-enrollment.md and current rdcl-installer-hosting.md.
 New pure Rust filename/parser and automatic Flutter cases are mandatory existing
 runner tests. No dependencies/codecs/SDK/icons or session protocol pins change.
-New reviewed source requires exact publication before S2;no invented future SHA.
-The completed4c6787922.0.1+73 package is retained as baseline,not rebuilt or copied
+Future reviewed source requires exact publication before S2;no invented future SHA.
+The previous4c6787922.0.1+73 package is retained for rollback,not rebuilt or copied
 as proof of this new feature. Reuse its genuine codec receipt and warm caches.
 
 The user has no disposable Windows environment. Successful build/package/integrity/
@@ -113,7 +136,58 @@ normally, never disable/bypass them or claim a prompt removes them. When mandato
 platform approval is still needed, explain the concrete action and platform rule;
 when automatic review rejects it, report its reason and preserve dependent work.
 
-## Mandatory latest-only server phase —2026-10-27
+## Mandatory latest-only server phase —reaffirmed2026-10-28
+
+### Non-negotiable volume identity gate before deletion —2026-10-28
+
+Retention deletion is limited to ZERO files on first/same-version publication or
+ONE exact previous-version EXE named in the prior current.json,with verified hash.
+Never delete all folder contents,other EXEs/files/subfolders,glob matches or a list
+of old versions. Unexpected files remain untouched and stop publication for review.
+Publisher-owned lock/staging housekeeping is separate from previous-EXE retirement;
+it never authorizes cleanup of pre-existing files or directory contents.
+
+Before EVERY deletion of an old installer, prove the exact Docker daemon and
+named local volume office-rdcl-installer-ro, its creation identity and backing
+host directory /var/lib/office/rd-cl-installer with type=none,o=bind,ro. Pin the
+real directory identity (device/inode;no symlink) and recheck immediately before
+unlink. Revalidate the previous manifest-owned basename and its actual bytes/hash;
+never select EXEs by wildcard, age, parent directory or recursive traversal.
+Missing Docker access, ambiguous identity, a different daemon/volume/path/options,
+changed directory/file/manifest or any failed check MUST abort deletion and retain
+the files. No force/skip/manual-rm fallback, even after the new EXE is published.
+The publisher also gates staging/rollback/lock-file unlink with the same volume
+proof;on failure keep leftovers for explicit inspection,not automatic cleanup.
+Only the new verified HTTPS bytes may become current;the previous EXE can then be
+retired under this gate. Record exact volume/path/old-new hashes and removal result.
+Use the updated publisher plus rdcl-installer-volume-guard.mjs from the SAME reviewed
+published Office revision. An older publisher without this gate is forbidden.
+This tooling change does not require another rd-cl build. Do not run the new script
+from an unpublished/mixed revision;source publication is a prerequisite for S2.
+
+
+
+### Mandatory completion after every rd-cl change — reaffirmed2026-10-28
+
+Every delivery with rd-cl changes MUST include S2 publication of the latest
+verified installer and retirement of the previous server installer. Build/package
+PASS alone is not delivery completion: report BUILD_PACKAGE_PASS and HOSTING_PENDING
+separately until actual public download verification passes. Include this stage
+and its existing scoped upload/removal authorization in EVERY S2 handoff; do not
+wait for another user request or omit it from a build-only prompt.
+Order: verify the new package/source/hash/maintenance, stage it, verify public HTTPS
+bytes, atomically activate current.json, then remove ONLY the previous manifest-owned
+EXE from the dedicated server volume. Never delete the old installer before the new
+one is verified. Final server storage contains one current installer; retain useful
+rollback packages and reusable caches separately on S2. Do not touch customer data.
+If access, space, mounts/config or manual rollout blocks hosting, preserve the
+verified package and issue/continue a publish-only handoff after the blocker clears;
+never rebuild an unchanged completed SHA merely to retry hosting. S2 may prepare
+reviewed mounts/config without deploy; final Dokploy deploy/restart stays manual
+with the user. Native acceptance remains truthful PASS/NOT_RUN under current policy;
+FAIL never qualifies. Use the reviewed Office publisher; no broad deletion/guard bypass.
+
+
 
 For every changed-rd-cl build handoff include the reviewed hosting phase from
 Office docs/rdcl-installer-hosting.md. The technician operates the install on the
@@ -178,7 +252,7 @@ before native compilation, with unchanged diagnostics policy. Reuse genuine
 receipt784aba54...6572 and compatible warm application caches; no codec rebuild
 is justified by this import-only correction. Office remains74142de7...234e4.
 
-## Current completed application/EXE baseline —4c678792
+## Previous completed application/EXE baseline —4c678792 (historical)
 
 User-forwarded S2 receipt received2026-10-28;Windows bytes/logs were not
 independently accessed here. Source`4c6787926a46a2a981f1b251b0223c8853fce54b`,branch
@@ -345,18 +419,18 @@ rd-cl repository/ref: <verified repository and published ref>
 Version: <manifest/profile version including Flutter build number>
 Target: Windows x64, EXE installer και το υπάρχον verified runtime ZIP.
 Τρόπος: <initial build ή continuation από συγκεκριμένο failed gate>
-Τελευταία ολοκληρωμένη προσπάθεια: 1c7cff1289438b84788b3b2b78ab30c05ce25202, PASS build/package.
+Τελευταία ολοκληρωμένη προσπάθεια: 680628f2b9e798ef63e6d29c73954807d9012e12, PASS build/package;hosting pending.
 Ιστορικό d029c35d: BLOCKED analyzer, δεν χρησιμοποιείται ως διορθωμένο EXE.
 Νεότερο reported SDK-aware receipt:
 784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572
 Current toolchain SHA256:
 0b07fdfce291343d7a5f51b26275858c70faaed277da39347f61c18dcdbe0b70
-Εντόπισε το πραγματικό config από τα manifests της delivery-s2-1c7cff12.
+Εντόπισε το πραγματικό config από τα manifests της delivery-s2-680628f2.
 Επαλήθευσε πραγματικό path/hash/tool/SDK/ABI στον S2 και κράτησέ τα αμετάβλητα.
 Αυτό είναι ανεξάρτητο codec proof, όχι επιτυχής εφαρμογή ή νέο completed baseline.
-Προηγούμενο completed application/EXE baseline: 1c7cff1289438b84788b3b2b78ab30c05ce25202
-Baseline version: 2.0.1+73
-Baseline EXE SHA-256: e567886417f4d779299937ff626ca7da31aee790b4f33c4a9e6ffa417080d088
+Προηγούμενο completed application/EXE baseline: 680628f2b9e798ef63e6d29c73954807d9012e12
+Baseline version: 2.0.2+74
+Baseline EXE SHA-256: d4843ebf32759b78f2663247d6fd72cb4ba7a2ce2229c9f59131186a4fa292a1
 (Ο αποστολέας ενημερώνει αυτά τα baseline πεδία από την τελευταία completed αναφορά.)
 Αλλαγές rd-cl: <verified comparison and changed source/build-input paths>
 Προγραμματισμένος κατάλογος EXE: <verified S2 Desktop OutputRoot, or discover as below>

@@ -1,40 +1,46 @@
-# rd-cl active work —2026-10-28
+# Active rd-cl delivery —2026-10-28
 
-## IN_PROGRESS — automatic customer installation2.0.2+74
+## DONE — native build/package2.0.2+74 (user S2 receipt)
 
-User approved Office steps1–4 and COPY LINK for customer's browser. Office1.12.18
-issues a one-hour/one-use peer/customer/site-bound download of the same shared
-EXE. Shared pure Rust parser handles browser filename suffix;successful install
-launch alone hands capability to native child. App activates without another
-code/confirmation;Office shows success only after real device current-grant ACK.
-Protected pre-POST bootstrap can retry offline under exact API/time scope;POST
-ambiguity never repeats enrollment. Known grant completes/ACKs idempotently.
-One customer PC has many contacts/callers with one token;updates preserve identity.
-Default attended,foreign/revoked/peer conflict blocked. Common download has no
-customer capability. No new FFI/dependency/codec/SDK/icon/session-protocol pins.
-Version/profile/packer2.0.2+74;actual app input hashes must match. Existing Dart
-runner includes new auto/ACK cases;pure Rust parser is tested by native guards.
-Local guards/syntax and OfficeSQL/browser receipts:Reports/auto-enrollment-current;
-full pinned analyzer/Windows/new EXE/runtime/hosting NOT_RUN here.
+Current completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
+not independently inspected on Windows here):
+`680628f2b9e798ef63e6d29c73954807d9012e12`,rd-cl `2.0.2+74`,Windows x64,UNSIGNED.
+Directory:`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.2+74\delivery-s2-680628f2`.
+EXE:`rd-cl-2.0.2+74-windows-x64-install.exe`,24343040bytes.
+SHA256:`d4843ebf32759b78f2663247d6fd72cb4ba7a2ce2229c9f59131186a4fa292a1`.
+Codec/cache reuse without bootstrap,guards90PASS/1SKIP,analyzer0ERROR/0WARNING/30INFO,
+Dart86PASS,native/EXE/ZIP/integrity125checksums/maintenance PASS;release23m04s.
+Native installation/enrollment acceptance remains NOT_RUN. User-forwarded S2
+PUBLISH-COMPLETED receipt confirms hosting PUBLISHED:exact24343040bytes/hash verified
+via HTTPS from DEV/S2,one server EXE,transfer staging cleaned/verified. No repeated
+build or deploy/restart in that publication. Exact public URL was not included in
+the forwarded report;do not invent a verified URL. Do NOT rebuild unchanged source.
+The additional volume/deletion guard is delivered by the coordinated Office1.12.19
+source change;it is not claimed as executed proof for the prior publication.
+Preserve prior4c678792 package/caches and useful failed evidence. No runtime,
+signing or hosting success is inferred from build PASS.
 
-## DONE — S2 build/package2.0.1+73 (user receipt28/10)
+## DONE — reviewed deletion guard / Office1.12.19 source
 
-Completed4c6787926a46a2a981f1b251b0223c8853fce54b;no repeat build for that SHA.
-EXE24332288bytes,UNSIGNED,SHA256
-7a46b86664abacc9ec46adea51d35df664f6c3852886be19a87c9c8ff12641ec.
-Guards89PASS/1LinuxSKIP,codec reuse/SDK/ABI PASS,no bootstrap;analyzer
-0ERROR/0WARNING/30INFO,Dart80,native/EXE/ZIP/122checksums/maintenance PASS.
-Actual folder:Desktop/Office-Workspace-Artifacts/Builds/rd-cl/2.0.1+73/delivery-s2-4c678792.
-Windows acceptance NOT_RUN,hosting NOT_PUBLISHED;preserve package/caches/failed87.
+Publisher pins exact Docker volume/daemon/path/driver options and directory inode;
+checks before every unlink,old-file hash and current manifest. Any failure retains
+files;no manual rm/force fallback. Use the Office1.12.19 publisher+guard
+for future S2 retirement;no new rd-cl build.
 
-## Hosting / retained evidence
+## DONE — latest-only hosting (reported by S2)
 
-User has no disposable Windows environment. Current policy permits verified
-package+maintenance upload with truthful native NOT_RUN;never fabricate PASS or
-publish FAIL. Last host check API1.12.16,no installer volume/config/route. User
-manual Office1.12.18 rollout required. S2 uses existing verified server SSH for
-scoped latest-only publication,not source/Git/deploy/SQL/host installations.
-Previous1c7cff12/2.0.0 and failed87/b948/d029 evidence retained. Reuse actual4c
-codec/toolchain/warm app state;known SDK-aware receipt784aba5498e0a84922367ff58e506940c60b445958bc8ceda1ccf0b0e4796572
-is a lead,not invented new proof. Details:docs/windows-s2-build-handoff.md and
-Office docs/rdcl-automatic-enrollment.md / rdcl-installer-hosting.md.
+Standing user requirement:EVERY changed-rd-cl delivery includes publishing the
+latest verified EXE,verifying public bytes,atomically activating current.json and
+removing ONLY the previous manifest-owned server EXE. Final server keeps one
+installer;useful rollback packages/caches remain on S2. Hosting pending is not
+build pending. Continue publish-only for completed680628f2;no duplicate build.
+Hosting is now PUBLISHED per S2 receipt;no hosting retry/new build needed.
+Use the coordinated Office1.12.19 publisher+guard for future retirement.
+Production baseline:Office1.12.18 /66b4f17.
+Caller Popup1.4.12 adds common-link copy with manual clipboard fallback;108app
+tests PASS. Reviewed source in this publication;verified cross-published/NSIS package under
+Builds/CallerPopup/1.4.12-local-66b4f17;Windows acceptance NOT_RUN. Common download has no customer authority;scoped
+copy-link is in Popup/customer card,one PC/token across multiple callers,success
+only after actual device ACK. Local API23/browser40 PASS;native guard83PASS/8SKIP
+and6Dart syntax parses are distinct from the actual S2 results above.
+Receipts:Reports/auto-enrollment-current.

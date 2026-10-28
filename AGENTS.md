@@ -130,19 +130,23 @@ baseline/handoff/completion evidence to avoid duplicate prompts/builds. If rd-cl
 is unchanged, report NO_RDCL_BUILD_NEEDED. No automatic builds, Actions, product
 installation or deployment is implied. The former cloud build plan is superseded.
 
-The latest completed S2 application/EXE baseline, user receipt received
-2026-10-28, is `4c6787926a46a2a981f1b251b0223c8853fce54b`, version `2.0.1+73`.
-Guards89PASS/1LinuxSKIP,Dart80,analyzer0ERROR/0WARNING/30INFO,native/package/
-integrity122checksum entries/maintenance PASS. EXE24332288bytes,UNSIGNED,
-SHA256 `7a46b86664abacc9ec46adea51d35df664f6c3852886be19a87c9c8ff12641ec`.
-Windows acceptance NOT_RUN and hosting NOT_PUBLISHED;no repeat build for this SHA.
-Preserve the prior1c7cff12 delivery, failed87e01f40 evidence and compatible caches.
-Read the maintained handoff guide's completed baseline for the EXE hash, size,
-codec receipt and acceptance limits; do not use earlier blocked/codec-only states.
-Reported EXE directory:
-`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.1+73\delivery-s2-4c678792`.
-Keep that verified delivery unchanged and use an unused owned output directory
-for the next build. An unchanged published SHA needs no repeat build.
+Current completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
+not independently inspected on Windows here):
+`680628f2b9e798ef63e6d29c73954807d9012e12`,rd-cl `2.0.2+74`,Windows x64,UNSIGNED.
+Directory:`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.2+74\delivery-s2-680628f2`.
+EXE:`rd-cl-2.0.2+74-windows-x64-install.exe`,24343040bytes.
+SHA256:`d4843ebf32759b78f2663247d6fd72cb4ba7a2ce2229c9f59131186a4fa292a1`.
+Codec/cache reuse without bootstrap,guards90PASS/1SKIP,analyzer0ERROR/0WARNING/30INFO,
+Dart86PASS,native/EXE/ZIP/integrity125checksums/maintenance PASS;release23m04s.
+Native installation/enrollment acceptance remains NOT_RUN. User-forwarded S2
+PUBLISH-COMPLETED receipt confirms hosting PUBLISHED:exact24343040bytes/hash verified
+via HTTPS from DEV/S2,one server EXE,transfer staging cleaned/verified. No repeated
+build or deploy/restart in that publication. Exact public URL was not included in
+the forwarded report;do not invent a verified URL. Do NOT rebuild unchanged source.
+The additional volume/deletion guard is delivered by the coordinated Office1.12.19
+source change;it is not claimed as executed proof for the prior publication.
+Preserve prior4c678792 package/caches and useful failed evidence. No runtime,
+signing or hosting success is inferred from build PASS.
 
 The prompt must preserve actual pinned Git-object checks (shallow alone is not
 failure), reuse a matching genuine codec receipt, and verify after VsDevCmd that
@@ -301,10 +305,57 @@ results separate. Use the updated Office publisher and hosting/automatic-enrollm
 guides;all source/hash/PE/HTTPS/atomic-retention gates remain. No extra confirmation
 for the same reviewed scoped upload. No automatic Dokploy deploy/SQL/reboot or
 host/customer installation is granted to the S2 build job by this policy.
-Current completed S2 baseline remains4c6787922.0.1+73 until a real new receipt;
-its bytes and caches are retained. The next native candidate is2.0.2+74.
+Completed S2 baseline is now680628f2/2.0.2+74 per receipt above;
+its package and caches are retained. Hosting is still pending,not a new build.
 
 ## Installer hosting after changed rd-cl — user policy2026-10-27
+
+### Non-negotiable volume identity gate before deletion —2026-10-28
+
+Retention deletion is limited to ZERO files on first/same-version publication or
+ONE exact previous-version EXE named in the prior current.json,with verified hash.
+Never delete all folder contents,other EXEs/files/subfolders,glob matches or a list
+of old versions. Unexpected files remain untouched and stop publication for review.
+Publisher-owned lock/staging housekeeping is separate from previous-EXE retirement;
+it never authorizes cleanup of pre-existing files or directory contents.
+
+Before EVERY deletion of an old installer, prove the exact Docker daemon and
+named local volume office-rdcl-installer-ro, its creation identity and backing
+host directory /var/lib/office/rd-cl-installer with type=none,o=bind,ro. Pin the
+real directory identity (device/inode;no symlink) and recheck immediately before
+unlink. Revalidate the previous manifest-owned basename and its actual bytes/hash;
+never select EXEs by wildcard, age, parent directory or recursive traversal.
+Missing Docker access, ambiguous identity, a different daemon/volume/path/options,
+changed directory/file/manifest or any failed check MUST abort deletion and retain
+the files. No force/skip/manual-rm fallback, even after the new EXE is published.
+The publisher also gates staging/rollback/lock-file unlink with the same volume
+proof;on failure keep leftovers for explicit inspection,not automatic cleanup.
+Only the new verified HTTPS bytes may become current;the previous EXE can then be
+retired under this gate. Record exact volume/path/old-new hashes and removal result.
+Use the updated publisher plus rdcl-installer-volume-guard.mjs from the SAME reviewed
+published Office revision. An older publisher without this gate is forbidden.
+This tooling change does not require another rd-cl build. Do not run the new script
+from an unpublished/mixed revision;source publication is a prerequisite for S2.
+
+### Mandatory completion after every rd-cl change — reaffirmed2026-10-28
+
+Every delivery with rd-cl changes MUST include S2 publication of the latest
+verified installer and retirement of the previous server installer. Build/package
+PASS alone is not delivery completion: report BUILD_PACKAGE_PASS and HOSTING_PENDING
+separately until actual public download verification passes. Include this stage
+and its existing scoped upload/removal authorization in EVERY S2 handoff; do not
+wait for another user request or omit it from a build-only prompt.
+Order: verify the new package/source/hash/maintenance, stage it, verify public HTTPS
+bytes, atomically activate current.json, then remove ONLY the previous manifest-owned
+EXE from the dedicated server volume. Never delete the old installer before the new
+one is verified. Final server storage contains one current installer; retain useful
+rollback packages and reusable caches separately on S2. Do not touch customer data.
+If access, space, mounts/config or manual rollout blocks hosting, preserve the
+verified package and issue/continue a publish-only handoff after the blocker clears;
+never rebuild an unchanged completed SHA merely to retry hosting. S2 may prepare
+reviewed mounts/config without deploy; final Dokploy deploy/restart stays manual
+with the user. Native acceptance remains truthful PASS/NOT_RUN under current policy;
+FAIL never qualifies. Use the reviewed Office publisher; no broad deletion/guard bypass.
 
 Every future S2 prompt for changed rd-cl includes building/verifying the latest
 EXE and publishing only that approved version to the dedicated server installer
