@@ -15,6 +15,17 @@ Map<String, dynamic> valid() => {
       'native_api_base': 'https://native.invalid'
     };
 void main() {
+  test('legacy migration accepts only the pinned native logout acknowledgement', () {
+    expect(legacyLogoutConfirmed(200, 'null'), isTrue);
+    expect(legacyLogoutConfirmed(200, ' null\n'), isTrue);
+    for (final status in [204, 301, 401, 403, 500, 502]) {
+      expect(legacyLogoutConfirmed(status, 'null'), isFalse);
+    }
+    for (final body in ['', '<html>proxy</html>', 'error code: 502', '{}',
+      '{"error":"unauthorized"}', '[]', '"ok"']) {
+      expect(legacyLogoutConfirmed(200, body), isFalse);
+    }
+  });
   test('lease is bound to Office source rather than provider-supplied metadata',
       () {
     expect(

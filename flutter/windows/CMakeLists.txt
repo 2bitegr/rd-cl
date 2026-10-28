@@ -1,5 +1,9 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+# Native build tooling supplies the reviewed SDK before project() selects VS tools.
+if(DEFINED ENV{RDCL_WINDOWS_SDK_VERSION})
+  set(CMAKE_SYSTEM_VERSION "$ENV{RDCL_WINDOWS_SDK_VERSION}" CACHE STRING "Reviewed Windows SDK" FORCE)
+endif()
 project(rustdesk LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change

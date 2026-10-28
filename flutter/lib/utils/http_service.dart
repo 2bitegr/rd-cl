@@ -96,9 +96,10 @@ class HttpService {
       }
       int statusCode = parsedJson['status_code'];
       return http.Response(body, statusCode, headers: headers);
-    } catch (e) {
-      print('Failed to parse response\n$responseJson\nError:\n$e');
-      throw Exception('Failed to parse response.\n$responseJson');
+    } catch (_) {
+      // A malformed response can still contain device/authentication tokens.
+      // Do not print it or surface it in a dialog.
+      throw Exception('Failed to parse HTTP response.');
     }
   }
 }

@@ -1,3 +1,16 @@
+import 'dart:convert';
+
+/// The pinned native API acknowledges authenticated logout with HTTP 200/null.
+/// An HTML proxy reply or rejected request must not erase the migration token.
+bool legacyLogoutConfirmed(int statusCode, String body) {
+  if (statusCode != 200) return false;
+  try {
+    return jsonDecode(body) == null;
+  } on FormatException {
+    return false;
+  }
+}
+
 /// Pure native-lease policy. Network/storage adapters live in the companion.
 class ExantasNativeIdentity {
   const ExantasNativeIdentity(

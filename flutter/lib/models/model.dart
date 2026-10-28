@@ -1339,6 +1339,7 @@ class FfiModel with ChangeNotifier {
           // The native connection id can still be 0 while peer_info is handled.
           // The Flutter session id remains stable, including when a tab moves.
           'local_session': buildExantasLocalSessionKey(peerId, sessionId),
+          'office_ticket': parent.target?.officeLaunchTicket,
           'rustdesk_session_id': connectionId,
           'peer_id': peerId,
           'peer_name': evt['hostname'] ?? peerId,
@@ -3683,6 +3684,7 @@ enum ConnType {
 
 /// Flutter state manager and data communication with the Rust core.
 class FFI {
+  String? officeLaunchTicket;
   var id = '';
   var version = '';
   var connType = ConnType.defaultConn;

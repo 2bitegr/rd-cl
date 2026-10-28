@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "base_source_commit": "1be7642b56af58d3fb27c400e52a78200505e39b",
+  "product_version": "2.0.3+75",
+  "triplet_sha256": "6e5446ee9aa0ab97e61170013be186b2c03ea7bc9f63cb56fdff478f61448275",
+  "previous_triplet_sha256": "e3cd9820386c639b8cbf844d43853cbc838f75a1488bfd4add98d5646c716538",
+  "ports": {
+    "libjpeg-turbo": {
+      "baseline": "3.1.1",
+      "port-version": 0
+    },
+    "pkgconf": {
+      "baseline": "2.5.1",
+      "port-version": 0
+    },
+    "vcpkg-cmake": {
+      "baseline": "2024-04-23",
+      "port-version": 0
+    },
+    "vcpkg-cmake-config": {
+      "baseline": "2024-05-23",
+      "port-version": 0
+    },
+    "vcpkg-cmake-get-vars": {
+      "baseline": "2025-05-29",
+      "port-version": 0
+    },
+    "vcpkg-msbuild": {
+      "baseline": "2023-08-08",
+      "port-version": 0
+    },
+    "vcpkg-pkgconfig-get-modules": {
+      "baseline": "2024-04-03",
+      "port-version": 0
+    },
+    "vcpkg-tool-meson": {
+      "baseline": "1.8.2",
+      "port-version": 0
+    },
+    "aom": {
+      "baseline": "3.12.1",
+      "port-version": 0
+    },
+    "ffmpeg": {
+      "baseline": "7.1",
+      "port-version": 1
+    },
+    "libvpx": {
+      "baseline": "1.15.2",
+      "port-version": 0
+    },
+    "libyuv": {
+      "baseline": "1857",
+      "port-version": 0
+    },
+    "mfx-dispatch": {
+      "baseline": "1.35.1",
+      "port-version": 5
+    },
+    "opus": {
+      "baseline": "1.5.2",
+      "port-version": 0
+    },
+    "amd-amf": {
+      "baseline": "1.4.35",
+      "port-version": 0
+    },
+    "ffnvcodec": {
+      "baseline": "12.1.14.0",
+      "port-version": 0
+    }
+  },
+  "archives": [
+    {
+      "name": "ffmpeg",
+      "filename": "ffmpeg-ffmpeg-n7.1.tar.gz",
+      "sha512": "3b273769ef1a1b63aed0691eef317a760f8c83b1d0e1c232b67bbee26db60b4864aafbc88df0e86d6bebf07185bbd057f33e2d5258fde6d97763b9994cd48b6f"
+    },
+    {
+      "name": "libvpx",
+      "filename": "webmproject-libvpx-v1.15.2.tar.gz",
+      "sha512": "824fe8719e4115ec359ae0642f5e1cea051d458f09eb8c24d60858cf082f66e411215e23228173ab154044bafbdfbb2d93b589bb726f55b233939b91f928aae0"
+    },
+    {
+      "name": "opus",
+      "filename": "xiph-opus-v1.5.2.tar.gz",
+      "sha512": "4ffefd9c035671024f9720c5129bfe395dea04f0d6b730041c2804e89b1db6e4d19633ad1ae58855afc355034233537361e707f26dc53adac916554830038fab"
+    },
+    {
+      "name": "mfx-dispatch",
+      "filename": "lu-zero-mfx_dispatch-1.35.1.tar.gz",
+      "sha512": "12517338342d3e653043a57e290eb9cffd190aede0c3a3948956f1c7f12f0ea859361cf3e534ab066b96b1c211f68409c67ef21fd6d76b68cc31daef541941b0"
+    },
+    {
+      "name": "libjpeg-turbo",
+      "filename": "libjpeg-turbo-libjpeg-turbo-3.1.1.tar.gz",
+      "sha512": "4937b63a27818cdb5087091b2d78837f7f385fd6b4d3e3fcaf4d9ad2944fed4a00020dcacb33e9c2fd4b0f9d9851fb4051ed3da86f606aca5167357262a73e89"
+    },
+    {
+      "name": "pkgconf",
+      "filename": "pkgconf-pkgconf-pkgconf-2.5.1.tar.gz",
+      "sha512": "53244f372ea21125a1d97c5b89a84299740b55a66165782e807ed23adab3a07408a1547f1f40156e3060359660d07f49846c8b4893beef10ac9440ab7e8611cc"
+    },
+    {
+      "name": "amd-amf",
+      "filename": "GPUOpen-LibrariesAndSDKs-AMF-v1.4.35.tar.gz",
+      "sha512": "8a2aa3a358a7c0cfac47f545b8a375de86652d6590795161ad592e49219f54f5ec8dd06d5d48ea9e091fac09e83dbac2044d7ed551898f907cc1b30eea66b7ab"
+    },
+    {
+      "name": "ffnvcodec",
+      "filename": "FFmpeg-nv-codec-headers-n12.1.14.0.tar.gz",
+      "sha512": "3c7d06e6a859cab5b915035544cb0103b1b1413c69ac418bc668145445498e1f9cb6ec597c4071f6198e378f6cea60e5a7b0be44b0de3191d65609d50dfdad4a"
+    },
+    {
+      "name": "mfx-cstdint-patch",
+      "filename": "fix-missing-cstdint-import-d6241243f85a0d947bdfe813006686a930edef24.patch",
+      "sha512": "5d2ffc4ec2ba0e5859d01d2e072f75436ebc3e62e0f6580b5bb8b9f82fe588e7558a46a1fdfa0297a782c0eeb8f50322258d0dd9e41d927cc9be496727b61e44"
+    },
+    {
+      "name": "meson",
+      "filename": "meson-1.8.2.tar.gz",
+      "sha512": "bd2e65f0863d9cb974e659ff502d773e937b8a60aaddfd7d81e34cd2c296c8e82bf214d790ac089ba441543059dfc2677ba95ed51f676df9da420859f404a907"
+    }
+  ],
+  "git_archives": {
+    "aom": "10aece4157eb79315da205f39e19bf6ab3ee30d0",
+    "libyuv": "0faf8dd0e004520a61a603a4d2996d5ecc80dc3f"
+  },
+  "compiled_ports": [
+    "aom",
+    "ffmpeg",
+    "libjpeg-turbo",
+    "libvpx",
+    "libyuv",
+    "mfx-dispatch",
+    "opus"
+  ],
+  "legacy_triplet_sha256": [
+    "323c6f88ab1a51ff02dacabd5d7f00e290fc5510acab1841d61ea3a8788e1a92"
+  ],
+  "windows_sdk_version": "10.0.22621.0"
+}

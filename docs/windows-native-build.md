@@ -1,11 +1,26 @@
+> Current integrity requirements (2026-10-22): read
+> [S2 build integrity](windows-s2-build-integrity.md). Exact submodule/payload
+> inventories, complete recorded tools/SDK identity and a locked release session
+> are required. The historical S2 codec receipt lacks SDK identity; preserve it
+> and produce a new receipt through actual isolated codec compilation before
+> using this hardened tooling. Current user-authorized product version is2.0.0+72;
+> see [installer correction](windows-installer-2.0.0.md). Dependency pins are unchanged.
+
 # Pinned native Windows x64 build
+
+After Office publication, prepare the [single S2 build handoff](windows-s2-build-handoff.md)
+when published rd-cl changes are pending. It covers the complete workflow below,
+codec receipt reuse/conditional bootstrap, and reporting the absolute Desktop EXE
+directory, full installer path and SHA-256.
 
 Use `scripts/windows-native-build.ps1` and its reviewed
 `windows-native-profile.json`. The legacy `windows-release-build.ps1` is not the
 accepted repeatable workflow: it uses moving refs, an unlocked pub resolve,
 fixed tool paths and a suppressed SDK patch failure.
 
-The current product is **1.4.13+71**, distinct from installed1.4.12+70.
+The current source product is **2.0.0+72** (displayed version2.0.0). The prior
+1.4.13+71 package has user-reported installation/upgrade failures; see the
+[installer correction and native acceptance requirements](windows-installer-2.0.0.md).
 S1 publishes source/version/tooling; S2 alone performs delivery builds. Supply the
 full published commit as `-SourceCommit`; branch names are rejected. The owned
 snapshot marker and actual HEAD must match it, and the profile must be identical
@@ -22,7 +37,7 @@ After successful preflight, use the published wrapper on S2:
 ```powershell
 & .\scripts\windows-native-release.ps1 -Mode Build -WithExe `
   -Toolchain <S2-local-toolchain.json> -SourceCommit <full-published-SHA> `
-  -OutputRoot <verified-Desktop>\Office-Workspace-Artifacts\Builds\rd-cl\1.4.13+71
+  -OutputRoot <verified-Desktop>\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-<source-sha>
 ```
 
 `PackageExe` can resume packaging from the same verified build. It rejects a stale
@@ -32,7 +47,7 @@ Python Brotli and packer Cargo dependencies must already be cached; no pip insta
 download or fallback compiler is permitted. The packer uses the root workspace
 Cargo.lock, not the historical nested standalone lockfile.
 
-Output: `rd-cl-1.4.13+71-windows-x64-install.exe`, `EXE-INFO.json` and SHA256SUMS,
+Output: `rd-cl-2.0.0+72-windows-x64-install.exe`, `EXE-INFO.json` and SHA256SUMS,
 alongside the verified runtime ZIP/provenance. The `install.exe` suffix is required
 by the existing launcher to open its interactive `--install` screen. Compilation
 never executes the product. No `-WithMsi`/`PackageMsi` is requested; existing MSI
@@ -46,6 +61,11 @@ NOT_RUN until actually checked; never install/run the package to test it without
 a separate authorized acceptance step. Preserve the previous verified delivery.
 
 ## Offline dependency policy
+
+For S2's missing compiled-cache receipt or mismatched old triplet, use the
+separate [offline codec bootstrap](windows-s2-codec-bootstrap.md). It compiles
+codecs from pinned local inputs in an isolated root and produces evidence for
+the existing verifier. It does not relax this workflow's installed-only guards.
 
 The native wrapper uses **existing local tools and caches only** in every mode.
 There is no automatic download/online fallback. Reuse the reviewed toolchain JSON,
@@ -243,6 +263,47 @@ is a minimum reserve, not a guarantee of peak-space availability.
 Do not delete unrelated data to bypass it. Storage compression or cleanup must
 have a separate explicit scope/approval and preserve build inputs.
 
+## Latest S2 warm-cache result (user report2026-10-24)
+
+Source1c7cff1289438b84788b3b2b78ab30c05ce25202 completed build/package and
+all delivery gates. Release invocation16m06s, Flutter138.4s; this does not measure
+the whole agent session. Codecs were reused with SDK-aware receipt784aba54...6572,
+Dart70 and guards89 passed (one Linux-only skip), analyzer exit0 with10 INFO.
+Exact93-file runtime/core/icons and maintenance verification passed. Keep the
+successful application caches and compare real provenance before future reuse;
+no measured result guarantees the same duration for different changes/machines.
+See the handoff guide for exact source/artifact/toolchain/receipt hashes and
+remaining native installation/runtime acceptance. The older cold-run evidence
+below remains historical.
+
+## S2 elapsed-time evidence and reuse (2026-10-22)
+
+For successful a23ec301 /2.0.0+72, the supplied S2 transcript reports:
+
+| Stage | Wall time |
+| --- | ---: |
+| Cargo virtual display |26m35s |
+| Cargo main DLL |59m05s |
+| Flutter Windows release |466.1s (7m46.1s) |
+| Full agent run, including preparation/verification |2h04m52s |
+
+The transcript explicitly chose a new isolated Cargo target because the old
+native build-script cache had ambiguous provenance. It shows fresh dependency
+compilation and no new codec compilation. A recorded build output path identifies
+`C:\Build\rd-cl\a23ec301\target` as a candidate for future application-cache
+reuse; the actual config, locks and tool/SDK/codec evidence must be checked on S2.
+Do not select an old ambiguous target or claim the candidate is verified solely
+from this path. Keep source snapshots/delivery outputs separate from caches.
+
+The current build script explicitly passes `-j 1` to Cargo for both components.
+Setting CARGO_BUILD_JOBS cannot override that command-line limit. Reviewed
+configurable parallelism and per-command elapsed timing are follow-up tooling
+work, requiring S2 CPU/RAM/peak-memory evidence; neither is implemented by this
+documentation update. The actual EXE compression/packer time and the rest of the
+run cannot be isolated precisely from this transcript; require step-level timing
+before claiming their cost or a promised repeat-build duration. All tests, guards,
+codec checks and final payload identity still run with cache reuse.
+
 ## Acceptance and current limits
 
 A passing installer, locked resolve, metadata/preflight or AOT probe is not a
@@ -295,8 +356,10 @@ record the real installer only after its build and static checks pass.
 
 The initial WSL codec prebuild used LF triplet bytes; the native Windows wrapper
 writes CRLF. Vcpkg hashes exact bytes, so that one-time difference invalidated
-the initial cache. The canonical native triplet SHA256 is
+the initial cache. The earlier release-only triplet SHA256 was
 `323c6f88ab1a51ff02dacabd5d7f00e290fc5510acab1841d61ea3a8788e1a92`.
+The current triplet explicitly pins SDK22621 and has SHA256
+`6e5446ee9aa0ab97e61170013be186b2c03ea7bc9f63cb56fdff478f61448275`.
 Keep the same native representation on repeat invocations. A version-only
 `vcpkg install --dry-run` does not establish ABI reuse; verify the real install
 output and installed ABI manifests. Do not edit ABI records to bypass rebuilds.
