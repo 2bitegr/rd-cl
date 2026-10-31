@@ -58,6 +58,12 @@ mod whiteboard;
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod updater;
+#[cfg(windows)]
+mod office_identity;
+
+#[cfg(any(windows, target_os = "android"))]
+mod office_native_auth;
+mod office_native_policy;
 
 mod ui_cm_interface;
 mod ui_interface;

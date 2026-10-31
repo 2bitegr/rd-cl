@@ -380,6 +380,23 @@ pub fn call_clipboard_manager_enable_client_clipboard(enable: bool) -> JniResult
     )
 }
 
+pub fn office_unprotect(value: &str) -> Option<String> {
+    let vm = JVM.read().ok()?;
+    let context = APPLICATION_CONTEXT.read().ok()?;
+    let mut env = vm.as_ref()?.attach_current_thread_as_daemon().ok()?;
+    let result = env.with_local_frame(8, |env| -> JniResult<String> {
+        let value = env.new_string(value)?;
+        let output = env.call_method(context.as_ref().ok_or(JniError::ThrowFailed(-1))?,
+            "officeUnprotect", "(Ljava/lang/String;)Ljava/lang/String;",
+            &[JValue::Object(&JObject::from(value))])?.l()?;
+        let output = JString::from(output);
+        let plain = env.get_string(&output)?.to_string_lossy().into_owned();
+        Ok(plain)
+    });
+    if result.is_err() { let _ = env.exception_clear(); }
+    result.ok()
+}
+
 pub fn call_main_service_get_by_name(name: &str) -> JniResult<String> {
     if let (Some(jvm), Some(ctx)) = (
         JVM.read().unwrap().as_ref(),
@@ -506,6 +523,8 @@ pub extern "system" fn Java_ffi_FFI_onAppStart(mut env: JNIEnv, _class: JClass, 
             let context_jobject = context.as_obj().as_raw() as *mut c_void;
             *APPLICATION_CONTEXT.write().unwrap() = Some(context);
             try_init_rustls_platform_verifier(&mut env, context_jobject);
+            let mut vm = JVM.write().unwrap();
+            if vm.is_none() { *vm = Some(jvm); }
         }
     }
 }

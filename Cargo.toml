@@ -1,6 +1,6 @@
 [package]
 name = "rustdesk"
-version = "1.4.11"
+version = "2.0.3"
 authors = ["Exantas Support"]
 edition = "2021"
 build= "build.rs"
@@ -105,6 +105,7 @@ qrcode-generator = "4.1"
 winapi = { version = "0.3", features = [
     "winuser",
     "wincrypt",
+    "dpapi",
     "shellscalingapi",
     "pdh",
     "synchapi",

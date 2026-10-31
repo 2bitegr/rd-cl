@@ -1668,7 +1668,7 @@ Future<bool?> _showConnEndAuditDialogCloseCanceled({
         return;
       }
       final url = '$apiServer/api/audit';
-      var headers = getHttpHeaders();
+      var headers = getHttpHeaders(officeNative: true);
       headers['Content-Type'] = "application/json";
       final body = jsonEncode({
         'guid': auditGuid,

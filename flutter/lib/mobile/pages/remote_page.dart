@@ -21,6 +21,8 @@ import '../../common/widgets/remote_input.dart';
 import '../../models/input_model.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
+import '../../models/exantas_lifecycle_outbox.dart';
+import '../../models/exantas_session_report.dart';
 import '../../utils/image.dart';
 import '../widgets/dialog.dart';
 import '../widgets/custom_scale_widget.dart';
@@ -46,13 +48,15 @@ class RemotePage extends StatefulWidget {
       required this.id,
       this.password,
       this.isSharedPassword,
-      this.forceRelay})
+      this.forceRelay,
+      this.onOfficeClosed})
       : super(key: key);
 
   final String id;
   final String? password;
   final bool? isSharedPassword;
   final bool? forceRelay;
+  final void Function(Map<String, dynamic>)? onOfficeClosed;
 
   @override
   State<RemotePage> createState() => _RemotePageState(id);
@@ -143,6 +147,19 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   @override
   Future<void> dispose() async {
     WidgetsBinding.instance.removeObserver(this);
+    if (isAndroid) {
+      // Capture identity before native teardown. This is an observation only;
+      // Office's provider audit remains the authority for completion and time.
+      final event = <String, dynamic>{
+        'local_session': buildExantasLocalSessionKey(widget.id, sessionId),
+        'peer_id': widget.id,
+        'rustdesk_session_id': bind.sessionGetConnSessionId(sessionId: sessionId).toString(),
+        'ended_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      widget.onOfficeClosed?.call(Map<String, dynamic>.from(event));
+      unawaited(ExantasLifecycleOutbox.instance.ended(event).catchError((Object _) {}));
+      ExantasLifecycleOutbox.instance.mobileWork = null;
+    }
     // Close the session up-front. `gFFI.close()` below only calls `sessionClose`
     // after several awaits (canvas save, image update, the `enable_soft_keyboard`
     // platform call), so if the app is backgrounded while this page is disposing,

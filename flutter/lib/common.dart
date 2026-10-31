@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:back_button_interceptor/back_button_interceptor.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -13,6 +12,10 @@ import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
+import 'package:flutter_hbb/models/exantas_companion_model.dart';
+import 'package:flutter_hbb/models/exantas_native_auth.dart' show normalizeAndroidPeerId;
+import 'package:flutter_hbb/models/exantas_device_enrollment.dart';
+import 'package:flutter_hbb/desktop/widgets/exantas_device_enrollment.dart';
 import 'package:flutter_hbb/models/peer_tab_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
@@ -2204,7 +2207,7 @@ Future<bool> initUniLinks() async {
   // check cold boot
   try {
     final initialLink = await getInitialLink();
-    print("initialLink: $initialLink");
+    debugPrint("Initial application link received");
     if (initialLink == null || initialLink.isEmpty) {
       return false;
     }
@@ -2231,7 +2234,7 @@ StreamSubscription? listenUniLinks({handleByFlutter = true}) {
   }
 
   final sub = uriLinkStream.listen((Uri? uri) {
-    debugPrint("A uri was received: $uri. handleByFlutter $handleByFlutter");
+    debugPrint("Application link received; handleByFlutter $handleByFlutter");
     if (uri != null) {
       if (handleByFlutter) {
         handleUriLink(uri: uri);
@@ -2260,8 +2263,63 @@ setEnvTerminalAdmin() {
   bind.mainSetEnv(key: 'IS_TERMINAL_ADMIN', value: 'Y');
 }
 
+bool _enrollmentDialogOpen = false;
+Future<void> _showEnrollmentFromLink(String code, {bool automatic = false}) async {
+  if (_enrollmentDialogOpen) { await windowOnTop(null); return; }
+  _enrollmentDialogOpen = true;
+  try {
+    await windowOnTop(null);
+    final context = globalKey.currentContext;
+    if (context == null) return;
+    final service = ExantasCompanionService();
+    await showDialog<void>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Εγκατάσταση υπολογιστή πελάτη'),
+      content: SizedBox(width: 500, child: SingleChildScrollView(
+        child: ExantasDeviceEnrollment(initialCode: code, automatic: automatic,
+          loadStatus: () async {
+            final status = await service.loadStatus();
+            return ExantasDeviceEnrollmentStatus(enrolled: status.enrolled,
+              staffSignedIn: status.technicianLoggedIn, pending: status.enrollmentPending,
+              customerName: status.customerName);
+          },
+          preview: service.previewDeviceEnrollment,
+          enroll: (preview) async { await service.enrollDevice(preview); },
+          complete: service.completeDeviceEnrollment,
+        ),
+      )),
+      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Κλείσιμο'))],
+    ));
+  } catch (_) {
+    // Never log the enrollment URI, code, grant or network payload.
+    debugPrint('Customer installation link could not be opened');
+  } finally { _enrollmentDialogOpen = false; }
+}
+
+Future<void> activateInstallerEnrollment(String launchCode) async {
+  if (!isWindows) return;
+  // Consume the launch environment once; never propagate capabilities to later
+  // tray/update/session children. Durable POST ambiguity is fenced by service.
+  bind.mainSetEnv(key: 'EXANTAS_OFFICE_ENROLLMENT_CODE', value: '');
+  if (launchCode.isNotEmpty) bind.mainSetEnv(key: 'RUSTDESK_APPNAME', value: '');
+  if (!bind.mainIsInstalled()) return;
+  try {
+    final service=ExantasCompanionService();
+    final code = await service.installerBootstrapCode(launchCode);
+    if (code.isNotEmpty) { await _showEnrollmentFromLink(code, automatic: true); }
+    else if (await service.automaticCompletionPending()) { await _showEnrollmentFromLink('', automatic: true); }
+  } catch (_) { debugPrint('Customer installer activation is unavailable'); }
+}
+
 // uri link handler
 bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
+  final source = uri ?? Uri.tryParse(uriString ?? ((cmdArgs?.isNotEmpty ?? false) ? cmdArgs!.first : ''));
+  if (source?.scheme == 'exantas-support-enroll') {
+    final code = enrollmentCodeFromLink(source!);
+    if (isWindows && code != null) Future<void>(() => _showEnrollmentFromLink(code));
+    // Never fall through to remote/password/config routing. The dialog belongs
+    // to the main window, so keep that window visible on cold startup.
+    return false;
+  }
   List<String>? args;
   if (cmdArgs != null && cmdArgs.isNotEmpty) {
     args = cmdArgs;
@@ -2293,11 +2351,14 @@ bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
   String? id;
   String? password;
   String? switchUuid;
+  String? officeTicket;
+  bool playback = false;
   bool? forceRelay;
   for (int i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--connect':
       case '--play':
+        playback = args[i] == '--play';
         type = UriLinkType.remoteDesktop;
         id = args[i + 1];
         i++;
@@ -2341,6 +2402,9 @@ bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
         switchUuid = args[i + 1];
         i++;
         break;
+      case '--office-ticket':
+        officeTicket = args[++i];
+        break;
       case '--relay':
         forceRelay = true;
         break;
@@ -2351,11 +2415,22 @@ bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
   if (type != null && id != null) {
     switch (type) {
       case UriLinkType.remoteDesktop:
-        Future.delayed(Duration.zero, () {
-          rustDeskWinManager.newRemoteDesktop(id!,
-              password: password,
-              switchUuid: switchUuid,
-              forceRelay: forceRelay);
+        Future.delayed(Duration.zero, () async {
+          if (playback) {
+            // Local recording playback does not require a network sign-in.
+            await rustDeskWinManager.newRemoteDesktop(id!,
+                password: password,
+                switchUuid: switchUuid,
+                forceRelay: forceRelay);
+          } else {
+            // Caller Popup/deep links require the SAME native readiness check
+            // as a connection started from the main window. Keep the ticket.
+            await connectMainDesktop(id!,
+                isFileTransfer: false, isViewCamera: false, isTerminal: false,
+                isTcpTunneling: false, isRDP: false, password: password,
+                officeTicket: officeTicket, switchUuid: switchUuid,
+                forceRelay: forceRelay);
+          }
         });
         break;
       case UriLinkType.fileTransfer:
@@ -2523,6 +2598,11 @@ List<String>? urlLinkToCmdArgs(Uri uri) {
     if (password != null) args.addAll(['--password', password]);
     String? switch_uuid = param["switch_uuid"];
     if (switch_uuid != null) args.addAll(['--switch_uuid', switch_uuid]);
+    final officeTicket = param['office_ticket'];
+    if (officeTicket != null) {
+      if (!RegExp(r'^[a-f0-9]{32}$').hasMatch(officeTicket)) return null;
+      args.addAll(['--office-ticket', officeTicket]);
+    }
     if (param["relay"] != null) args.add("--relay");
     return args;
   }
@@ -2539,7 +2619,22 @@ connectMainDesktop(String id,
     bool? forceRelay,
     String? password,
     String? connToken,
+    String? officeTicket,
+    String? switchUuid,
     bool? isSharedPassword}) async {
+  try {
+    final office = ExantasCompanionService();
+    await office.ensureNativeReady();
+    if (officeTicket != null) {
+      final status = await office.loadStatus();
+      if (!status.technicianLoggedIn || !status.nativeReady) {
+        throw StateError('The Office launch requires the current technician identity.');
+      }
+    }
+  } catch (_) {
+    showToast('Δεν επιβεβαιώθηκε η σύνδεση Office–RustDesk. Ελέγξτε τη σύνδεση τεχνικού στην αρχική οθόνη.');
+    return;
+  }
   if (isFileTransfer) {
     await rustDeskWinManager.newFileTransfer(id,
         password: password,
@@ -2566,6 +2661,8 @@ connectMainDesktop(String id,
         forceRelay: forceRelay);
   } else {
     await rustDeskWinManager.newRemoteDesktop(id,
+        officeTicket: officeTicket,
+        switchUuid: switchUuid,
         password: password,
         isSharedPassword: isSharedPassword,
         forceRelay: forceRelay);
@@ -2588,6 +2685,19 @@ connect(BuildContext context, String id,
     String? connToken,
     bool? isSharedPassword}) async {
   if (id == '') return;
+  if (isAndroid) {
+    try { id = normalizeAndroidPeerId(id); } on FormatException catch (e) {
+      showToast(e.message); return;
+    }
+    final office = ExantasCompanionService();
+    try {
+      if (!(await office.loadStatus()).technicianLoggedIn) throw StateError('Office login required');
+      await office.ensureNativeReady();
+    } catch (_) {
+      showToast('Συνδεθείτε και επιβεβαιώστε το RustDesk από την Υποστήριξη Office.');
+      return;
+    }
+  }
   if (!isDesktop || desktopType == DesktopType.main) {
     try {
       if (Get.isRegistered<IDTextEditingController>()) {
@@ -2741,10 +2851,11 @@ connect(BuildContext context, String id,
   }
 }
 
-Map<String, String> getHttpHeaders() {
-  return {
-    'Authorization': 'Bearer ${bind.mainGetLocalOption(key: 'access_token')}'
-  };
+Map<String, String> getHttpHeaders({bool officeNative = false}) {
+  // Only the connection-audit flow opts into the Office-derived credential.
+  // Native account/address-book consumers retain their original account scope.
+  final key = officeNative ? 'exantas.office.native_access_token' : 'access_token';
+  return {'Authorization': 'Bearer ${bind.mainGetLocalOption(key: key)}'};
 }
 
 // Simple wrapper of built-in types for reference use.

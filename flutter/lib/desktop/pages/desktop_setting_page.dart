@@ -9,6 +9,12 @@ import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'exantas_sessions_page.dart';
+import '../widgets/exantas_identity_settings.dart';
+import '../widgets/exantas_account_settings.dart';
+import '../widgets/exantas_device_enrollment.dart';
+import '../../models/exantas_device_enrollment.dart';
+import '../../models/exantas_companion_model.dart';
+import '../../models/exantas_report_outbox.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_home_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
@@ -888,6 +894,7 @@ class _Safety extends StatefulWidget {
 }
 
 class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
+  final _identityActions = ExantasCompanionService();
   @override
   bool get wantKeepAlive => true;
   bool locked = bind.mainIsInstalled();
@@ -910,8 +917,13 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                 permissions(context),
                 password(context),
                 _Card(title: '2FA', children: [tfa()]),
-                if (!isChangeIdDisabled())
-                  _Card(title: 'ID', children: [changeId()]),
+                ExantasIdentitySettings(
+                  actions: _identityActions, unlocked: !locked,
+                  available: isWindows && bind.mainIsInstalled(),
+                  cardBuilder: (child) => _Card(title: 'RustDesk ID', children: [child]),
+                  hasPendingReports: () async => (await ExantasReportOutbox.instance.rows())
+                    .any((row) => row['state'] != 'synced'),
+                ),
                 more(context),
               ]),
             ),
@@ -1036,15 +1048,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
     }
 
     return tmpWrapper();
-  }
-
-  Widget changeId() {
-    return ChangeNotifierProvider.value(
-        value: gFFI.serverModel,
-        child: Consumer<ServerModel>(builder: ((context, model, child) {
-          return _Button('Change ID', changeIdDialog,
-              enabled: !locked && model.connectStatus > 0);
-        })));
   }
 
   Widget permissions(context) {
@@ -2074,14 +2077,72 @@ class _DisplayState extends State<_Display> {
   }
 }
 
-class _Account extends StatefulWidget {
+class _Account extends StatelessWidget {
   const _Account({Key? key}) : super(key: key);
 
+  Future<void> _action(Future<dynamic> Function() action) async {
+    try {
+      await action();
+    } finally {
+      // Login can persist the Office pairing before native confirmation fails.
+      ExantasCompanionService.notifyAccountChanged();
+    }
+  }
+
   @override
-  State<_Account> createState() => _AccountState();
+  Widget build(BuildContext context) {
+    if (!Platform.isWindows) return const _LegacyAccount();
+    final service = ExantasCompanionService();
+    return ListView(
+      children: [
+        _Card(title: 'Υποστήριξη πελάτη', children: [
+          Padding(padding: const EdgeInsets.all(18), child: ExantasDeviceEnrollment(
+            loadStatus: () async {
+              final status = await service.loadStatus();
+              return ExantasDeviceEnrollmentStatus(enrolled: status.enrolled,
+                staffSignedIn: status.technicianLoggedIn,
+                customerName: status.customerName, pending: status.enrollmentPending);
+            },
+            preview: service.previewDeviceEnrollment,
+            enroll: (preview) => _action(() => service.enrollDevice(preview)),
+            complete: () => _action(service.completeDeviceEnrollment),
+          )),
+        ]),
+        _Card(title: 'Σύνδεση τεχνικού στο Office', children: [
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: ExantasAccountSettings(
+              nativeRequired: Platform.isWindows,
+              loadStatus: () async {
+                final status = await service.loadStatus();
+                return ExantasAccountStatus(
+                  signedIn: status.technicianLoggedIn,
+                  name: status.technicianName,
+                  role: status.supportRole,
+                  nativeReady: status.nativeReady,
+                  legacySignedIn: bind.mainGetLocalOption(key: 'access_token').isNotEmpty,
+                );
+              },
+              login: (email, password) => _action(() => service.loginTechnician(email, password)),
+              logout: () => _action(service.logoutTechnician),
+              confirmNative: () => _action(() => service.ensureNativeReady(force: true)),
+              logoutLegacy: () => _action(() => gFFI.userModel.logOut(requireServerConfirmation: true)),
+            ),
+          ),
+        ]),
+      ],
+    ).marginOnly(bottom: _kListViewBottomMargin);
+  }
 }
 
-class _AccountState extends State<_Account> {
+class _LegacyAccount extends StatefulWidget {
+  const _LegacyAccount({Key? key}) : super(key: key);
+
+  @override
+  State<_LegacyAccount> createState() => _LegacyAccountState();
+}
+
+class _LegacyAccountState extends State<_LegacyAccount> {
   @override
   Widget build(BuildContext context) {
     final scrollController = ScrollController();

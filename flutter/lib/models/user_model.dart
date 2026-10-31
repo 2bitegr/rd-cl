@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import '../common.dart';
 import '../utils/http_service.dart' as http;
 import 'model.dart';
+import 'exantas_native_auth.dart';
 import 'platform_model.dart';
 
 bool refreshingUser = false;
@@ -152,13 +153,14 @@ class UserModel {
     ]);
   }
 
-  Future<void> logOut({String? apiServer}) async {
+  Future<void> logOut({String? apiServer, bool requireServerConfirmation = false}) async {
     final tag = gFFI.dialogManager.showLoading(translate('Waiting'));
+    var confirmed = false;
     try {
       final url = apiServer ?? await bind.mainGetApiServer();
       final authHeaders = getHttpHeaders();
       authHeaders['Content-Type'] = "application/json";
-      await http
+      final response = await http
           .post(Uri.parse('$url/api/logout'),
               body: jsonEncode({
                 'id': await bind.mainGetMyId(),
@@ -166,11 +168,23 @@ class UserModel {
               }),
               headers: authHeaders)
           .timeout(Duration(seconds: 2));
+      if (requireServerConfirmation &&
+          !legacyLogoutConfirmed(response.statusCode, decode_http_response(response))) {
+        throw StateError('Η αποσύνδεση RustDesk δεν επιβεβαιώθηκε από τον server.');
+      }
+      confirmed = true;
     } catch (e) {
+      if (requireServerConfirmation) {
+        throw StateError('Η αποσύνδεση RustDesk δεν επιβεβαιώθηκε. '
+            'Η τοπική σύνδεση διατηρήθηκε· ελέγξτε την πρόσβαση στον server.');
+      }
       debugPrint("request /api/logout failed: err=$e");
     } finally {
-      await reset(resetOther: true);
-      gFFI.dialogManager.dismissByTag(tag);
+      try {
+        if (!requireServerConfirmation || confirmed) await reset(resetOther: true);
+      } finally {
+        gFFI.dialogManager.dismissByTag(tag);
+      }
     }
   }
 

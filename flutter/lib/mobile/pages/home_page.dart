@@ -8,6 +8,7 @@ import '../../common/widgets/chat_page.dart';
 import '../../models/platform_model.dart';
 import '../../models/state_model.dart';
 import 'connection_page.dart';
+import 'exantas_support_page.dart';
 
 abstract class PageShape extends Widget {
   final String title = "";
@@ -47,7 +48,8 @@ class HomePageState extends State<HomePage> {
 
   void initPages() {
     _pages.clear();
-    if (!bind.isIncomingOnly()) {
+    if (isAndroid && !bind.isIncomingOnly()) _pages.add(const ExantasSupportPage());
+    if (!isAndroid && !bind.isIncomingOnly()) {
       _pages.add(ConnectionPage(
         appBarActions: [],
       ));

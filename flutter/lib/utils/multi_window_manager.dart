@@ -225,6 +225,7 @@ class RustDeskMultiWindowManager {
     String remoteId,
     List<int> windows, {
     String? password,
+    String? officeTicket,
     bool? forceRelay,
     String? switchUuid,
     bool? isRDP,
@@ -235,6 +236,7 @@ class RustDeskMultiWindowManager {
       "type": type.index,
       "id": remoteId,
       "password": password,
+      "officeTicket": officeTicket,
       "forceRelay": forceRelay
     };
     if (switchUuid != null) {
@@ -255,7 +257,8 @@ class RustDeskMultiWindowManager {
     bool openInTabs = type != WindowType.RemoteDesktop ||
         mainGetLocalBoolOptionSync(kOptionOpenNewConnInTabs);
 
-    if (windows.length > 1 || !openInTabs) {
+    if (officeTicket != null) openInTabs = false;
+    if (officeTicket == null && (windows.length > 1 || !openInTabs)) {
       for (final windowId in windows) {
         if (await DesktopMultiWindow.invokeMethod(
             windowId, kWindowEventActiveSession, remoteId)) {
@@ -270,6 +273,7 @@ class RustDeskMultiWindowManager {
   Future<MultiWindowCallResult> newRemoteDesktop(
     String remoteId, {
     String? password,
+    String? officeTicket,
     bool? isSharedPassword,
     String? switchUuid,
     bool? forceRelay,
@@ -280,6 +284,7 @@ class RustDeskMultiWindowManager {
       remoteId,
       _remoteDesktopWindows,
       password: password,
+      officeTicket: officeTicket,
       forceRelay: forceRelay,
       switchUuid: switchUuid,
       isSharedPassword: isSharedPassword,

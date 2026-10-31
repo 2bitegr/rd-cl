@@ -454,6 +454,10 @@ pub enum Data {
     CheckHwcodec,
     #[cfg(feature = "flutter")]
     VideoConnCount(Option<usize>),
+    #[cfg(windows)]
+    OfficeIdentityReset(crate::office_identity::Request),
+    #[cfg(windows)]
+    OfficeIdentityResetResult(crate::office_identity::Outcome),
     // Although the key is not necessary, it is used to avoid hardcoding the key.
     WaylandScreencastRestoreToken((String, String)),
     HwCodecConfig(Option<String>),
@@ -822,11 +826,20 @@ async fn handle(data: Data, stream: &mut Connection) {
                 .count();
             allow_err!(stream.send(&Data::VideoConnCount(Some(n))).await);
         }
+        #[cfg(windows)]
+        Data::OfficeIdentityReset(request) => {
+            let result = crate::office_identity::reset(request).await;
+            allow_err!(stream.send(&Data::OfficeIdentityResetResult(result)).await);
+        }
+        #[cfg(windows)]
+        Data::OfficeIdentityResetResult(_) => {}
         Data::Config((name, value)) => match value {
             None => {
                 let value;
                 if name == "id" {
                     value = Some(Config::get_id());
+                } else if name == "office-identity-reset-version" {
+                    value = Some(if cfg!(windows) { "1" } else { "0" }.to_owned());
                 } else if name == "temporary-password" {
                     value = Some(password::temporary_password());
                 } else if name == "permanent-password-storage-and-salt" {
@@ -881,8 +894,12 @@ async fn handle(data: Data, stream: &mut Connection) {
             Some(value) => {
                 let mut updated = true;
                 if name == "id" {
-                    Config::set_key_confirmed(false);
-                    Config::set_id(&value);
+                    if Config::is_disable_change_id() {
+                        updated = false;
+                    } else {
+                        Config::set_key_confirmed(false);
+                        Config::set_id(&value);
+                    }
                 } else if name == "temporary-password" {
                     password::update_temporary_password();
                 } else if name == "permanent-password" {

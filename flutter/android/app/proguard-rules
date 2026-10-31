@@ -5,3 +5,5 @@
 
 # Keep rustls-platform-verifier classes for JNI
 -keep, includedescriptorclasses class org.rustls.platformverifier.** { *; }
+# Native lease reader uses the registered application object through JNI.
+-keepclassmembers class com.carriez.flutter_hbb.MainApplication { public java.lang.String officeUnprotect(java.lang.String); }

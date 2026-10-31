@@ -45,6 +45,8 @@ import '../utils/image.dart' as img;
 import '../common/widgets/dialog.dart';
 import 'input_model.dart';
 import 'exantas_session_report.dart';
+import 'exantas_lifecycle_outbox.dart';
+import 'exantas_companion_model.dart';
 import 'platform_model.dart';
 import 'package:flutter_hbb/utils/scale.dart';
 
@@ -1103,7 +1105,14 @@ class FfiModel with ChangeNotifier {
   }
 
   void reconnect(OverlayDialogManager dialogManager, SessionID sessionId,
-      bool forceRelay) {
+      bool forceRelay) async {
+    if (isAndroid) {
+      try {
+        final office = ExantasCompanionService();
+        if (!(await office.loadStatus()).technicianLoggedIn) throw StateError('Office login required');
+        await office.ensureNativeReady();
+      } catch (_) { showToast('Απαιτείται επιβεβαίωση RustDesk στο Office.'); return; }
+    }
     // Disable relative mouse mode before reconnecting to ensure cursor is released.
     parent.target?.inputModel.setRelativeMouseMode(false);
     _cancelPendingMonitorRestore();
@@ -1290,7 +1299,7 @@ class FfiModel with ChangeNotifier {
         debugPrint(
             'Querying audit GUID, attempt $attempt/${retryIntervals.length}');
         try {
-          var headers = getHttpHeaders();
+          var headers = getHttpHeaders(officeNative: true);
           headers['Content-Type'] = "application/json";
 
           final response = await http.get(
@@ -1332,6 +1341,17 @@ class FfiModel with ChangeNotifier {
 
     _queryAuditGuid(peerId);
 
+    if (isAndroid && !isCache && parent.target?.connType == ConnType.defaultConn) {
+      try {
+        await ExantasLifecycleOutbox.instance.started({
+          'local_session': buildExantasLocalSessionKey(peerId, sessionId),
+          'rustdesk_session_id': bind.sessionGetConnSessionId(sessionId: sessionId).toString(),
+          'peer_id': peerId,
+          'started_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } catch (_) { debugPrint('Office Android lifecycle persistence unavailable'); }
+    }
+
     if (isDesktop && !isCache && parent.target?.connType == ConnType.defaultConn) {
       try {
         final connectionId = bind.sessionGetConnSessionId(sessionId: sessionId).toString();
@@ -1339,6 +1359,7 @@ class FfiModel with ChangeNotifier {
           // The native connection id can still be 0 while peer_info is handled.
           // The Flutter session id remains stable, including when a tab moves.
           'local_session': buildExantasLocalSessionKey(peerId, sessionId),
+          'office_ticket': parent.target?.officeLaunchTicket,
           'rustdesk_session_id': connectionId,
           'peer_id': peerId,
           'peer_name': evt['hostname'] ?? peerId,
@@ -3683,6 +3704,7 @@ enum ConnType {
 
 /// Flutter state manager and data communication with the Rust core.
 class FFI {
+  String? officeLaunchTicket;
   var id = '';
   var version = '';
   var connType = ConnType.defaultConn;

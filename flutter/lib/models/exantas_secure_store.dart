@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
+import 'package:flutter/services.dart';
 
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
@@ -10,9 +11,18 @@ const String _dpapiPrefix = 'dpapi:v1:';
 class ExantasSecureStore {
   const ExantasSecureStore();
 
-  bool isProtected(String value) => value.startsWith(_dpapiPrefix);
+  static const _android = MethodChannel('exantas.office.secure');
+  Future<String> protectAsync(String value) async => Platform.isAndroid
+      ? (await _android.invokeMethod<String>('protect', value)) ?? (throw StateError('Secure storage unavailable'))
+      : protect(value);
+  Future<String> unprotectAsync(String value) async => Platform.isAndroid
+      ? (await _android.invokeMethod<String>('unprotect', value)) ?? (throw StateError('Secure storage unavailable'))
+      : unprotect(value);
+
+  bool isProtected(String value) => value.startsWith(_dpapiPrefix) || value.startsWith('keystore:v1:');
 
   String protect(String value) {
+    if (Platform.isAndroid) throw UnsupportedError('Use Android secure storage asynchronously');
     if (value.isEmpty) {
       return '';
     }
@@ -23,6 +33,7 @@ class ExantasSecureStore {
   }
 
   String unprotect(String storedValue) {
+    if (Platform.isAndroid) throw UnsupportedError('Use Android secure storage asynchronously');
     if (storedValue.isEmpty) {
       return '';
     }

@@ -30,7 +30,7 @@ class ExantasReportOutbox {
     _directory = await Directory('${root.path}/office-reports').create(recursive: true);
     await for (final file in _directory!.list()) {
       if (file is File && file.path.endsWith('.json')) {
-        final row = (jsonDecode(_store.unprotect(await file.readAsString())) as Map)
+        final row = (jsonDecode(await _store.unprotectAsync(await file.readAsString())) as Map)
             .cast<String, dynamic>();
         _rows[row['id'] as String] = row;
       }
@@ -51,7 +51,7 @@ class ExantasReportOutbox {
     }
     final file = File('${_directory!.path}/$id.json');
     final temporary = File('${file.path}.tmp');
-    await temporary.writeAsString(_store.protect(jsonEncode(row)), flush: true);
+    await temporary.writeAsString(await _store.protectAsync(jsonEncode(row)), flush: true);
     await temporary.rename(file.path);
     _rows[id] = row;
   }

@@ -52,6 +52,18 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "exantas.office.secure").setMethodCallHandler { call, result ->
+            try {
+                val value = call.arguments as? String ?: throw IllegalArgumentException()
+                when (call.method) {
+                    "protect" -> result.success(OfficeSecureStore.protect(value))
+                    "unprotect" -> result.success(OfficeSecureStore.unprotect(value))
+                    else -> result.notImplemented()
+                }
+            } catch (_: Exception) {
+                result.error("office_secure_storage", "Η ασφαλής αποθήκευση Office δεν είναι διαθέσιμη.", null)
+            }
+        }
         if (MainService.isReady) {
             Intent(activity, MainService::class.java).also {
                 bindService(it, serviceConnection, Context.BIND_AUTO_CREATE)

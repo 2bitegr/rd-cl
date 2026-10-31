@@ -1,3 +1,4 @@
+import '../../models/exantas_lifecycle_outbox.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/exantas_companion_model.dart';
@@ -35,7 +36,7 @@ class _ExantasSessionsPageState extends State<ExantasSessionsPage> {
       final rows = await _outbox.rows();
       if (mounted) setState(() {
         _rows = rows;
-        _error = _outbox.syncError;
+        _error = ExantasLifecycleOutbox.instance.error ?? _outbox.syncError;
         _loggedIn = status.technicianLoggedIn;
         _hasStableOfficeUser = status.officeUserId.isNotEmpty;
       });

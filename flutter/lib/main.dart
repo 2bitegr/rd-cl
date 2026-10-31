@@ -42,7 +42,7 @@ Future<void> main(List<String> args) async {
   earlyAssert();
   WidgetsFlutterBinding.ensureInitialized();
 
-  debugPrint("launch args: $args");
+  debugPrint("Launch argument count: ${args.length}");
   kBootArgs = List.from(args);
 
   if (!isDesktop) {
@@ -175,6 +175,7 @@ void runMainApp(bool startService) async {
     windowManager.setTitle(getWindowName());
     // Do not use `windowManager.setResizable()` here.
     setResizable(!bind.isIncomingOnly());
+    if (isWindows) await activateInstallerEnrollment(Platform.environment['EXANTAS_OFFICE_ENROLLMENT_CODE'] ?? '');
   });
 }
 

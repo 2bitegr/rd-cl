@@ -1,5 +1,18 @@
 # Exantas RustDesk Technician Companion
 
+## Native sign-in and customer devices
+
+The native rd-cl panel exposes staff sign-in through **Σύνδεση** and shows the
+role returned by Office. Customers use the remote-support client without a human
+Office account. The technician associates the customer's RustDesk ID with the
+selected customer/site/work item from OfficeCallPopup. Device credentials and
+existing managed enrollment remain separate from staff authentication; removing
+the Enroll button does not revoke or reset already enrolled devices.
+
+The main window displays the actual native runtime version. Source version
+1.4.12+70 includes this display and the staff-only sign-in UI; its new Windows
+build and installation remain separate acceptance gates.
+
 ## Office account lifecycle update
 
 The native client uses the same Office account for management and support.
@@ -26,7 +39,7 @@ for `2bitegr/rd-cl` through repository settings, with a fresh API verification
 file deletions await the approved commit checkpoint; no push was performed.
 
 The former 1.4.10 Office acceptance artifacts are historical; they are not a
-build of this workflow-v2 source. Current source is 1.4.11+69. A local Windows
+build of this workflow-v2 source. Current source is 1.4.12+70. A local Windows
 client build and physical acceptance must be carried out separately before
 shipping a package. No installer, production release or deployment is created
 by this source change. Verify the test Office destination before any login or

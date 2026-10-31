@@ -18,6 +18,7 @@ import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/exantas_companion_model.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/exantas_report_outbox.dart';
+import 'package:flutter_hbb/models/exantas_lifecycle_outbox.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/plugin/ui_manager.dart';
@@ -55,6 +56,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Timer? _updateTimer;
   bool isCardClosed = false;
   final _exantasCompanion = ExantasCompanionService();
+  late final Future<String> _appVersion = bind.mainGetVersion();
   ExantasCompanionStatus? _exantasStatus;
   Timer? _exantasHeartbeatTimer;
   Timer? _exantasPendingSessionsTimer;
@@ -111,6 +113,20 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         child: loadLogo(),
       ),
       buildTip(context),
+      FutureBuilder<String>(
+        future: _appVersion,
+        builder: (context, snapshot) {
+          final version = snapshot.data?.trim();
+          if (version == null || version.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 12),
+            child: Text('rd-cl v$version',
+                style: Theme.of(context).textTheme.bodySmall),
+          );
+        },
+      ),
       if (!isOutgoingOnly) buildIDBoard(context),
       if (!isOutgoingOnly) buildPasswordBoard(context),
       if (!isOutgoingOnly) buildExantasCompanionCard(context),
@@ -452,6 +468,15 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             ),
           if (technicianLoggedIn)
             Text(
+              status?.supportRole == 'technician'
+                  ? 'Τεχνικός υποστήριξης'
+                  : status?.supportRole == 'admin'
+                      ? 'Διαχειριστής'
+                      : 'Συνδεδεμένος χρήστης Office',
+              style: TextStyle(fontSize: 12, color: textColor),
+            ),
+          if (technicianLoggedIn)
+            Text(
               supportUserText.isEmpty
                   ? 'Office user logged in'
                   : supportUserText,
@@ -459,6 +484,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               style: TextStyle(
                   fontSize: 12, color: textColor?.withOpacity(0.6)),
             ),
+          if (technicianLoggedIn && Platform.isWindows)
+            Text(status?.nativeReady == true ? 'RustDesk: έτοιμο για σύνδεση' : 'RustDesk: απαιτείται επιβεβαίωση σύνδεσης'),
           if (technicianLoggedIn && (status?.officeUserId ?? '').isEmpty)
             const Text('Κάνε νέα είσοδο στο Office για να ενεργοποιήσεις το τοπικό ιστορικό αναφορών.'),
           const SizedBox(height: 8),
@@ -466,26 +493,35 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             spacing: 6,
             runSpacing: 6,
             children: [
-              OutlinedButton(
-                onPressed: () => _showEnrollDialog(context),
-                child: Text(enrolled ? 'Re-enroll' : 'Enroll'),
-              ),
-              OutlinedButton(
-                onPressed: () => _showTechnicianLoginDialog(context),
-                child:
-                    Text(technicianLoggedIn ? 'Switch user' : 'Office login'),
-              ),
-              if (technicianLoggedIn)
+              if (!Platform.isWindows) ...[
                 OutlinedButton(
-                  onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.supportSessions),
-                  child: const Text('Αναφορές'),
+                  onPressed: () => _showTechnicianLoginDialog(context),
+                  child:
+                      Text(technicianLoggedIn ? 'Αλλαγή χρήστη' : 'Σύνδεση'),
                 ),
-              if (technicianLoggedIn)
-                OutlinedButton(
-                  onPressed: () => _runExantasAction(
-                      () => _exantasCompanion.logoutTechnician()),
-                  child: const Text('Logout'),
-                ),
+                if (technicianLoggedIn)
+                  OutlinedButton(
+                    onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.supportSessions),
+                    child: const Text('Αναφορές'),
+                  ),
+                if (technicianLoggedIn)
+                  OutlinedButton(
+                    onPressed: () => _runExantasAction(
+                        () => _exantasCompanion.logoutTechnician()),
+                    child: const Text('Αποσύνδεση'),
+                  ),
+              ] else ...[
+                if (!bind.isDisableAccount())
+                  OutlinedButton(
+                    onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.account),
+                    child: const Text('Λογαριασμός'),
+                  ),
+                if (technicianLoggedIn)
+                  OutlinedButton(
+                    onPressed: () => DesktopSettingPage.switch2page(SettingsTabKey.supportSessions),
+                    child: const Text('Αναφορές'),
+                  ),
+              ],
             ],
           ),
         ],
@@ -522,37 +558,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       showToast(translate('Successful'));
     } catch (e) {
       showToast(e.toString().replaceFirst('Exception: ', ''));
+      await _refreshExantasStatus();
     }
-  }
-
-  void _showEnrollDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enroll device'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Install code'),
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(translate('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final code = controller.text;
-              Navigator.of(context).pop();
-              _runExantasAction(() => _exantasCompanion.enrollDevice(code));
-            },
-            child: const Text('Enroll'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showTechnicianLoginDialog(BuildContext context) {
@@ -561,7 +568,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Office login'),
+        title: const Text('Σύνδεση τεχνικού'),
         content: SizedBox(
           width: 360,
           child: Column(
@@ -569,13 +576,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             children: [
               TextField(
                 controller: email,
-                decoration: const InputDecoration(labelText: 'Office email'),
+                decoration: const InputDecoration(labelText: 'Email τεχνικού'),
                 keyboardType: TextInputType.emailAddress,
                 autofocus: true,
               ),
               TextField(
                 controller: password,
-                decoration: const InputDecoration(labelText: 'Password'),
+                decoration: const InputDecoration(labelText: 'Κωδικός'),
                 obscureText: true,
               ),
             ],
@@ -593,7 +600,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               Navigator.of(context).pop();
               _runExantasAction(() => _exantasCompanion.loginTechnician(e, p));
             },
-            child: const Text('Login'),
+            child: const Text('Σύνδεση'),
           ),
         ],
       ),
@@ -1463,14 +1470,17 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       }
     });
     Get.put<RxBool>(svcStopped, tag: 'stop-service');
+    ExantasCompanionService.accountChanges.addListener(_refreshExantasStatus);
     _refreshExantasStatus();
     ExantasReportOutbox.instance.openReport = (row) async {
       await _presentSessionReport(row);
     };
     _exantasHeartbeatTimer =
         periodic_immediate(const Duration(seconds: 60), () async {
+      unawaited(ExantasLifecycleOutbox.instance.sync());
       await ExantasReportOutbox.instance.sync();
       await _exantasCompanion.heartbeat();
+      try { await _exantasCompanion.ensureNativeReady(); } catch (_) { /* A launch performs a fresh, visible check. */ }
       await _refreshExantasStatus();
       await _pollExantasPendingSessions();
     });
@@ -1517,11 +1527,20 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     rustDeskWinManager.setMethodHandler((call, fromWindowId) async {
       // Process local lifecycle messages before the generic diagnostic logger.
       if (call.method == 'officeSessionStarted') {
-        await ExantasReportOutbox.instance.started(
-            Map<String, dynamic>.from(call.arguments as Map));
+        final event = Map<String, dynamic>.from(call.arguments as Map);
+        await ExantasLifecycleOutbox.instance.started(event);
+        unawaited(ExantasLifecycleOutbox.instance.sync());
+        unawaited(ExantasReportOutbox.instance.started(event).catchError((Object error) {
+          debugPrint('Office report context lookup failed; lifecycle is preserved.'); return null;
+        }));
         return true;
       }
+      if (call.method == 'officeSessionIdentity') {
+        return ExantasLifecycleOutbox.instance.identified(Map<String, dynamic>.from(call.arguments as Map));
+      }
       if (call.method == 'officeSessionEnded') {
+        await ExantasLifecycleOutbox.instance.ended(Map<String, dynamic>.from(call.arguments as Map));
+        unawaited(ExantasLifecycleOutbox.instance.sync());
         final row = await ExantasReportOutbox.instance.ended(
             Map<String, dynamic>.from(call.arguments as Map));
         final ownedRows = await ExantasReportOutbox.instance.rows();
@@ -1635,6 +1654,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
   @override
   void dispose() {
+    ExantasCompanionService.accountChanges.removeListener(_refreshExantasStatus);
     _uniLinksSubscription?.cancel();
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
