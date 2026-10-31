@@ -344,6 +344,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
             name: s.technicianName,
             role: s.supportRole,
             nativeReady: s.nativeReady,
+            nativeRecoveryRequired: s.nativeConfirmationRequired,
             legacySignedIn:
                 bind.mainGetLocalOption(key: 'access_token').isNotEmpty);
       },
@@ -386,9 +387,6 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Πελάτης και εργασία',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
             TextField(
                 controller: search,
                 textInputAction: TextInputAction.search,
@@ -500,7 +498,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
         account: signedIn
             ? ExantasAccountSummary(
                 name: status!.technicianName,
-                nativeReady: status!.nativeReady,
+                nativeRecoveryRequired: status!.nativeConfirmationRequired,
                 sourceId: sourceId,
                 onAccount: () => openAccount(),
                 onCopyId: copySourceId)
@@ -519,7 +517,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
                         icon: const Icon(Icons.copy)))
               ]),
         signedIn: signedIn,
-        nativeReady: status?.nativeReady == true,
+        nativeRecoveryRequired: status?.nativeConfirmationRequired == true,
         busy: busy,
         controller: manual,
         devices: recent,

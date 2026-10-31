@@ -8,6 +8,7 @@ class ExantasAccountStatus {
     required this.role,
     required this.nativeReady,
     required this.legacySignedIn,
+    this.nativeRecoveryRequired,
   });
 
   final bool signedIn;
@@ -15,6 +16,10 @@ class ExantasAccountStatus {
   final String role;
   final bool nativeReady;
   final bool legacySignedIn;
+  // Android distinguishes an ambiguous issuance from ordinary lease expiry.
+  // Unspecified preserves the existing Windows account presentation.
+  final bool? nativeRecoveryRequired;
+  bool get needsNativeRetry => nativeRecoveryRequired ?? !nativeReady;
 }
 
 /// One Office sign-in surface. Native authentication remains service-owned.
@@ -139,11 +144,14 @@ class _ExantasAccountSettingsState extends State<ExantasAccountSettings> {
               : status.role == 'admin' ? 'Διαχειριστής' : 'Χρήστης Office'),
           if (widget.nativeRequired)
             Text(status.nativeReady ? 'RustDesk: έτοιμο για σύνδεση'
-                : 'RustDesk: η σύνδεση δεν έχει επιβεβαιωθεί'),
-          if (widget.nativeRequired && !status.nativeReady)
+                : status.nativeRecoveryRequired == false
+                    ? 'RustDesk: αυτόματη ανανέωση κατά τη σύνδεση'
+                    : 'RustDesk: η σύνδεση δεν έχει επιβεβαιωθεί'),
+          if (widget.nativeRequired && status.needsNativeRetry)
             OutlinedButton(
               onPressed: enabled ? () => _run(widget.confirmNative) : null,
-              child: const Text('Επιβεβαίωση σύνδεσης'),
+              child: Text(status.nativeRecoveryRequired == true
+                  ? 'Επανάληψη σύνδεσης RustDesk' : 'Επιβεβαίωση σύνδεσης'),
             ),
           OutlinedButton(
             onPressed: enabled ? () => _run(widget.logout) : null,

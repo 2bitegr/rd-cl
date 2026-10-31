@@ -54,10 +54,11 @@ class ExantasCompanionStatus {
     required this.policy,
     required this.officeUserId,
     this.nativeReady = false,
+    this.nativeConfirmationRequired = false,
     this.enrollmentPending = false,
   });
 
-  final bool nativeReady, enrollmentPending;
+  final bool nativeReady, nativeConfirmationRequired, enrollmentPending;
   final String apiBase;
   final String officeUserId;
   final bool enrolled;
@@ -97,6 +98,8 @@ class ExantasCompanionService implements ExantasIdentityActions {
     final policyText = bind.mainGetLocalOption(key: kExantasDevicePolicy);
     return ExantasCompanionStatus(
       enrollmentPending: bind.mainGetLocalOption(key: kExantasEnrollmentPending).isNotEmpty,
+      nativeConfirmationRequired:
+          bind.mainGetLocalOption(key: kExantasNativeConfirm).isNotEmpty,
       nativeReady: bind.mainGetLocalOption(key: kExantasNativeReady) == 'Y' &&
           bind.mainGetLocalOption(key: kExantasNativeConfirm).isEmpty,
       apiBase: apiBase,

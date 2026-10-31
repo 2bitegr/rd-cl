@@ -7,6 +7,7 @@ class FakeAccount {
   bool signedIn = false;
   bool legacy = false;
   bool ready = false;
+  bool? recoveryRequired;
   bool failLoad = false;
   bool failLogout = false;
   bool failLegacy = false;
@@ -20,7 +21,8 @@ class FakeAccount {
   Future<ExantasAccountStatus> load() async {
     if (failLoad) throw StateError('synthetic storage failure');
     return ExantasAccountStatus(signedIn: signedIn, name: 'Synthetic technician',
-        role: 'technician', nativeReady: ready, legacySignedIn: legacy);
+        role: 'technician', nativeReady: ready, legacySignedIn: legacy,
+        nativeRecoveryRequired: recoveryRequired);
   }
 
   Future<void> login(String email, String password) async {
@@ -41,6 +43,7 @@ class FakeAccount {
   Future<void> confirm() async {
     confirmations++;
     if (failConfirm) throw StateError('native sign-in unconfirmed');
+    if (recoveryRequired != null) recoveryRequired = false;
     ready = true;
   }
 
@@ -159,4 +162,32 @@ void main() {
     expect(find.text('Email Office'), findsOneWidget);
     await closeAccount(tester);
   });
+  testWidgets('Android lease expiry keeps Office identity without a second sign-in or retry button', (tester) async {
+    final account = FakeAccount()..signedIn = true..ready = true..recoveryRequired = false;
+    await showAccount(tester, account);
+    account.ready = false; // Simulate the short native lease expiring.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('Synthetic technician'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Επιβεβαίωση σύνδεσης'), findsNothing);
+    expect(find.text('Επανάληψη σύνδεσης RustDesk'), findsNothing);
+    expect(find.textContaining('αυτόματη ανανέωση'), findsOneWidget);
+    expect(account.logins, 0);
+    expect(account.confirmations, 0);
+    await closeAccount(tester);
+  });
+  testWidgets('Android unconfirmed issuance exposes one explicit retry and clears it on success', (tester) async {
+    final account = FakeAccount()..signedIn = true..recoveryRequired = true;
+    await showAccount(tester, account);
+    await tester.pump(const Duration(seconds: 6));
+    expect(account.confirmations, 0);
+    await tester.tap(find.text('Επανάληψη σύνδεσης RustDesk'));
+    await tester.pumpAndSettle();
+    expect(account.confirmations, 1);
+    expect(find.text('Επανάληψη σύνδεσης RustDesk'), findsNothing);
+    expect(find.text('RustDesk: έτοιμο για σύνδεση'), findsOneWidget);
+    await closeAccount(tester);
+  });
+
 }

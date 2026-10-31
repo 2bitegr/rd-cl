@@ -1,3 +1,19 @@
+## REVIEW — Android home refinement /2.0.3+77
+
+Requested mobile polish and false second-login fix. Expired native lease is now
+separate from the existing unconfirmed-issuance fence in Android presentation;
+normal expiry keeps Office signed in and uses existing automatic connect-time
+renewal. Only unconfirmed issuance exposes explicit manual retry. Windows Account
+default behavior preserved. Existing Material home refined for phone hierarchy,
+recent peers, ID copy and customer/pending sections.16focused widget/account tests
+PASS, including320/390/430 light/dark and1.3text. Analyzer0errors/0warnings.
+Native/backend/financial rules unchanged. Offline debug2077 build and archive/
+signature/16KB/provenance checks PASS;78,250,767bytes/SHA256
+2298b53f1a7dbc8273416324e32e4f581960c3614d98b6ed69f441876a914404.
+Same signer/package upgrade from2076.674tracked product/build inputs match the
+main candidate exactly;49Windows profile input hashes/version aligned. Physical
+Xiaomi/provider acceptance pending; no new backend deployment required.
+
 ## REVIEW — Android Office support /2.0.3+76
 
 Explicit user authorization: develop, commit/push and deploy from S2 for this

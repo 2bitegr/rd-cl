@@ -166,3 +166,28 @@ retained for identified rollback/comparison. Current focused verification covers
 23 unique synthetic cases (source5, home4, response7, native-auth7), analyzer
 0errors/0warnings, build and APK CRC/signature/16KB checks. Physical Android,
 Keystore execution, live provider audit and financial acceptance remain pending.
+
+
+## Mobile home refinement — code2077
+
+Android account/home UI now reads the existing native-confirmation fence
+separately from native readiness. Normal five-minute native-lease expiry leaves
+Office signed in, shows automatic renewal in Account, and does not show a manual
+confirmation CTA. The existing connect path still renews before connecting.
+An unconfirmed issuance keeps its explicit retry and never gains automatic
+issuance replay. Android passes the new presentation flag explicitly; unspecified
+Account status preserves the existing Windows behavior. No credential, lease,
+provider, duration or financial policy changes.
+
+The existing Material home uses quieter surfaces, a compact Office/phone-ID
+summary, prominent ID entry, equal-width recent/customer/pending sections and
+readable native recent-peer rows. Source history/availability/association semantics
+are unchanged. User-facing errors omit the redundant Exception prefix. No new
+assets, dependencies or separate history store. References reviewed:
+https://rustdesk.com/docs/en/client/android/ and
+https://support.anydesk.com/anydesk-overview .
+
+Six widget scenarios cover320/390/430 light/dark with1.3text at320, ID copy,
+manual/recent connect and section switching. Separate busy/recovery checks plus
+existing Account regressions and two new lease-expiry/recovery checks give
+16focused passing cases. Physical Xiaomi16 acceptance remains separate.
