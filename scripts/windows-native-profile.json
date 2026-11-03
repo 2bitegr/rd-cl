@@ -19,7 +19,7 @@
     ".github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff": "7663824d8d728990a49e7a43e081fd1269f536a10987b576ba8f0bb766d2c759",
     "patches/hbb_common-exantas-config.patch": "bf99166930c5e39d5916a3ff2a7323093fd0c57dacf5e14ad603d4503af3618e",
     "flutter/lib/desktop/pages/desktop_home_page.dart": "884a3cd8d5e7d3a78a35f02b6cb83fa4222e7d18a1934b3dac3bfd7a07ffc2f2",
-    "libs/portable/Cargo.toml": "0b91c6982dd87e5f6a1b7741cecccf52bc418013868affa7f1ed4020c868b8b3",
+    "libs/portable/Cargo.toml": "7698e5200b56cd70ad355be1453356dea03363654deaff886951dcd136dc7a04",
     "libs/portable/generate.py": "f4c1d6f24f9cb3e106112b88b52eec39bee9b65871c2538892885a118d8dda11",
     "libs/portable/build.rs": "bde0743bc7410ce73155fe9c802dfa96ed5f6bd064f31015bc26f9c8a37df7b6",
     "flutter/windows/CMakeLists.txt": "69a73f1689ba4cf5d272cf6520b324f06067606b308229aabe5d6ef09c21fe9a",
