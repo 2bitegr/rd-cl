@@ -13,6 +13,14 @@ Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
   }
   if (statusCode < 200 || statusCode >= 300) {
     final message = decoded?['message'];
+    const installationErrors = {
+      'native_installation_required': 'Απαιτείται έγκριση αυτής της εγκατάστασης από διαχειριστή Office.',
+      'native_installation_conflict': 'Η ταυτότητα ή η έγκριση της εγκατάστασης άλλαξε. Απαιτείται έλεγχος διαχειριστή Office.',
+      'native_installation_busy': 'Η προηγούμενη συνεδρία σε αυτόν τον υπολογιστή δεν έχει λήξει ακόμη. Περιμένετε πριν αλλάξετε τεχνικό.',
+    };
+    if (installationErrors.containsKey(decoded?['status'])) {
+      throw Exception(installationErrors[decoded?['status']]);
+    }
     if (androidSupport) {
       final code = decoded?['status'];
       if (statusCode == 404 && message == 'Route not found.') {

@@ -2126,6 +2126,7 @@ class _Account extends StatelessWidget {
               login: (email, password) => _action(() => service.loginTechnician(email, password)),
               logout: () => _action(service.logoutTechnician),
               confirmNative: () => _action(() => service.ensureNativeReady(force: true)),
+              renewInstallation: () => _action(service.renewInstallationApproval),
               logoutLegacy: () => _action(() => gFFI.userModel.logOut(requireServerConfirmation: true)),
             ),
           ),

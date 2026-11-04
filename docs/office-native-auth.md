@@ -100,3 +100,33 @@ the client accepts at most 30 seconds of positive clock skew in its upper-bound
 check, without changing signed exp. Historical source checks: Windows Flutter32 PASS,
 pure Rust1.75/MSVC policy PASS; expanded Dart analysis has no errors and retains
 existing warning/info findings. Full native DLL/DPAPI integration remains NOT_RUN.
+
+
+## Local Windows contract 2 — technician installation approval (2026-11-04)
+
+Source-only, no native build/publication/deployment or real acceptance. The same
+common installer is used on every technician computer. Windows now generates a
+random 256-bit capability protected by the existing per-user DPAPI store, requests
+installation approval through the live Office pairing, and uses contract 2 only
+after explicit administrator approval of the peer and full fingerprint in Users.
+Office logout/operator changes retain that capability; they do not transfer or
+clear legacy native peer ownership. Different PCs have independent approvals and
+operator leases. This approval belongs to the protected Windows profile; a changed
+Windows profile or lost credential requires explicit administrator recovery.
+
+New installation requests may be continued by a later authorized Office operator
+holding the same protected installation proof; requester identity is not disclosed
+to the companion. A fresh credential is never silently generated in response to
+rejection/corruption. Explicit recovery after admin revocation persists a candidate
+key; rejected/lost replies preserve the old key and candidate, and only a confirmed
+new pending request replaces the active key. No ID/account/history deletion occurs.
+Known pending/conflict/busy states have safe messages rather than opaque HTTP502.
+Windows strictly validates the returned v2 lease; Android keeps its existing v1
+flow. The native feature is separately default-OFF and needs verified clock/legacy
+JWT lifetime bounds. Source/operator changes honor residual signed-token lifetime;
+instant rendezvous revocation or automatic termination of active sessions is not
+claimed. Full producer/consumer contract and local verification are maintained in
+Office docs/rustdesk-technician-installations.md. S2 must build the reviewed
+published revision later; this task creates no replacement EXE or installation.
+
+Release 3.0.0 uses the same version everywhere without a build suffix: package/core, UI, Windows metadata and delivered EXE. Native installation contract 2 requires the coordinated Office/native provider rollout; publication is not activation.

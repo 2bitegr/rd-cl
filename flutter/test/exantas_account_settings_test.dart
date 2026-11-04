@@ -190,4 +190,25 @@ void main() {
     await closeAccount(tester);
   });
 
+  testWidgets('installation recovery requires explicit confirmation and never runs on refresh', (tester) async {
+    final account = FakeAccount()..signedIn = true;
+    var renewals = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(
+      child: ExantasAccountSettings(loadStatus: account.load, login: account.login,
+        logout: account.logout, confirmNative: account.confirm,
+        logoutLegacy: account.logoutLegacy, nativeRequired: true,
+        renewInstallation: () async { renewals++; }),
+    ))));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 6));
+    expect(renewals, 0);
+    await tester.ensureVisible(find.text('Νέο αίτημα μετά από ανάκληση'));
+    await tester.tap(find.text('Νέο αίτημα μετά από ανάκληση'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ακύρωση'));await tester.pumpAndSettle();expect(renewals, 0);
+    await tester.tap(find.text('Νέο αίτημα μετά από ανάκληση'));await tester.pumpAndSettle();
+    await tester.tap(find.text('Υποβολή νέου αιτήματος'));await tester.pumpAndSettle();expect(renewals, 1);
+    await closeAccount(tester);
+  });
+
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 /// Keep RustDesk numeric and custom IDs intact while retaining the configured
 /// self-hosted server. Direct-IP and URI/server overrides bypass provider audit.
@@ -49,11 +50,11 @@ String nativeApiOrigin(String value) {
 }
 
 Map<String, dynamic> validateNativeLease(Map<String, dynamic> value,
-    ExantasNativeIdentity identity, String nativeApi, int now) {
+    ExantasNativeIdentity identity, String nativeApi, int now, {int contractVersion = 1}) {
   final token = value['access_token'];
   final expiry = value['expires_at'];
   if (value['status'] != 'ok' ||
-      value['contract_version'] != 1 ||
+      value['contract_version'] != contractVersion ||
       value['office_user_id'] != identity.actor ||
       value['peer_id'] != identity.peer ||
       value['pairing_id'] is! String ||
@@ -108,9 +109,10 @@ class ExantasNativeAuthFence {
     required Future<void> Function(Map<String, dynamic>) store,
     required String nativeApi,
     required int Function() now,
+    int contractVersion = 1,
   }) async {
     final response = await request();
-    final lease = validateNativeLease(response, before, nativeApi, now());
+    final lease = validateNativeLease(response, before, nativeApi, now(), contractVersion: contractVersion);
     if (!before.sameAs(await current())) {
       throw StateError('Η σύνδεση Office άλλαξε. Συνδεθείτε ξανά.');
     }
@@ -153,4 +155,40 @@ Future<Map<String, dynamic>> exchangeOfficeStaffLease({
   if (!before.sameAs(await current())) throw StateError('Η σύνδεση Office άλλαξε.');
   await store(lease);
   return lease;
+}
+
+/// Validate only the current source response; never accept a provider secret or
+/// another source as evidence that this installation was approved.
+Map<String, dynamic> validateOfficeInstallation(Map<String, dynamic> response, String peer) {
+  final rows = response['installations'];
+  if (response['status'] != 'ok' || rows is! List || rows.length != 1 || rows.first is! Map) {
+    throw const FormatException('Δεν επιβεβαιώθηκε η εγγραφή εγκατάστασης.');
+  }
+  final row = Map<String, dynamic>.from(rows.first as Map);
+  if (row['peer_id'] != peer || row['id'] is! String ||
+      !RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$').hasMatch(row['id']) ||
+      row['key_fingerprint'] is! String || !RegExp(r'^[a-f0-9]{64}$').hasMatch(row['key_fingerprint']) ||
+      !['pending', 'approved', 'revoked'].contains(row['state'])) {
+    throw const FormatException('Δεν επιβεβαιώθηκε η ταυτότητα εγκατάστασης.');
+  }
+  return row;
+}
+
+/// One random capability per protected installation profile, shared across
+/// Office operator changes. A failed request never rotates or erases it.
+Future<String> officeInstallationKey({
+  required Future<String> Function() load,
+  required Future<void> Function(String) save,
+}) async {
+  var key = await load();
+  if (key.isEmpty) {
+    final random = Random.secure();
+    key = base64Encode(List<int>.generate(32, (_) => random.nextInt(256)));
+    await save(key);
+  }
+  try {
+    final bytes = base64Decode(key);
+    if (bytes.length == 32 && base64Encode(bytes) == key) return key;
+  } on FormatException { /* fail closed without replacing the approved key */ }
+  throw const FormatException('Δεν επιβεβαιώθηκε το αποδεικτικό εγκατάστασης. Απαιτείται έλεγχος διαχειριστή.');
 }

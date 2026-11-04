@@ -103,7 +103,8 @@ def package(b, module):
     version_text = (b.source / 'src/version.rs').read_text(encoding='utf-8')
     version = re.search(r'pub const VERSION:\s*&str\s*=\s*"([^"]+)"', version_text).group(1)
     date = re.search(r'pub const BUILD_DATE:\s*&str\s*=\s*"([^"]+)"', version_text).group(1)
-    base, revision = b.profile['version'].split('+')
+    base, _, revision = b.profile['version'].partition('+')
+    revision = revision or '0'
     if version != base or not re.fullmatch(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}', date):
         raise RuntimeError('Generated Rust version/date does not match the native profile')
     rc = (b.source / 'flutter/windows/runner/Runner.rc').read_text(encoding='utf-8')

@@ -30,6 +30,9 @@ const String kExantasNativeLease = 'exantas.office.native_lease';
 const String kExantasNativeReady = 'exantas.office.native_ready';
 const String kExantasNativeExpiry = 'exantas.office.native_expiry';
 const String kExantasAndroidStaffLease = 'exantas.office.android_staff_lease';
+const String kExantasInstallationKey = 'exantas.office.installation_key';
+const String kExantasInstallationFingerprint = 'exantas.office.installation_fingerprint';
+
 const String kExantasNativeConfirm = 'exantas.office.native_confirmation_required';
 
 const String kExantasEnrollmentPending = 'exantas.office.enrollment_pending';
@@ -432,7 +435,8 @@ class ExantasCompanionService implements ExantasIdentityActions {
       // Clearing only local storage leaves a live server-side pairing interval.
       final hasLease = bind.mainGetLocalOption(key: kExantasNativeLease).isNotEmpty ||
           bind.mainGetLocalOption(key: kExantasNativeConfirm).isNotEmpty;
-      await _post(hasLease ? '/rustdesk-companion/native-logout' : '/rustdesk-companion/logout', {},
+      await _post(hasLease ? '/rustdesk-companion/native-logout' : '/rustdesk-companion/logout',
+          hasLease && Platform.isWindows ? {'contract_version': 2} : {},
           bearerToken: status.companionToken).timeout(const Duration(seconds: 12));
     }
     if (Platform.isAndroid) await _setSecretLocalOption(kExantasAndroidStaffLease, '');
@@ -451,6 +455,30 @@ class ExantasCompanionService implements ExantasIdentityActions {
     return ExantasNativeIdentity(status.apiBase, status.officeUserId,
         status.companionToken, (await bind.mainGetMyId()).trim());
   }
+
+  /// Explicit recovery only: native approval must already have been revoked by
+  /// an administrator. Preserve the active key until a new request is confirmed.
+  Future<void> renewInstallationApproval() => _nativeFence.run(() async {
+    if (!Platform.isWindows) throw UnsupportedError('Windows installation approval required');
+    final before = await _nativeIdentity();
+    if (before.actor.isEmpty || before.companion.isEmpty) throw StateError('Απαιτείται σύνδεση Office.');
+    const candidateKey = 'exantas.office.installation_candidate';
+    final candidate = await officeInstallationKey(
+      load: () => _getSecretLocalOption(candidateKey),
+      save: (key) => _setSecretLocalOption(candidateKey, key),
+    );
+    final response = await _post('/rustdesk-companion/installations', {
+      'device_uuid': await bind.mainGetUuid(), 'installation_key': candidate,
+    }, bearerToken: before.companion);
+    final installation = validateOfficeInstallation(response, before.peer);
+    if (!before.sameAs(await _nativeIdentity())) throw StateError('Η σύνδεση Office άλλαξε.');
+    if (installation['state'] != 'pending') throw StateError('Δεν επιβεβαιώθηκε νέο αίτημα έγκρισης.');
+    // A rejected/lost reply preserves both the original credential and candidate.
+    await _setSecretLocalOption(kExantasInstallationKey, candidate);
+    await bind.mainSetLocalOption(key: kExantasInstallationFingerprint,
+        value: installation['key_fingerprint'] as String);
+    await _setSecretLocalOption(candidateKey, '');
+  });
 
   Future<void> ensureNativeReady({bool force = false}) =>
       _nativeFence.run(() => _ensureNativeReady(force: force));
@@ -476,14 +504,38 @@ class ExantasCompanionService implements ExantasIdentityActions {
         send: (uri, headers, body) => http.post(uri, headers: headers, body: body)
           .timeout(const Duration(seconds: 12)));
     }
+    String? installationKey;
+    if (Platform.isWindows) {
+      installationKey = await officeInstallationKey(
+        load: () => _getSecretLocalOption(kExantasInstallationKey),
+        save: (key) => _setSecretLocalOption(kExantasInstallationKey, key),
+      );
+      final enrollment = await _post('/rustdesk-companion/installations', {
+        'device_uuid': await bind.mainGetUuid(),
+        'installation_key': installationKey,
+      }, bearerToken: before.companion);
+      final installation = validateOfficeInstallation(enrollment, before.peer);
+      if (!before.sameAs(await _nativeIdentity())) {
+        throw StateError('Η σύνδεση Office άλλαξε. Ελέγξτε ξανά τον λογαριασμό.');
+      }
+      await bind.mainSetLocalOption(key: kExantasInstallationFingerprint,
+          value: installation['key_fingerprint'] as String);
+      if (installation['state'] != 'approved') {
+        throw StateError('Απαιτείται έγκριση εγκατάστασης στο Office, στην καρτέλα '
+            'Χρήστες → Απομακρυσμένη υποστήριξη. ID: ${before.peer}. '
+            'Αποτύπωμα: ${installation['key_fingerprint']}');
+      }
+    }
     // Persist the ambiguity fence before sending. A lost reply or restart must
     // require an explicit retry instead of silently repeating an issuance.
     await bind.mainSetLocalOption(key: kExantasNativeConfirm, value: 'Y');
     await _nativeFence.exchange(
       before: before, current: _nativeIdentity, nativeApi: nativeApi,
+      contractVersion: Platform.isWindows ? 2 : 1,
       now: () => DateTime.now().millisecondsSinceEpoch ~/ 1000,
       request: () async => await _post('/rustdesk-companion/native-session',
-        {'device_uuid': androidSourceUuid ?? await bind.mainGetUuid()}, bearerToken: before.companion)
+        {'device_uuid': androidSourceUuid ?? await bind.mainGetUuid(),
+          if (Platform.isWindows) ...{'contract_version': 2, 'installation_key': installationKey}}, bearerToken: before.companion)
           .timeout(const Duration(seconds: 12)),
       store: (lease) async {
         await _setSecretLocalOption(kExantasNativeLease, jsonEncode(lease));

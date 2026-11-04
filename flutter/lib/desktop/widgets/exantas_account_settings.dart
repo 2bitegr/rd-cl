@@ -31,6 +31,7 @@ class ExantasAccountSettings extends StatefulWidget {
     required this.confirmNative,
     required this.logoutLegacy,
     required this.nativeRequired,
+    this.renewInstallation,
   });
 
   final Future<ExantasAccountStatus> Function() loadStatus;
@@ -39,6 +40,7 @@ class ExantasAccountSettings extends StatefulWidget {
   final Future<void> Function() confirmNative;
   final Future<void> Function() logoutLegacy;
   final bool nativeRequired;
+  final Future<void> Function()? renewInstallation;
 
   @override
   State<ExantasAccountSettings> createState() => _ExantasAccountSettingsState();
@@ -124,6 +126,8 @@ class _ExantasAccountSettingsState extends State<ExantasAccountSettings> {
         const SizedBox(height: 8),
         const Text('Συνδεθείτε με τον λογαριασμό Office. '
             'Η πρόσβαση απομακρυσμένης υποστήριξης ελέγχεται από τα δικαιώματά σας.'),
+        if (widget.renewInstallation != null) const Text('Το ίδιο κοινό rd-cl χρησιμοποιείται σε όλους τους υπολογιστές τεχνικών. '
+            'Κάθε εγκατάσταση εγκρίνεται μία φορά στο Office· κάθε τεχνικός συνδέεται με τον δικό του λογαριασμό.'),
         if ((status == null && _error == null) || _busy) ...[
           const SizedBox(height: 12),
           const LinearProgressIndicator(),
@@ -152,6 +156,22 @@ class _ExantasAccountSettingsState extends State<ExantasAccountSettings> {
               onPressed: enabled ? () => _run(widget.confirmNative) : null,
               child: Text(status.nativeRecoveryRequired == true
                   ? 'Επανάληψη σύνδεσης RustDesk' : 'Επιβεβαίωση σύνδεσης'),
+            ),
+          if (widget.nativeRequired && !status.nativeReady && widget.renewInstallation != null)
+            TextButton(
+              onPressed: enabled ? () async {
+                final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+                  title: const Text('Νέα έγκριση εγκατάστασης'),
+                  content: const Text('Χρησιμοποιήστε αυτή την ενέργεια μόνο αφού διαχειριστής Office ανακαλέσει την προηγούμενη έγκριση αυτής της εγκατάστασης. '
+                      'Το νέο αίτημα θα χρειαστεί έγκριση. Το ID και το ιστορικό διατηρούνται.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Ακύρωση')),
+                    TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Υποβολή νέου αιτήματος')),
+                  ],
+                ));
+                if (confirmed == true && mounted) await _run(widget.renewInstallation!);
+              } : null,
+              child: const Text('Νέο αίτημα μετά από ανάκληση'),
             ),
           OutlinedButton(
             onPressed: enabled ? () => _run(widget.logout) : null,
