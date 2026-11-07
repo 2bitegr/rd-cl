@@ -5,6 +5,8 @@ import 'package:flutter_hbb/models/model.dart';
 import 'package:get/get.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
+import '../ui/exantas_theme.dart';
+
 class GestureIcons {
   static const String _family = 'gestureicons';
 
@@ -73,8 +75,18 @@ class _GestureHelpState extends State<GestureHelp> {
     }
   }
 
+  /// Checkbox label that is itself a 48dp-high tap target.
+  Widget _labelTarget(String text) => ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: ExantasTokens.minTouch),
+      child: Align(alignment: AlignmentDirectional.centerStart, widthFactor: 1, child: Text(text)));
+
   @override
   Widget build(BuildContext context) {
+    final t = context.ex;
+    final onAccent = ThemeData.estimateBrightnessForColor(t.accent) ==
+            Brightness.dark
+        ? Colors.white
+        : const Color(0xFF00172E);
     final size = MediaQuery.of(context).size;
     final space = 12.0;
     var width = size.width - 2 * space;
@@ -96,10 +108,13 @@ class _GestureHelpState extends State<GestureHelp> {
                     children: [
                       ToggleSwitch(
                         initialLabelIndex: _selectedIndex,
-                        activeFgColor: Colors.white,
-                        inactiveFgColor: Colors.white60,
-                        activeBgColor: [MyTheme.accent],
-                        inactiveBgColor: Theme.of(context).hintColor,
+                        activeFgColor: onAccent,
+                        inactiveFgColor: t.text,
+                        activeBgColor: [t.accent],
+                        inactiveBgColor: t.surfaceAlt,
+                        borderWidth: 1,
+                        borderColor: [t.border],
+                        minHeight: ExantasTokens.minTouch,
                         totalSwitches: 2,
                         minWidth: 150,
                         fontSize: 15,
@@ -145,7 +160,7 @@ class _GestureHelpState extends State<GestureHelp> {
                                     !_virtualMouseMode.showVirtualMouse);
                                 setState(() {});
                               },
-                              child: Text(translate('Show virtual mouse')),
+                              child: _labelTarget(translate('Show virtual mouse')),
                             ),
                           ],
                         ),
@@ -233,7 +248,7 @@ class _GestureHelpState extends State<GestureHelp> {
                                               .showVirtualJoystick);
                                       setState(() {});
                                     },
-                                    child: Text(
+                                    child: _labelTarget(
                                         translate("Show virtual joystick")),
                                   ),
                                 ],
@@ -266,7 +281,7 @@ class _GestureHelpState extends State<GestureHelp> {
                                           widget.inputModel!
                                               .toggleRelativeMouseMode();
                                         },
-                                        child: Text(
+                                        child: _labelTarget(
                                             translate('Relative mouse mode')),
                                       ),
                                     ],
@@ -361,30 +376,31 @@ class GestureInfo extends StatelessWidget {
   final double width;
 
   final iconSize = 35.0;
-  final iconColor = MyTheme.accent;
 
   @override
   Widget build(BuildContext context) {
+    final t = context.ex;
     return Container(
         width: width,
         child: Column(
           children: [
-            Icon(
+            ExcludeSemantics(
+                child: Icon(
               icon,
               size: iconSize,
-              color: iconColor,
-            ),
+              color: t.accent,
+            )),
             SizedBox(height: 6),
             Text(fromText,
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(fontSize: 9, color: Theme.of(context).hintColor)),
+                style: TextStyle(fontSize: 12, color: t.textSecondary)),
             SizedBox(height: 3),
             Text(toText,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).textTheme.bodySmall?.color))
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: t.text))
           ],
         ));
   }

@@ -11,6 +11,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:xterm/xterm.dart';
 import '../../desktop/pages/terminal_connection_manager.dart';
 import '../../consts.dart';
+import '../ui/ex_session_toolbar.dart';
+import '../ui/exantas_strings.dart';
+import '../ui/exantas_theme.dart';
 
 class TerminalPage extends StatefulWidget {
   const TerminalPage({
@@ -151,11 +154,11 @@ class _TerminalPageState extends State<TerminalPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return WillPopScope(
-      onWillPop: () async {
-        clientClose(sessionId, _ffi);
-        return false; // Prevent default back behavior
-      },
+    // Same confirm-before-disconnect sheet as the remote session; Back never
+    // closes the terminal without an explicit «Αποσύνδεση».
+    return ExSessionBackGuard(
+      peer: widget.id,
+      onDisconnect: () => clientClose(sessionId, _ffi),
       child: buildBody(),
     );
   }
@@ -277,10 +280,10 @@ class _TerminalPageState extends State<TerminalPage>
         ),
         child: Semantics(
           button: true,
-          label: translate('Close'),
+          label: ExStrings.disconnect,
           child: Container(
-            width: 44, // iOS standard tap target size
-            height: 44,
+            width: ExantasTokens.minTouch,
+            height: ExantasTokens.minTouch,
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.5), // Half transparency
               shape: BoxShape.circle,
@@ -291,11 +294,13 @@ class _TerminalPageState extends State<TerminalPage>
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 customBorder: const CircleBorder(),
-                onTap: () {
-                  clientClose(sessionId, _ffi);
+                onTap: () async {
+                  if (await showExDisconnectSheet(context, widget.id)) {
+                    clientClose(sessionId, _ffi);
+                  }
                 },
                 child: Tooltip(
-                  message: translate('Close'),
+                  message: ExStrings.disconnect,
                   child: const Icon(
                     Icons.chevron_left, // iOS-style back arrow
                     color: Colors.white,

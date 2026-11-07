@@ -42,7 +42,6 @@ dependencies:
     git:
       url: https://github.com/rustdesk-org/Dash-Chat-2
   draggable_float_widget: ^0.1.0
-  settings_ui: ^2.0.2
   flutter_breadcrumb: ^1.0.1
   http: ^1.1.0
   qr_code_scanner: ^1.0.0
@@ -110,6 +109,8 @@ dependencies:
   sqflite: 2.2.0
   google_fonts: ^6.2.1
   vector_math: ^2.1.4
+  local_auth: 2.3.0
+  local_auth_android: 1.0.47
 
 dev_dependencies:
   icons_launcher: ^2.0.4

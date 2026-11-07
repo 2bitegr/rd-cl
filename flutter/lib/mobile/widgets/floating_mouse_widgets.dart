@@ -15,6 +15,9 @@ import 'package:flutter_hbb/models/input_model.dart';
 import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 
+import '../ui/exantas_strings.dart';
+import '../ui/exantas_theme.dart';
+
 // Used for the wheel button and wheel scroll widgets
 const double _kSpaceToHorizontalEdge = 25;
 const double _wheelWidth = 50;
@@ -27,7 +30,7 @@ const double _kLeftRightButtonHeight = 40;
 const double _kBorderWidth = 1;
 final Color _kDefaultBorderColor = Colors.white.withOpacity(0.7);
 final Color _kDefaultColor = Colors.black.withOpacity(0.4);
-final Color _kTapDownColor = Colors.blue.withOpacity(0.7);
+final Color _kTapDownColor = ExantasTokens.dark.accent.withOpacity(0.85);
 final Color _kWidgetHighlightColor = Colors.white.withOpacity(0.9);
 const int _kInputTimerIntervalMillis = 100;
 
@@ -187,7 +190,13 @@ class _FloatingWheelState extends State<FloatingWheel> {
       bool Function() flagGetter,
       BorderRadiusGeometry borderRadius,
       IconData iconData) {
-    return Listener(
+    return Semantics(
+      button: true,
+      label: iconData == Icons.keyboard_arrow_up
+          ? ExStrings.scrollUp
+          : ExStrings.scrollDown,
+      excludeSemantics: true,
+      child: Listener(
       onPointerDown: onPointerDown,
       onPointerUp: onPointerUp,
       onPointerCancel: onPointerCancel,
@@ -204,7 +213,7 @@ class _FloatingWheelState extends State<FloatingWheel> {
         ),
         child: Icon(iconData, color: _kDefaultBorderColor, size: 32),
       ),
-    );
+    ));
   }
 
   @override
@@ -248,7 +257,11 @@ class _FloatingWheelState extends State<FloatingWheel> {
             BorderRadius.vertical(top: Radius.circular(_wheelWidth * 0.5)),
             Icons.keyboard_arrow_up,
           ),
-          Listener(
+          Semantics(
+            button: true,
+            label: ExStrings.mouseMiddleButton,
+            excludeSemantics: true,
+            child: Listener(
             onPointerDown: (event) {
               setState(() {
                 _isMidDown = true;
@@ -309,7 +322,7 @@ class _FloatingWheelState extends State<FloatingWheel> {
                 ),
               ),
             ),
-          ),
+          )),
           _buildUpDownButton(
             (event) {
               setState(() {
@@ -566,7 +579,11 @@ class _FloatingLeftRightButtonState extends State<FloatingLeftRightButton> {
       top: _position.dy,
       // We can't use the GestureDetector here, because `onTapDown` may be
       // triggered sometimes when dragging.
-      child: Listener(
+      child: Semantics(
+        button: true,
+        label: _isLeft ? ExStrings.mouseLeftButton : ExStrings.mouseRightButton,
+        excludeSemantics: true,
+        child: Listener(
         onPointerMove: _onBodyPointerMoveUpdate,
         onPointerDown: (event) async {
           _isDragging = false;
@@ -649,7 +666,7 @@ class _FloatingLeftRightButtonState extends State<FloatingLeftRightButton> {
           child: _buildButtonIcon(),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -789,7 +806,10 @@ class _VirtualJoystickState extends State<VirtualJoystick> {
     return Positioned(
       left: _position.dx - _joystickRadius,
       top: _position.dy - _joystickRadius,
-      child: GestureDetector(
+      child: Semantics(
+        label: ExStrings.joystick,
+        excludeSemantics: true,
+        child: GestureDetector(
         onPanStart: (details) {
           setState(() {
             _isPressed = true;
@@ -837,6 +857,7 @@ class _VirtualJoystickState extends State<VirtualJoystick> {
           painter: _JoystickPainter(
               _offset, _joystickRadius, _thumbRadius, _isPressed),
         ),
+      ),
       ),
     );
   }

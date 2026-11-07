@@ -8,6 +8,8 @@ import 'package:toggle_switch/toggle_switch.dart';
 
 import '../../common.dart';
 import '../../common/widgets/dialog.dart';
+import '../ui/exantas_strings.dart';
+import '../ui/exantas_theme.dart';
 
 class FileManagerPage extends StatefulWidget {
   FileManagerPage(
@@ -101,15 +103,17 @@ class _FileManagerPageState extends State<FileManagerPage> {
   }
 
   @override
-  Widget build(BuildContext context) => WillPopScope(
-      onWillPop: () async {
+  Widget build(BuildContext context) => PopScope(
+      // Back goes up a folder (or leaves select mode); it never pops the page.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
         if (selectMode.value != SelectMode.none) {
           selectMode.value = SelectMode.none;
           setState(() {});
         } else {
           currentFileController.goBack();
         }
-        return false;
       },
       child: Scaffold(
         // backgroundColor: MyTheme.grayBg,
@@ -117,17 +121,21 @@ class _FileManagerPageState extends State<FileManagerPage> {
           leading: Row(children: [
             IconButton(
                 icon: Icon(Icons.close),
+                tooltip: ExStrings.disconnect,
+                constraints: const BoxConstraints(
+                    minWidth: ExantasTokens.minTouch,
+                    minHeight: ExantasTokens.minTouch),
                 onPressed: () => clientClose(gFFI.sessionId, gFFI)),
           ]),
           centerTitle: true,
           title: ToggleSwitch(
             initialLabelIndex: showLocal ? 0 : 1,
-            activeBgColor: [MyTheme.idColor],
+            activeBgColor: [context.ex.accent],
             inactiveBgColor: Theme.of(context).brightness == Brightness.light
-                ? MyTheme.grayBg
+                ? context.ex.surfaceAlt
                 : null,
             inactiveFgColor: Theme.of(context).brightness == Brightness.light
-                ? Colors.black54
+                ? context.ex.textSecondary
                 : null,
             totalSwitches: 2,
             minWidth: 100,
@@ -301,10 +309,12 @@ class _FileManagerPageState extends State<FileManagerPage> {
               },
               actions: [
                 IconButton(
+                  tooltip: 'Εναλλαγή τοπικών/απομακρυσμένων',
                   icon: Icon(Icons.compare_arrows),
                   onPressed: () => setState(() => showLocal = !showLocal),
                 ),
                 IconButton(
+                  tooltip: 'Διαγραφή επιλεγμένων',
                   icon: Icon(Icons.delete_forever),
                   onPressed: selectedItems != null
                       ? () async {
@@ -330,10 +340,12 @@ class _FileManagerPageState extends State<FileManagerPage> {
               },
               actions: [
                 IconButton(
+                  tooltip: 'Εναλλαγή τοπικών/απομακρυσμένων',
                   icon: Icon(Icons.compare_arrows),
                   onPressed: () => setState(() => showLocal = !showLocal),
                 ),
                 IconButton(
+                  tooltip: 'Επικόλληση',
                   icon: Icon(Icons.paste),
                   onPressed: () {
                     selectMode.value = SelectMode.none;
@@ -495,7 +507,7 @@ class _FileManagerViewState extends State<FileManagerView> {
                     ? null
                     : Text(
                         "${entries[index].lastModified().toString().replaceAll(".000", "")}   $sizeStr",
-                        style: TextStyle(fontSize: 12, color: MyTheme.darkGray),
+                        style: TextStyle(fontSize: 12, color: context.ex.textSecondary),
                       ),
                 trailing: entries[index].isDrive
                     ? null
@@ -628,10 +640,12 @@ class _FileManagerViewState extends State<FileManagerView> {
           Row(
             children: [
               IconButton(
+                tooltip: ExStrings.back,
                 icon: Icon(Icons.arrow_back),
                 onPressed: controller.goBack,
               ),
               IconButton(
+                tooltip: 'Επάνω φάκελος',
                 icon: Icon(Icons.arrow_upward),
                 onPressed: controller.goToParentDirectory,
               ),
@@ -670,14 +684,14 @@ class _FileManagerViewState extends State<FileManagerView> {
               padding: EdgeInsets.fromLTRB(30, 5, 30, 0),
               child: Text(
                 controller.directory.value.path,
-                style: TextStyle(color: MyTheme.darkGray),
+                style: TextStyle(color: context.ex.textSecondary),
               ),
             ),
             Padding(
               padding: EdgeInsets.all(2),
               child: Text(
                 "${translate("Total")}: ${controller.directory.value.entries.length} ${translate("items")}",
-                style: TextStyle(color: MyTheme.darkGray),
+                style: TextStyle(color: context.ex.textSecondary),
               ),
             )
           ],
@@ -690,6 +704,7 @@ class _FileManagerViewState extends State<FileManagerView> {
     final breadCrumbList = [
       BreadCrumbItem(
           content: IconButton(
+            tooltip: 'Αρχικός φάκελος',
         icon: Icon(Icons.home_filled),
         onPressed: onHome,
       ))
@@ -728,7 +743,7 @@ class BottomSheetBody extends StatelessWidget {
             height: 65,
             alignment: Alignment.centerLeft,
             decoration: BoxDecoration(
-                color: MyTheme.accent50,
+                color: context.ex.accentSoft,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(10))),
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 15),
@@ -752,6 +767,7 @@ class BottomSheetBody extends StatelessWidget {
                   ),
                   Row(children: () {
                     _actions.add(IconButton(
+                      tooltip: ExStrings.cancel,
                       icon: Icon(Icons.cancel_outlined),
                       onPressed: onCanceled,
                     ));

@@ -16,6 +16,8 @@ import 'package:flutter_hbb/desktop/screen/desktop_port_forward_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_remote_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_terminal_screen.dart';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
+import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart' show TabbarTheme;
+import 'package:flutter_hbb/mobile/ui/exantas_theme.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -27,6 +29,8 @@ import 'common.dart';
 import 'consts.dart';
 import 'mobile/pages/home_page.dart';
 import 'mobile/pages/server_page.dart';
+import 'mobile/ui/ex_app_lock.dart';
+import 'models/exantas_biometric.dart';
 import 'mobile/widgets/deploy_dialog.dart';
 import 'models/platform_model.dart';
 
@@ -184,6 +188,8 @@ void runMobileApp() async {
   checkUpdate();
   if (isAndroid) androidChannelInit();
   if (isAndroid) platformFFI.syncAndroidServiceAppDirConfigPath();
+  // Registered before the app so the lock can consume Back while locked.
+  if (isAndroid) exantasAppLock.attach();
   draggablePositions.load();
   await Future.wait([gFFI.abModel.loadCache(), gFFI.groupModel.loadCache()]);
   gFFI.userModel.refreshCurrentUser();
@@ -356,6 +362,8 @@ hideCmWindow({bool isStartup = false}) async {
   }
 }
 
+bool get _isMobileUi => !isWeb && (isAndroid || isIOS);
+
 void _runApp(
   String title,
   Widget home,
@@ -504,8 +512,15 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           title: isWeb
               ? '${bind.mainGetAppNameSync()} Web Client V2 (Preview)'
               : bind.mainGetAppNameSync(),
-          theme: MyTheme.lightTheme,
-          darkTheme: MyTheme.darkTheme,
+          // Material 3 Exantas theme on mobile only; desktop keeps MyTheme.
+          theme: _isMobileUi
+              ? ExantasTheme.light(
+                  extra: [ColorThemeExtension.light, TabbarTheme.light])
+              : MyTheme.lightTheme,
+          darkTheme: _isMobileUi
+              ? ExantasTheme.dark(
+                  extra: [ColorThemeExtension.dark, TabbarTheme.dark])
+              : MyTheme.darkTheme,
           themeMode: MyTheme.currentThemeMode(),
           home: isDesktop
               ? const DesktopTabPage()
@@ -524,11 +539,17 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           ],
           builder: isAndroid
               ? (context, child) => AccessibilityListener(
-                    child: MediaQuery(
-                      data: MediaQuery.of(context).copyWith(
-                        textScaler: TextScaler.linear(1.0),
+                    child: ExAppLockGate(
+                      controller: exantasAppLock,
+                      child: MediaQuery(
+                        // Mobile only: honour system font size up to 1.3x.
+                        // Session pages pin 1.0 via ExFixedTextScale.
+                        data: MediaQuery.of(context).copyWith(
+                          textScaler: MediaQuery.textScalerOf(context).clamp(
+                              minScaleFactor: 1.0, maxScaleFactor: 1.3),
+                        ),
+                        child: child ?? Container(),
                       ),
-                      child: child ?? Container(),
                     ),
                   )
               : (context, child) {
