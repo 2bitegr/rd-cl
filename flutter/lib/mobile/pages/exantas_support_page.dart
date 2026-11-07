@@ -325,7 +325,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       } catch (_) {}
       if (!mounted) return;
       final open = office.open.items
-          .where((c) => ['draft', 'review'].contains(c.supportState))
+          .where((c) => c.isParticipant && ['draft', 'review'].contains(c.supportState))
           .map((c) => ExantasWorkOption(id: c.id, title: c.title, customerName: c.customerName))
           .toList();
       final choice = await showExantasConnectSheet(context,
@@ -450,7 +450,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     if (!mounted) return null;
     final cid = row['customer_id'];
     final open = office.open.items
-        .where((c) => ['draft', 'review'].contains(c.supportState))
+        .where((c) => c.isParticipant && ['draft', 'review'].contains(c.supportState))
         .toList();
     final sameCustomer = cid == null
         ? open

@@ -268,4 +268,28 @@ void main() {
     expect(d.works.map((w) => w.id), ['w1']);
     expect(paths, ['/rustdesk-reports/customers/c1/devices', '/support-workflow/items?customer_id=c1']);
   });
+
+  test('is_participant: absent keeps true, false marks read-only', () {
+    OfficeWorkCard c(Map<String, dynamic> extra) =>
+        OfficeWorkCard.fromFlat({'id': 'w1', 'title': 'T', ...extra})!;
+    expect(c({}).isParticipant, isTrue);
+    expect(c({'is_participant': true}).isParticipant, isTrue);
+    expect(c({'is_participant': false}).isParticipant, isFalse);
+  });
+
+  testWidgets('non-participant tile is muted, labelled and not tappable',
+      (tester) async {
+    var taps = 0;
+    final card = OfficeWorkCard.fromFlat(
+        {'id': 'w2', 'title': 'Ξένη', 'is_participant': false})!;
+    await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(extensions: [ExantasTokens.light]),
+        home: Scaffold(
+            body: OfficeWorkCardTile(card: card, onTap: () => taps++))));
+    expect(find.text('Άλλου τεχνικού'), findsOneWidget);
+    expect(find.text('Ζήτα από τον υπεύθυνο να σε προσθέσει στην εργασία'),
+        findsOneWidget);
+    await tester.tap(find.text('Ξένη'));
+    expect(taps, 0);
+  });
 }

@@ -27,6 +27,8 @@ class ExWork {
   static const loadMore = 'Περισσότερες εργασίες';
   static const truncated = 'Εμφανίζονται οι πρώτες 200 εργασίες.';
   static const pendingDecision = 'Εκκρεμεί απόφαση';
+  static const otherTechnician = 'Άλλου τεχνικού';
+  static const askToJoin = 'Ζήτα από τον υπεύθυνο να σε προσθέσει στην εργασία';
   static const newWork = 'Νέα εργασία';
   static const computers = 'Υπολογιστές';
   static const openWork = 'Ανοιχτές εργασίες';
@@ -71,9 +73,12 @@ class OfficeWorkCardTile extends StatelessWidget {
     final place = [card.customerName, card.branchName]
         .where((e) => e.isNotEmpty)
         .join(' · ');
+    final readOnly = !card.isParticipant;
     return ExCard(
-        onTap: onTap,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        onTap: readOnly ? null : onTap,
+        child: Opacity(
+            opacity: readOnly ? 0.6 : 1,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(card.title,
               maxLines: 2, overflow: TextOverflow.ellipsis, style: text.titleSmall),
           if (place.isNotEmpty) ...[
@@ -88,8 +93,14 @@ class OfficeWorkCardTile extends StatelessWidget {
             ExStatusPill(label, status: status),
             if (pending)
               const ExStatusPill(ExWork.pendingDecision, status: ExStatus.warning),
+            if (readOnly)
+              const ExStatusPill(ExWork.otherTechnician, status: ExStatus.info),
           ]),
           const SizedBox(height: ExantasTokens.space2),
+          if (readOnly)
+            Text(ExWork.askToJoin,
+                style: text.bodySmall?.copyWith(color: t.textSecondary))
+          else
           Row(children: [
             Expanded(
                 child: Text('Ενημερώθηκε ${formatAthens(card.updatedAt)}',
@@ -101,7 +112,7 @@ class OfficeWorkCardTile extends StatelessWidget {
                     style: text.labelLarge?.copyWith(color: t.accent))),
             Icon(Icons.chevron_right, size: 18, color: t.accent),
           ]),
-        ]));
+        ])));
   }
 }
 

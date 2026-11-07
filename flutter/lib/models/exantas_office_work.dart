@@ -54,10 +54,15 @@ class OfficeWorkCard {
       required this.branchName,
       required this.status,
       required this.supportState,
-      required this.updatedAt});
+      required this.updatedAt,
+      this.isParticipant = true});
   final String id, title, customerId, customerName, branchName;
   final String status, supportState;
   final DateTime? updatedAt;
+
+  /// False only when the server says another technician's shared item (not
+  /// openable: 403 work_participant_required). Absent field = true.
+  final bool isParticipant;
 
   /// my-day / my-open-work row: `{item:{...}, customer_name, branch_name, updated_at}`.
   static OfficeWorkCard? fromDayRow(Map<String, dynamic> row) {
@@ -82,7 +87,8 @@ class OfficeWorkCard {
         branchName: _text(outer['branch_name']) ?? '',
         status: _text(item['status']) ?? '',
         supportState: _text(item['support_state']) ?? '',
-        updatedAt: DateTime.tryParse('${outer['updated_at'] ?? ''}'));
+        updatedAt: DateTime.tryParse('${outer['updated_at'] ?? ''}'),
+        isParticipant: (item['is_participant'] ?? outer['is_participant']) != false);
   }
 }
 
