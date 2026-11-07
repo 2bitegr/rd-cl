@@ -700,11 +700,7 @@ class ConnectionManager extends StatelessWidget {
                                   onPressed: () {
                                     gFFI.chatModel.changeCurrentKey(
                                         MessageKey(client.peerId, client.id));
-                                    final bar = navigationBarKey.currentWidget;
-                                    if (bar != null) {
-                                      bar as BottomNavigationBar;
-                                      bar.onTap!(1);
-                                    }
+                                    HomePage.homeKey.currentState?.openChat();
                                   },
                                   icon: unreadTopRightBuilder(
                                       client.unreadChatMessageCount)))

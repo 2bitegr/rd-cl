@@ -16,6 +16,7 @@ import 'package:flutter_hbb/desktop/screen/desktop_port_forward_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_remote_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_terminal_screen.dart';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
+import 'package:flutter_hbb/mobile/ui/exantas_theme.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -356,6 +357,8 @@ hideCmWindow({bool isStartup = false}) async {
   }
 }
 
+bool get _isMobileUi => !isWeb && (isAndroid || isIOS);
+
 void _runApp(
   String title,
   Widget home,
@@ -504,8 +507,13 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           title: isWeb
               ? '${bind.mainGetAppNameSync()} Web Client V2 (Preview)'
               : bind.mainGetAppNameSync(),
-          theme: MyTheme.lightTheme,
-          darkTheme: MyTheme.darkTheme,
+          // Material 3 Exantas theme on mobile only; desktop keeps MyTheme.
+          theme: _isMobileUi
+              ? ExantasTheme.light(extra: [ColorThemeExtension.light])
+              : MyTheme.lightTheme,
+          darkTheme: _isMobileUi
+              ? ExantasTheme.dark(extra: [ColorThemeExtension.dark])
+              : MyTheme.darkTheme,
           themeMode: MyTheme.currentThemeMode(),
           home: isDesktop
               ? const DesktopTabPage()

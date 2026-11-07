@@ -12,8 +12,15 @@ import 'remote_page.dart';
 import '../widgets/exantas_session_decision.dart';
 import '../widgets/exantas_support_home_sections.dart';
 
+enum ExantasSupportView { home, work }
+
+/// One controller serves both the Home and Work destinations: HomePage swaps
+/// [view] on the same element, so Office state survives switching between them.
 class ExantasSupportPage extends StatefulWidget implements PageShape {
-  const ExantasSupportPage({super.key});
+  const ExantasSupportPage(
+      {super.key, this.view = ExantasSupportView.home, this.onOpenWork});
+  final ExantasSupportView view;
+  final VoidCallback? onOpenWork;
   @override
   final title = 'Υποστήριξη';
   @override
@@ -39,6 +46,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
   String sourceId = '';
   String? error;
   Timer? timer;
+  ExantasWorkSection workSection = ExantasWorkSection.customers;
 
   @override
   void initState() {
@@ -382,6 +390,16 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
         const SnackBar(content: Text('Το RustDesk ID αντιγράφηκε.')));
   }
 
+  void openWork(ExantasWorkSection section) {
+    setState(() => workSection = section);
+    widget.onOpenWork?.call();
+  }
+
+  void searchFromHome(String _) {
+    openWork(ExantasWorkSection.customers);
+    if (!busy) unawaited(run(findCustomers));
+  }
+
   Widget customerPanel() => Card(
       child: Padding(
           padding: const EdgeInsets.all(16),
@@ -493,8 +511,26 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
             platform: p.platform,
             online: p.online))
         .toList();
+    final errorText = [
+      if (error != null) error!,
+      if (support.journal.error != null) support.journal.error!
+    ].join('\n');
+    final viewKey = ValueKey('${status?.officeUserId}:${status?.apiBase}');
+    if (widget.view == ExantasSupportView.work) {
+      return ExantasWorkView(
+          key: viewKey,
+          signedIn: signedIn,
+          busy: busy,
+          section: workSection,
+          onSection: (v) => setState(() => workSection = v),
+          customerPanel: customerPanel(),
+          pendingPanel: pendingPanel(),
+          pendingCount: pending.length,
+          error: errorText.isEmpty ? null : errorText,
+          onRefresh: () => run(refresh));
+    }
     return ExantasSupportHome(
-        key: ValueKey('${status?.officeUserId}:${status?.apiBase}'),
+        key: viewKey,
         account: signedIn
             ? ExantasAccountSummary(
                 name: status!.technicianName,
@@ -520,20 +556,13 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
         nativeRecoveryRequired: status?.nativeConfirmationRequired == true,
         busy: busy,
         controller: manual,
+        searchController: search,
         devices: recent,
-        customerPanel: customerPanel(),
-        pendingPanel: pendingPanel(),
         pendingCount: pending.length,
-        error: [
-          if (error != null) error!,
-          if (support.journal.error != null) support.journal.error!
-        ].join('\n').isEmpty
-            ? null
-            : [
-                if (error != null) error!,
-                if (support.journal.error != null) support.journal.error!
-              ].join('\n'),
+        error: errorText.isEmpty ? null : errorText,
         onConnect: (id) => run(() => connectPeer(id)),
+        onSearchCustomers: searchFromHome,
+        onOpenPending: () => openWork(ExantasWorkSection.pending),
         onRefresh: () => run(refresh),
         onConfirmNative: () => run(() async {
               await support.service.ensureNativeReady(force: true);
