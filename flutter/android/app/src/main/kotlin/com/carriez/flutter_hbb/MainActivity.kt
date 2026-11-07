@@ -68,7 +68,7 @@ class MainActivity : FlutterFragmentActivity() {
             }
         }
         if (MainService.isReady) {
-            Intent(activity, MainService::class.java).also {
+            Intent(this@MainActivity, MainService::class.java).also {
                 bindService(it, serviceConnection, Context.BIND_AUTO_CREATE)
             }
         }
@@ -89,7 +89,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onResume() {
         super.onResume()
         val inputPer = InputService.isOpen
-        activity.runOnUiThread {
+        this@MainActivity.runOnUiThread {
             flutterMethodChannel?.invokeMethod(
                 "on_state_changed",
                 mapOf("name" to "input", "value" to inputPer.toString())
@@ -145,7 +145,7 @@ class MainActivity : FlutterFragmentActivity() {
             // make sure result will be invoked, otherwise flutter will await forever
             when (call.method) {
                 "init_service" -> {
-                    Intent(activity, MainService::class.java).also {
+                    Intent(this@MainActivity, MainService::class.java).also {
                         bindService(it, serviceConnection, Context.BIND_AUTO_CREATE)
                     }
                     if (MainService.isReady) {
