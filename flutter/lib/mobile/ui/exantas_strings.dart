@@ -50,4 +50,20 @@ class ExStrings {
   static const noIncoming = 'Δεν υπάρχουν εισερχόμενες συνδέσεις.';
   static const noIncomingHint =
       'Όταν κάποιος συνδεθεί στη συσκευή σου, θα εμφανιστεί εδώ.';
+
+  // Remote session
+  static const keyboard = 'Πληκτρολόγιο';
+  static const mouseMode = 'Λειτουργία ποντικιού/αφής';
+  static const specialKeys = 'Ειδικά πλήκτρα';
+  static const screens = 'Οθόνες';
+  static const more = 'Περισσότερα';
+  static const disconnect = 'Αποσύνδεση';
+  static const stay = 'Παραμονή';
+  static const hideToolbar = 'Απόκρυψη γραμμής εργαλείων';
+  static const showToolbar = 'Εμφάνιση γραμμής εργαλείων';
+  static const sessionToolbar = 'Εργαλεία συνεδρίας';
+  static const sessionElapsedUnverified = 'Χρόνος σύνδεσης (μη επαληθευμένος)';
+  static String disconnectTitle(String peer) => 'Αποσύνδεση από $peer;';
+  static const disconnectMessage =
+      'Η απομακρυσμένη συνεδρία θα τερματιστεί.';
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/shared_state.dart';
@@ -26,6 +27,9 @@ import '../../models/exantas_session_report.dart';
 import '../../utils/image.dart';
 import '../widgets/dialog.dart';
 import '../widgets/custom_scale_widget.dart';
+import '../ui/ex_session_toolbar.dart';
+import '../ui/exantas_strings.dart';
+import '../ui/exantas_theme.dart';
 
 final initText = '1' * 1024;
 
@@ -49,7 +53,8 @@ class RemotePage extends StatefulWidget {
       this.password,
       this.isSharedPassword,
       this.forceRelay,
-      this.onOfficeClosed})
+      this.onOfficeClosed,
+      this.sessionContext})
       : super(key: key);
 
   final String id;
@@ -57,6 +62,11 @@ class RemotePage extends StatefulWidget {
   final bool? isSharedPassword;
   final bool? forceRelay;
   final void Function(Map<String, dynamic>)? onOfficeClosed;
+
+  /// Optional top chip text, e.g. "Πελάτης · Υπολογιστής" (see
+  /// [ExSessionContext.format]). Defaults to the global [ExSessionContext.label];
+  /// null/empty hides the chip.
+  final ValueListenable<String?>? sessionContext;
 
   @override
   State<RemotePage> createState() => _RemotePageState(id);
@@ -462,11 +472,9 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
         keyboardVisibilityController.isVisible && _showEdit;
     final showActionButton = !_showBar || keyboardIsVisible || _showGestureHelp;
 
-    return WillPopScope(
-      onWillPop: () async {
-        clientClose(sessionId, gFFI);
-        return false;
-      },
+    return ExSessionBackGuard(
+      peer: _peerLabel(),
+      onDisconnect: _disconnect,
       child: Scaffold(
           // workaround for https://github.com/rustdesk/rustdesk/issues/3131
           floatingActionButtonLocation: keyboardIsVisible
@@ -476,13 +484,16 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
               ? null
               : FloatingActionButton(
                   mini: !keyboardIsVisible,
+                  tooltip: (keyboardIsVisible || _showGestureHelp)
+                      ? ExStrings.hideToolbar
+                      : ExStrings.showToolbar,
                   child: Icon(
                     (keyboardIsVisible || _showGestureHelp)
                         ? Icons.expand_more
                         : Icons.expand_less,
-                    color: Colors.white,
+                    color: context.ex.text,
                   ),
-                  backgroundColor: MyTheme.accent,
+                  backgroundColor: context.ex.surface,
                   onPressed: () {
                     setState(() {
                       if (keyboardIsVisible) {
@@ -567,103 +578,95 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     );
   }
 
+  String _peerLabel() {
+    final h = gFFI.ffiModel.pi.hostname;
+    return h.isNotEmpty ? h : widget.id;
+  }
+
+  /// Explicit disconnect, after confirmation. Reuses the existing close path:
+  /// `clientClose` when the end-of-connection audit note applies (it shows the
+  /// audit dialog and then `closeConnection`), otherwise `closeConnection`
+  /// directly (clientClose would add a second, redundant confirmation).
+  void _disconnect() {
+    if (allowAskForNoteAtEndOfConnection(gFFI, true)) {
+      clientClose(sessionId, gFFI);
+    } else {
+      closeConnection();
+    }
+  }
+
+  Future<void> _onChatPressed() async {
+    final isSupportVoiceCall =
+        await gFFI.invokeMethod("get_value", "KEY_IS_SUPPORT_VOICE_CALL");
+    if (!mounted) return;
+    isAndroid && isSupportVoiceCall == true
+        ? showChatOptions(widget.id)
+        : onPressedTextChat(widget.id);
+  }
+
   Widget getBottomAppBar() {
     final ffiModel = Provider.of<FfiModel>(context);
-    return BottomAppBar(
-      elevation: 10,
-      color: MyTheme.accent,
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Row(
-              children: <Widget>[
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.clear),
-                      onPressed: () {
-                        clientClose(sessionId, gFFI);
-                      },
-                    ),
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.tv),
-                      onPressed: () {
-                        setState(() => _showEdit = false);
-                        showOptions(context, widget.id, gFFI.dialogManager);
-                      },
-                    )
-                  ] +
-                  (isWebDesktop || ffiModel.viewOnly || !ffiModel.keyboard
-                      ? []
-                      : gFFI.ffiModel.isPeerAndroid
-                          ? [
-                              IconButton(
-                                  color: Colors.white,
-                                  icon: Icon(Icons.keyboard),
-                                  onPressed: openKeyboard),
-                              IconButton(
-                                color: Colors.white,
-                                icon: const Icon(Icons.build),
-                                onPressed: () => gFFI.dialogManager
-                                    .toggleMobileActionsOverlay(ffi: gFFI),
-                              )
-                            ]
-                          : [
-                              IconButton(
-                                  color: Colors.white,
-                                  icon: Icon(Icons.keyboard),
-                                  onPressed: openKeyboard),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(gFFI.ffiModel.touchMode
-                                    ? Icons.touch_app
-                                    : Icons.mouse),
-                                onPressed: () => setState(
-                                    () => _showGestureHelp = !_showGestureHelp),
-                              ),
-                            ]) +
-                  (isWeb
-                      ? []
-                      : <Widget>[
-                          futureBuilder(
-                              future: gFFI.invokeMethod(
-                                  "get_value", "KEY_IS_SUPPORT_VOICE_CALL"),
-                              hasData: (isSupportVoiceCall) => IconButton(
-                                    color: Colors.white,
-                                    icon: isAndroid && isSupportVoiceCall
-                                        ? SvgPicture.asset('assets/chat.svg',
-                                            colorFilter: ColorFilter.mode(
-                                                Colors.white, BlendMode.srcIn))
-                                        : Icon(Icons.message),
-                                    onPressed: () =>
-                                        isAndroid && isSupportVoiceCall
-                                            ? showChatOptions(widget.id)
-                                            : onPressedTextChat(widget.id),
-                                  ))
-                        ]) +
-                  [
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.more_vert),
-                      onPressed: () {
-                        setState(() => _showEdit = false);
-                        showActions(widget.id);
-                      },
-                    ),
-                  ]),
-          Obx(() => IconButton(
-                color: Colors.white,
-                icon: Icon(Icons.expand_more),
-                onPressed: gFFI.ffiModel.waitForFirstImage.isTrue
-                    ? null
-                    : () {
-                        setState(() => _showBar = !_showBar);
-                      },
-              )),
-        ],
-      ),
-    );
+    final canInput = !(isWebDesktop || ffiModel.viewOnly || !ffiModel.keyboard);
+    final waiting = gFFI.ffiModel.waitForFirstImage.isTrue;
+    return ExSessionToolbar(actions: [
+      if (canInput)
+        ExSessionAction(
+            id: 'keyboard',
+            label: ExStrings.keyboard,
+            icon: Icons.keyboard_outlined,
+            onPressed: openKeyboard),
+      if (canInput && gFFI.ffiModel.isPeerAndroid)
+        ExSessionAction(
+            id: 'special-keys',
+            label: ExStrings.specialKeys,
+            icon: Icons.keyboard_command_key_outlined,
+            onPressed: () =>
+                gFFI.dialogManager.toggleMobileActionsOverlay(ffi: gFFI)),
+      if (canInput && !gFFI.ffiModel.isPeerAndroid)
+        ExSessionAction(
+            id: 'mouse-mode',
+            label: ExStrings.mouseMode,
+            icon: gFFI.ffiModel.touchMode
+                ? Icons.touch_app_outlined
+                : Icons.mouse_outlined,
+            onPressed: () =>
+                setState(() => _showGestureHelp = !_showGestureHelp)),
+      ExSessionAction(
+          id: 'screens',
+          label: ExStrings.screens,
+          icon: Icons.desktop_windows_outlined,
+          onPressed: () {
+            setState(() => _showEdit = false);
+            showOptions(context, widget.id, gFFI.dialogManager);
+          }),
+      if (!isWeb)
+        ExSessionAction(
+            id: 'chat',
+            label: ExStrings.chat,
+            icon: Icons.chat_bubble_outline,
+            onPressed: _onChatPressed),
+      ExSessionAction(
+          id: 'more',
+          label: ExStrings.more,
+          icon: Icons.more_horiz,
+          onPressed: () {
+            setState(() => _showEdit = false);
+            showActions(widget.id);
+          }),
+      ExSessionAction(
+          id: 'disconnect',
+          label: ExStrings.disconnect,
+          icon: Icons.power_settings_new,
+          danger: true,
+          onPressed: () => showExDisconnectSheet(context, _peerLabel())
+              .then((ok) => ok ? _disconnect() : null)),
+      ExSessionAction(
+          id: 'collapse',
+          label: ExStrings.hideToolbar,
+          icon: Icons.keyboard_arrow_down,
+          onPressed:
+              waiting ? null : () => setState(() => _showBar = !_showBar)),
+    ]);
   }
 
   bool get showCursorPaint =>
@@ -682,6 +685,15 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
               top: 10,
               right: 10,
               child: QualityMonitor(gFFI.qualityMonitorModel),
+            ),
+            Positioned(
+              top: 8,
+              left: 0,
+              right: 0,
+              child: Center(
+                  child: ExSessionContextChip(
+                      listenable:
+                          widget.sessionContext ?? ExSessionContext.label)),
             ),
             KeyHelpTools(
                 keyboardIsVisible: keyboardIsVisible,

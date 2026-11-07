@@ -8,6 +8,8 @@ import 'package:toggle_switch/toggle_switch.dart';
 
 import '../../common.dart';
 import '../../common/widgets/dialog.dart';
+import '../ui/exantas_strings.dart';
+import '../ui/exantas_theme.dart';
 
 class FileManagerPage extends StatefulWidget {
   FileManagerPage(
@@ -117,17 +119,21 @@ class _FileManagerPageState extends State<FileManagerPage> {
           leading: Row(children: [
             IconButton(
                 icon: Icon(Icons.close),
+                tooltip: ExStrings.disconnect,
+                constraints: const BoxConstraints(
+                    minWidth: ExantasTokens.minTouch,
+                    minHeight: ExantasTokens.minTouch),
                 onPressed: () => clientClose(gFFI.sessionId, gFFI)),
           ]),
           centerTitle: true,
           title: ToggleSwitch(
             initialLabelIndex: showLocal ? 0 : 1,
-            activeBgColor: [MyTheme.idColor],
+            activeBgColor: [context.ex.accent],
             inactiveBgColor: Theme.of(context).brightness == Brightness.light
-                ? MyTheme.grayBg
+                ? context.ex.surfaceAlt
                 : null,
             inactiveFgColor: Theme.of(context).brightness == Brightness.light
-                ? Colors.black54
+                ? context.ex.textSecondary
                 : null,
             totalSwitches: 2,
             minWidth: 100,
@@ -495,7 +501,7 @@ class _FileManagerViewState extends State<FileManagerView> {
                     ? null
                     : Text(
                         "${entries[index].lastModified().toString().replaceAll(".000", "")}   $sizeStr",
-                        style: TextStyle(fontSize: 12, color: MyTheme.darkGray),
+                        style: TextStyle(fontSize: 12, color: context.ex.textSecondary),
                       ),
                 trailing: entries[index].isDrive
                     ? null
@@ -670,14 +676,14 @@ class _FileManagerViewState extends State<FileManagerView> {
               padding: EdgeInsets.fromLTRB(30, 5, 30, 0),
               child: Text(
                 controller.directory.value.path,
-                style: TextStyle(color: MyTheme.darkGray),
+                style: TextStyle(color: context.ex.textSecondary),
               ),
             ),
             Padding(
               padding: EdgeInsets.all(2),
               child: Text(
                 "${translate("Total")}: ${controller.directory.value.entries.length} ${translate("items")}",
-                style: TextStyle(color: MyTheme.darkGray),
+                style: TextStyle(color: context.ex.textSecondary),
               ),
             )
           ],
@@ -728,7 +734,7 @@ class BottomSheetBody extends StatelessWidget {
             height: 65,
             alignment: Alignment.centerLeft,
             decoration: BoxDecoration(
-                color: MyTheme.accent50,
+                color: context.ex.accentSoft,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(10))),
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 15),

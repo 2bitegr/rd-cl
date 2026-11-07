@@ -20,6 +20,9 @@ import '../../models/input_model.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
 import '../../utils/image.dart';
+import '../ui/ex_session_toolbar.dart';
+import '../ui/exantas_strings.dart';
+import '../ui/exantas_theme.dart';
 
 final initText = '1' * 1024;
 
@@ -190,11 +193,9 @@ class _ViewCameraPageState extends State<ViewCameraPage>
         keyboardVisibilityController.isVisible && _showEdit;
     final showActionButton = !_showBar || keyboardIsVisible || _showGestureHelp;
 
-    return WillPopScope(
-      onWillPop: () async {
-        clientClose(sessionId, gFFI);
-        return false;
-      },
+    return ExSessionBackGuard(
+      peer: _peerLabel(),
+      onDisconnect: _disconnect,
       child: Scaffold(
           // workaround for https://github.com/rustdesk/rustdesk/issues/3131
           floatingActionButtonLocation: keyboardIsVisible
@@ -204,13 +205,16 @@ class _ViewCameraPageState extends State<ViewCameraPage>
               ? null
               : FloatingActionButton(
                   mini: !keyboardIsVisible,
+                  tooltip: (keyboardIsVisible || _showGestureHelp)
+                      ? ExStrings.hideToolbar
+                      : ExStrings.showToolbar,
                   child: Icon(
                     (keyboardIsVisible || _showGestureHelp)
                         ? Icons.expand_more
                         : Icons.expand_less,
-                    color: Colors.white,
+                    color: context.ex.text,
                   ),
-                  backgroundColor: MyTheme.accent,
+                  backgroundColor: context.ex.surface,
                   onPressed: () {
                     setState(() {
                       if (keyboardIsVisible) {
@@ -291,73 +295,69 @@ class _ViewCameraPageState extends State<ViewCameraPage>
     );
   }
 
+  String _peerLabel() {
+    final h = gFFI.ffiModel.pi.hostname;
+    return h.isNotEmpty ? h : widget.id;
+  }
+
+  /// Same close path as RemotePage: audit dialog via `clientClose` when it
+  /// applies, otherwise `closeConnection` (avoids a second confirmation).
+  void _disconnect() {
+    if (allowAskForNoteAtEndOfConnection(gFFI, true)) {
+      clientClose(sessionId, gFFI);
+    } else {
+      closeConnection();
+    }
+  }
+
+  Future<void> _onChatPressed() async {
+    final isSupportVoiceCall =
+        await gFFI.invokeMethod("get_value", "KEY_IS_SUPPORT_VOICE_CALL");
+    if (!mounted) return;
+    isAndroid && isSupportVoiceCall == true
+        ? showChatOptions(widget.id)
+        : onPressedTextChat(widget.id);
+  }
+
   Widget getBottomAppBar() {
-    return BottomAppBar(
-      elevation: 10,
-      color: MyTheme.accent,
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Row(
-              children: <Widget>[
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.clear),
-                      onPressed: () {
-                        clientClose(sessionId, gFFI);
-                      },
-                    ),
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.tv),
-                      onPressed: () {
-                        setState(() => _showEdit = false);
-                        showOptions(context, widget.id, gFFI.dialogManager);
-                      },
-                    )
-                  ] +
-                  (isWeb
-                      ? []
-                      : <Widget>[
-                          futureBuilder(
-                              future: gFFI.invokeMethod(
-                                  "get_value", "KEY_IS_SUPPORT_VOICE_CALL"),
-                              hasData: (isSupportVoiceCall) => IconButton(
-                                    color: Colors.white,
-                                    icon: isAndroid && isSupportVoiceCall
-                                        ? SvgPicture.asset('assets/chat.svg',
-                                            colorFilter: ColorFilter.mode(
-                                                Colors.white, BlendMode.srcIn))
-                                        : Icon(Icons.message),
-                                    onPressed: () =>
-                                        isAndroid && isSupportVoiceCall
-                                            ? showChatOptions(widget.id)
-                                            : onPressedTextChat(widget.id),
-                                  ))
-                        ]) +
-                  [
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.more_vert),
-                      onPressed: () {
-                        setState(() => _showEdit = false);
-                        showActions(widget.id);
-                      },
-                    ),
-                  ]),
-          Obx(() => IconButton(
-                color: Colors.white,
-                icon: Icon(Icons.expand_more),
-                onPressed: gFFI.ffiModel.waitForFirstImage.isTrue
-                    ? null
-                    : () {
-                        setState(() => _showBar = !_showBar);
-                      },
-              )),
-        ],
-      ),
-    );
+    final waiting = gFFI.ffiModel.waitForFirstImage.isTrue;
+    return ExSessionToolbar(actions: [
+      ExSessionAction(
+          id: 'screens',
+          label: ExStrings.screens,
+          icon: Icons.desktop_windows_outlined,
+          onPressed: () {
+            setState(() => _showEdit = false);
+            showOptions(context, widget.id, gFFI.dialogManager);
+          }),
+      if (!isWeb)
+        ExSessionAction(
+            id: 'chat',
+            label: ExStrings.chat,
+            icon: Icons.chat_bubble_outline,
+            onPressed: _onChatPressed),
+      ExSessionAction(
+          id: 'more',
+          label: ExStrings.more,
+          icon: Icons.more_horiz,
+          onPressed: () {
+            setState(() => _showEdit = false);
+            showActions(widget.id);
+          }),
+      ExSessionAction(
+          id: 'disconnect',
+          label: ExStrings.disconnect,
+          icon: Icons.power_settings_new,
+          danger: true,
+          onPressed: () => showExDisconnectSheet(context, _peerLabel())
+              .then((ok) => ok ? _disconnect() : null)),
+      ExSessionAction(
+          id: 'collapse',
+          label: ExStrings.hideToolbar,
+          icon: Icons.keyboard_arrow_down,
+          onPressed:
+              waiting ? null : () => setState(() => _showBar = !_showBar)),
+    ]);
   }
 
   Widget getBodyForMobile() {
