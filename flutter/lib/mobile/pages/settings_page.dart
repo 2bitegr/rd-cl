@@ -701,7 +701,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               ExSettingsTile(
                 title: Obx(() => Text(gFFI.userModel.userName.value.isEmpty
                     ? translate('Login')
-                    : '${translate('Logout')} (${gFFI.userModel.accountLabelWithHandle})')),
+                    : '${ExStrings.officeLogout} (${gFFI.userModel.accountLabelWithHandle})')),
                 leading: Obx(() {
                   final avatar = bind.mainResolveAvatarUrl(
                       avatar: gFFI.userModel.avatar.value);

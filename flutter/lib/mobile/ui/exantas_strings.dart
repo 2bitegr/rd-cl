@@ -60,6 +60,7 @@ class ExStrings {
   static const screens = 'Οθόνες';
   static const more = 'Περισσότερα';
   static const disconnect = 'Αποσύνδεση';
+  static const officeLogout = 'Αποσύνδεση από Office';
   static const stay = 'Παραμονή';
   static const hideToolbar = 'Απόκρυψη γραμμής εργαλείων';
   static const showToolbar = 'Εμφάνιση γραμμής εργαλείων';
@@ -91,11 +92,11 @@ class ExStrings {
   static const biometricUnsupported =
       'Η συσκευή δεν έχει βιομετρικά ή κλείδωμα οθόνης.';
   static const biometricReason =
-      'Επιβεβαιώστε την ταυτότητά σας για να ανοίξει το Exantas Support.';
+      'Επιβεβαίωσε την ταυτότητά σου για να ανοίξει το Exantas Support.';
   static const lockedTitle = 'Η εφαρμογή είναι κλειδωμένη';
-  static const lockedHint = 'Ξεκλειδώστε για να συνεχίσετε.';
+  static const lockedHint = 'Ξεκλείδωσε για να συνεχίσεις.';
   static const unlock = 'Ξεκλείδωμα';
-  static const unlockFailed = 'Η επαλήθευση δεν ολοκληρώθηκε. Δοκιμάστε ξανά.';
+  static const unlockFailed = 'Η επαλήθευση δεν ολοκληρώθηκε. Δοκίμασε ξανά.';
   static const unlockLockedOut =
-      'Πολλές αποτυχημένες προσπάθειες. Δοκιμάστε ξανά σε λίγο.';
+      'Πολλές αποτυχημένες προσπάθειες. Δοκίμασε ξανά σε λίγο.';
 }

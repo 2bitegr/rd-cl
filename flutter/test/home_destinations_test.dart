@@ -1,4 +1,5 @@
 import 'package:flutter_hbb/mobile/pages/home_destinations.dart';
+import 'package:flutter/material.dart' show Size;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -26,5 +27,11 @@ void main() {
   test('destinations carry Greek labels', () {
     expect([h, w, s, g].map((e) => e.label),
         ['Αρχική', 'Εργασίες', 'Κοινή χρήση', 'Ρυθμίσεις']);
+  });
+  test('rail only when wide and tall enough', () {
+    expect(useNavigationRail(const Size(800, 1200)), isTrue);
+    expect(useNavigationRail(const Size(600, 480)), isTrue);
+    expect(useNavigationRail(const Size(900, 400)), isFalse);
+    expect(useNavigationRail(const Size(390, 844)), isFalse);
   });
 }

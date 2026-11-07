@@ -301,7 +301,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     // Recovery may return the original customer/work, never silently switch it.
     if (item['customer_id'] != c['id'])
       throw StateError(
-          'Ανακτήθηκε η προηγούμενη εργασία. Ανοίξτε τον αρχικό πελάτη.');
+          'Ανακτήθηκε η προηγούμενη εργασία. Άνοιξε τον αρχικό πελάτη.');
     await selectCustomer(c);
     await selectWork(item);
   }
@@ -315,7 +315,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       try {
         peer = normalizeAndroidPeerId(raw);
       } on FormatException {
-        if (mounted) setState(() => error = 'Μη έγκυρο RustDesk ID. Ελέγξτε το και δοκιμάστε ξανά.');
+        if (mounted) setState(() => error = 'Μη έγκυρο RustDesk ID. Έλεγξε το και δοκιμάστε ξανά.');
         return;
       }
       if (mounted) setState(() => error = null);
@@ -338,7 +338,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(const SnackBar(
-              content: Text('Υπάρχει άλλη ενέργεια σε εξέλιξη. Δοκιμάστε ξανά.')));
+              content: Text('Υπάρχει άλλη ενέργεια σε εξέλιξη. Δοκίμασε ξανά.')));
         return;
       }
       await run(() => connectPeer(peer, workId: choice.workId));
@@ -468,7 +468,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Επιλέξτε εργασία για ${row['peer_id']}',
+              Text('Επίλεξε εργασία για ${row['peer_id']}',
                   style: Theme.of(ctx)
                       .textTheme
                       .titleMedium
@@ -499,7 +499,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
         s['id'] == row['remote_session_id'] &&
         s['rustdesk_session_id'] == row['rustdesk_session_id'])) {
       throw StateError(
-          'Δεν επιβεβαιώθηκε η ταυτότητα πελάτη. Αντιστοιχίστε τον υπολογιστή στο Office.');
+          'Δεν επιβεβαιώθηκε η ταυτότητα πελάτη. Αντιστοίχισε τον υπολογιστή στο Office.');
     }
     final confirmed = await showExConfirmDialog(this.context,
         title: 'Σύνδεση συνεδρίας με εργασία',
@@ -536,7 +536,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       if (current.supportRole != 'admin')
         throw StateError('Η εξαίρεση πηγής απαιτεί διαχειριστή Office.');
       if (text.isEmpty)
-        throw StateError('Γράψτε αιτιολογία στην περιγραφή για την εξαίρεση πηγής.');
+        throw StateError('Γράψε αιτιολογία στην περιγραφή για την εξαίρεση πηγής.');
       if (!mounted) return;
       final confirmed = await showExConfirmDialog(context,
           title: 'Εξαίρεση πηγής από Office',
@@ -677,7 +677,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
         if (mounted)
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text(
-                  'Ελέγξτε την εργασία στο Office. Από το κινητό δεν γίνεται άλλη ενέργεια.')));
+                  'Έλεγξε την εργασία στο Office. Από το κινητό δεν γίνεται άλλη ενέργεια.')));
     }
   }
 

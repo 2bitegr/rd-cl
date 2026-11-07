@@ -83,7 +83,7 @@ class _ConnectSheetState extends State<ExantasConnectSheet> {
                 if (loadingSuggestions)
                   const Padding(padding: EdgeInsets.only(bottom: 8), child: LinearProgressIndicator(minHeight: 2))
                 else if (suggestions.isNotEmpty) ...[
-                  Text('Πρόταση: ο υπολογιστής ανήκει σε πελάτη με ανοιχτή εργασία σας. Πατήστε για να τη χρησιμοποιήσετε.',
+                  Text('Πρόταση: ο υπολογιστής ανήκει σε πελάτη με ανοιχτή εργασία σου. Πάτα για να τη χρησιμοποιήσεις.',
                       style: text.bodySmall?.copyWith(color: t.textSecondary)),
                   for (final s in suggestions) workRow(s, suggested: true),
                   const SizedBox(height: ExantasTokens.space2),
@@ -98,9 +98,9 @@ class _ConnectSheetState extends State<ExantasConnectSheet> {
                     onPressed: () => setState(() => picking = true),
                     child: const Text('Επιλογή εργασίας')),
               ] else ...[
-                Text('Επιλέξτε εργασία', style: text.titleSmall),
+                Text('Επίλεξε εργασία', style: text.titleSmall),
                 if (suggestions.isEmpty && others.isEmpty)
-                  const Padding(padding: EdgeInsets.all(16), child: Text('Δεν έχετε ανοιχτές εργασίες.')),
+                  const Padding(padding: EdgeInsets.all(16), child: Text('Δεν έχεις ανοιχτές εργασίες.')),
                 for (final s in suggestions) workRow(s, suggested: true),
                 for (final w in others) workRow(w),
                 TextButton(

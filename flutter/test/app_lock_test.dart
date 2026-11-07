@@ -117,7 +117,7 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('ex-lock-screen')), findsOneWidget);
     expect(find.text('Η εφαρμογή είναι κλειδωμένη'), findsOneWidget);
-    expect(find.text('Η επαλήθευση δεν ολοκληρώθηκε. Δοκιμάστε ξανά.'),
+    expect(find.text('Η επαλήθευση δεν ολοκληρώθηκε. Δοκίμασε ξανά.'),
         findsOneWidget);
     expect(tester.getSize(find.byKey(const ValueKey('ex-lock-retry'))).height,
         greaterThanOrEqualTo(48));

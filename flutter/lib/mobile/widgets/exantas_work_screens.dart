@@ -22,7 +22,7 @@ class ExWork {
   static const noCustomers = 'Δεν βρέθηκαν πελάτες.';
   static const searchHint = 'Πληκτρολόγησε για αναζήτηση πελάτη.';
   static const accountChanged =
-      'Ο λογαριασμός Office άλλαξε. Επιστρέψτε και ανοίξτε ξανά.';
+      'Ο λογαριασμός Office άλλαξε. Γύρισε πίσω και άνοιξε ξανά.';
   static const retry = 'Δοκιμή ξανά';
   static const loadMore = 'Περισσότερες εργασίες';
   static const truncated = 'Εμφανίζονται οι πρώτες 200 εργασίες.';

@@ -5,6 +5,10 @@ import '../ui/exantas_strings.dart';
 /// `connection` is the legacy non-Android connection page.
 enum HomeDestination { home, work, share, settings, connection }
 
+/// Side rail only when both dimensions are roomy; landscape phones keep the
+/// bottom NavigationBar.
+bool useNavigationRail(Size s) => s.width >= 600 && s.height >= 480;
+
 extension HomeDestinationUi on HomeDestination {
   String get label => switch (this) {
         HomeDestination.home => ExStrings.navHome,

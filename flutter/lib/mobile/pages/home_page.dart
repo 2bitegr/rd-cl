@@ -155,7 +155,8 @@ class HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 600;
+    final size = MediaQuery.sizeOf(context);
+    final wide = useNavigationRail(size);
     final body = _chatOpen ? _chatPage! : _pages.elementAt(_selectedIndex);
     return PopScope(
         canPop: _selectedIndex == 0 && !_chatOpen,
@@ -194,17 +195,22 @@ class HomePageState extends State<HomePage> {
                 ),
           body: wide
               ? Row(children: [
-                  NavigationRail(
-                    selectedIndex: _selectedIndex,
-                    onDestinationSelected: _select,
-                    labelType: NavigationRailLabelType.all,
-                    destinations: [
-                      for (var i = 0; i < _pages.length; i++)
-                        NavigationRailDestination(
-                            icon: _destIcon(i, false),
-                            selectedIcon: _destIcon(i, true),
-                            label: Text(_destLabel(i))),
-                    ],
+                  SafeArea(
+                    right: false,
+                    child: NavigationRail(
+                      selectedIndex: _selectedIndex,
+                      onDestinationSelected: _select,
+                      labelType: size.height < 560
+                          ? NavigationRailLabelType.selected
+                          : NavigationRailLabelType.all,
+                      destinations: [
+                        for (var i = 0; i < _pages.length; i++)
+                          NavigationRailDestination(
+                              icon: _destIcon(i, false),
+                              selectedIcon: _destIcon(i, true),
+                              label: Text(_destLabel(i))),
+                      ],
+                    ),
                   ),
                   const VerticalDivider(width: 1),
                   Expanded(child: body),
