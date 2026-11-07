@@ -96,7 +96,7 @@ class OfficeWorkCardTile extends StatelessWidget {
                     style: text.bodySmall?.copyWith(color: t.textSecondary))),
             Flexible(
                 child: Text(ExWork.nextAction(card.supportState),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: text.labelLarge?.copyWith(color: t.accent))),
             Icon(Icons.chevron_right, size: 18, color: t.accent),

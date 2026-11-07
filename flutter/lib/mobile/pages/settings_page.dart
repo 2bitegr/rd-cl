@@ -22,6 +22,7 @@ import '../widgets/deploy_dialog.dart';
 import '../widgets/dialog.dart';
 import 'home_page.dart';
 import 'scan_page.dart';
+import '../ui/exantas_strings.dart';
 
 class SettingsPage extends StatefulWidget implements PageShape {
   @override
@@ -448,6 +449,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               Offstage(
                   offstage: !_enableDirectIPAccess,
                   child: IconButton(
+                    tooltip: 'Επεξεργασία',
                       padding: EdgeInsets.zero,
                       icon: Icon(
                         Icons.edit,
@@ -495,6 +497,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               Offstage(
                   offstage: !_allowAutoDisconnect,
                   child: IconButton(
+                    tooltip: 'Επεξεργασία',
                       padding: EdgeInsets.zero,
                       icon: Icon(
                         Icons.edit,
@@ -1116,6 +1119,7 @@ class ScanButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
+      tooltip: 'Σάρωση QR',
       icon: Icon(Icons.qr_code_scanner),
       onPressed: () {
         Navigator.push(
@@ -1154,6 +1158,7 @@ class __DisplayPageState extends State<_DisplayPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
+          tooltip: ExStrings.back,
             onPressed: () => Navigator.pop(context),
             icon: Icon(Icons.arrow_back_ios)),
         title: Text(translate('Display Settings')),
@@ -1262,6 +1267,7 @@ class __ManageTrustedDevicesState extends State<_ManageTrustedDevices> {
         centerTitle: true,
         actions: [
           Obx(() => IconButton(
+            tooltip: 'Διαγραφή επιλεγμένων',
               icon: Icon(Icons.delete),
               onPressed: selectedDevices.isEmpty
                   ? null

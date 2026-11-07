@@ -103,15 +103,17 @@ class _FileManagerPageState extends State<FileManagerPage> {
   }
 
   @override
-  Widget build(BuildContext context) => WillPopScope(
-      onWillPop: () async {
+  Widget build(BuildContext context) => PopScope(
+      // Back goes up a folder (or leaves select mode); it never pops the page.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
         if (selectMode.value != SelectMode.none) {
           selectMode.value = SelectMode.none;
           setState(() {});
         } else {
           currentFileController.goBack();
         }
-        return false;
       },
       child: Scaffold(
         // backgroundColor: MyTheme.grayBg,
@@ -307,10 +309,12 @@ class _FileManagerPageState extends State<FileManagerPage> {
               },
               actions: [
                 IconButton(
+                  tooltip: 'Εναλλαγή τοπικών/απομακρυσμένων',
                   icon: Icon(Icons.compare_arrows),
                   onPressed: () => setState(() => showLocal = !showLocal),
                 ),
                 IconButton(
+                  tooltip: 'Διαγραφή επιλεγμένων',
                   icon: Icon(Icons.delete_forever),
                   onPressed: selectedItems != null
                       ? () async {
@@ -336,10 +340,12 @@ class _FileManagerPageState extends State<FileManagerPage> {
               },
               actions: [
                 IconButton(
+                  tooltip: 'Εναλλαγή τοπικών/απομακρυσμένων',
                   icon: Icon(Icons.compare_arrows),
                   onPressed: () => setState(() => showLocal = !showLocal),
                 ),
                 IconButton(
+                  tooltip: 'Επικόλληση',
                   icon: Icon(Icons.paste),
                   onPressed: () {
                     selectMode.value = SelectMode.none;
@@ -634,10 +640,12 @@ class _FileManagerViewState extends State<FileManagerView> {
           Row(
             children: [
               IconButton(
+                tooltip: ExStrings.back,
                 icon: Icon(Icons.arrow_back),
                 onPressed: controller.goBack,
               ),
               IconButton(
+                tooltip: 'Επάνω φάκελος',
                 icon: Icon(Icons.arrow_upward),
                 onPressed: controller.goToParentDirectory,
               ),
@@ -696,6 +704,7 @@ class _FileManagerViewState extends State<FileManagerView> {
     final breadCrumbList = [
       BreadCrumbItem(
           content: IconButton(
+            tooltip: 'Αρχικός φάκελος',
         icon: Icon(Icons.home_filled),
         onPressed: onHome,
       ))
@@ -758,6 +767,7 @@ class BottomSheetBody extends StatelessWidget {
                   ),
                   Row(children: () {
                     _actions.add(IconButton(
+                      tooltip: ExStrings.cancel,
                       icon: Icon(Icons.cancel_outlined),
                       onPressed: onCanceled,
                     ));

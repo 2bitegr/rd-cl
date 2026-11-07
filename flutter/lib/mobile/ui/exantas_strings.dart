@@ -68,4 +68,17 @@ class ExStrings {
   static String disconnectTitle(String peer) => 'Αποσύνδεση από $peer;';
   static const disconnectMessage =
       'Η απομακρυσμένη συνεδρία θα τερματιστεί.';
+
+  // Floating mouse / gestures
+  static const mouseExpand = 'Άνοιγμα εικονικού ποντικιού';
+  static const mouseCollapse = 'Σύμπτυξη εικονικού ποντικιού';
+  static const joystick = 'Εικονικό joystick';
+  static const mouseLeftButton = 'Αριστερό κουμπί ποντικιού';
+  static const mouseRightButton = 'Δεξί κουμπί ποντικιού';
+  static const mouseMiddleButton = 'Μεσαίο κουμπί ποντικιού';
+  static const scrollUp = 'Κύλιση πάνω';
+  static const scrollDown = 'Κύλιση κάτω';
+  static const mouseWheel = 'Τροχός κύλισης';
+  static const mouseDragHandle = 'Μετακίνηση ποντικιού';
+  static const gestureHelp = 'Βοήθεια χειρονομιών';
 }

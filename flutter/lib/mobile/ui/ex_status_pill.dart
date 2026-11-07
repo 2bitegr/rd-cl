@@ -22,6 +22,10 @@ class ExStatusPill extends StatelessWidget {
       ExStatus.neutral => (t.textSecondary, t.surfaceAlt, Icons.circle_outlined),
     };
     return Container(
+        // Never wider than 60% of the screen so a pill placed in a Row next to
+        // other text wraps its own label instead of overflowing.
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.6),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
             color: bg,
@@ -31,7 +35,7 @@ class ExStatusPill extends StatelessWidget {
           const SizedBox(width: 4),
           Flexible(
               child: Text(label,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context)
                       .textTheme

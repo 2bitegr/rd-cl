@@ -3,6 +3,8 @@ import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/custom_scale_base.dart';
 
+import '../ui/exantas_theme.dart';
+
 class MobileCustomScaleControls extends StatefulWidget {
   final FFI ffi;
   final ValueChanged<int>? onChanged;
@@ -22,7 +24,9 @@ class _MobileCustomScaleControlsState extends CustomScaleControls<MobileCustomSc
   @override
   Widget build(BuildContext context) {
     // Smaller button size for mobile
-    const smallBtnConstraints = BoxConstraints(minWidth: 32, minHeight: 32);
+    const smallBtnConstraints = BoxConstraints(
+        minWidth: ExantasTokens.minTouch, minHeight: ExantasTokens.minTouch);
+    final t = context.ex;
 
     final sliderControl = Slider(
       value: scalePos,
@@ -30,6 +34,7 @@ class _MobileCustomScaleControlsState extends CustomScaleControls<MobileCustomSc
       max: 1.0,
       divisions: (CustomScaleControls.maxPercent - CustomScaleControls.minPercent).round(),
       label: '$scaleValue%',
+      semanticFormatterCallback: (_) => '${translate("Scale custom")}: $scaleValue%',
       onChanged: onSliderChanged,
     );
 
@@ -40,14 +45,15 @@ class _MobileCustomScaleControlsState extends CustomScaleControls<MobileCustomSc
         children: [
           Text(
             '${translate("Scale custom")}: $scaleValue%',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            style: TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w600, color: t.text),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               IconButton(
-                iconSize: 20,
-                padding: const EdgeInsets.all(4),
+                iconSize: 24,
+                padding: const EdgeInsets.all(ExantasTokens.space2),
                 constraints: smallBtnConstraints,
                 icon: const Icon(Icons.remove),
                 tooltip: translate('Decrease'),
@@ -55,8 +61,8 @@ class _MobileCustomScaleControlsState extends CustomScaleControls<MobileCustomSc
               ),
               Expanded(child: sliderControl),
               IconButton(
-                iconSize: 20,
-                padding: const EdgeInsets.all(4),
+                iconSize: 24,
+                padding: const EdgeInsets.all(ExantasTokens.space2),
                 constraints: smallBtnConstraints,
                 icon: const Icon(Icons.add),
                 tooltip: translate('Increase'),

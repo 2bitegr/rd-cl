@@ -17,6 +17,7 @@ import '../../consts.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
 import 'home_page.dart';
+import '../ui/exantas_strings.dart';
 
 /// Connection page for connecting to a remote peer.
 class ConnectionPage extends StatefulWidget implements PageShape {
@@ -327,6 +328,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
               Obx(() => Offstage(
                     offstage: _idEmpty.value,
                     child: IconButton(
+                      tooltip: 'Εκκαθάριση',
                         onPressed: () {
                           setState(() {
                             _idController.clear();
@@ -338,6 +340,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
                 width: 60,
                 height: 60,
                 child: IconButton(
+                  tooltip: ExStrings.connect,
                   icon: const Icon(Icons.arrow_forward,
                       color: MyTheme.darkGray, size: 45),
                   onPressed: onConnect,

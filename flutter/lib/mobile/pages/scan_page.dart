@@ -11,6 +11,7 @@ import 'package:zxing2/qrcode.dart';
 import '../../common.dart';
 import '../../models/platform_model.dart';
 import '../widgets/dialog.dart';
+import '../ui/exantas_strings.dart';
 
 class ScanPage extends StatefulWidget {
   @override
@@ -111,6 +112,7 @@ class _ScanPageState extends State<ScanPage> {
 
   Widget _buildImagePickerButton() {
     return IconButton(
+      tooltip: 'Επιλογή εικόνας από τη συλλογή',
       color: context.ex.text,
       icon: Icon(Icons.image_search),
       iconSize: 32.0,
@@ -120,6 +122,7 @@ class _ScanPageState extends State<ScanPage> {
 
   Widget _buildFlashToggleButton() {
     return IconButton(
+      tooltip: 'Φακός',
       color: context.ex.warning,
       icon: Icon(Icons.flash_on),
       iconSize: 32.0,
@@ -131,6 +134,7 @@ class _ScanPageState extends State<ScanPage> {
 
   Widget _buildCameraSwitchButton() {
     return IconButton(
+      tooltip: 'Εναλλαγή κάμερας',
       color: context.ex.text,
       icon: Icon(Icons.switch_camera),
       iconSize: 32.0,

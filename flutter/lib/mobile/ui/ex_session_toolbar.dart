@@ -100,6 +100,27 @@ class ExSessionContext {
 
   static String format(String customer, String machine) =>
       '$customer · $machine';
+
+  /// «Πελάτης · Υπολογιστής» from a fresh Office work context
+  /// (GET /support-workflow/items/{id}); only call for an explicitly bound
+  /// work. Falls back to the device alone when Office supplied no customer.
+  static String fromWorkContext(Map<String, dynamic> context, String peer) {
+    String? text(Object? v) {
+      final s = v?.toString().trim();
+      return s == null || s.isEmpty ? null : s;
+    }
+
+    final item = context['item'];
+    final cust = context['customer'];
+    final customer = text(item is Map ? item['customer_name'] : null) ??
+        text(cust is Map ? cust['company_name'] : null);
+    String? device;
+    for (final d in (context['devices'] as List? ?? const []).whereType<Map>()) {
+      if (d['peer_id'] == peer) device = text(d['label']);
+    }
+    device ??= peer;
+    return customer == null ? device : format(customer, device);
+  }
 }
 
 class ExSessionContextChip extends StatelessWidget {

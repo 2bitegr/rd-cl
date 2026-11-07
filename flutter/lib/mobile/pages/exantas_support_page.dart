@@ -16,6 +16,9 @@ import '../widgets/exantas_pending_center.dart';
 import '../../models/exantas_connect.dart';
 import '../../models/exantas_pending.dart';
 import '../ui/ex_confirm_dialog.dart';
+import '../ui/ex_session_toolbar.dart';
+import '../ui/ex_sheet.dart';
+import '../ui/exantas_theme.dart';
 import '../widgets/exantas_support_home_sections.dart';
 import '../widgets/exantas_work_screens.dart';
 import '../../models/exantas_office_work.dart';
@@ -255,22 +258,41 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     final c = customer;
     if (c == null) return;
     final title = TextEditingController();
-    final value = await showDialog<String>(
+    final value = await showExSheet<String>(
         context: context,
-        builder: (ctx) => AlertDialog(
-                title: const Text('Νέα εργασία'),
-                content: TextField(
-                    controller: title,
-                    decoration: const InputDecoration(labelText: 'Περιγραφή')),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Άκυρο')),
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx, title.text.trim()),
-                      child: const Text('Δημιουργία'))
-                ]));
-    title.dispose();
+        builder: (ctx) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Νέα εργασία',
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: ExantasTokens.space3),
+              TextField(
+                  controller: title,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+                  decoration: const InputDecoration(labelText: 'Περιγραφή')),
+              const SizedBox(height: ExantasTokens.space4),
+              FilledButton(
+                  style: FilledButton.styleFrom(
+                      minimumSize:
+                          const Size.fromHeight(ExantasTokens.minTouch)),
+                  onPressed: () => Navigator.pop(ctx, title.text.trim()),
+                  child: const Text('Δημιουργία')),
+              const SizedBox(height: ExantasTokens.space2),
+              TextButton(
+                  style: TextButton.styleFrom(
+                      minimumSize:
+                          const Size.fromHeight(ExantasTokens.minTouch)),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Άκυρο')),
+            ]));
+    // The sheet's exit animation may still read the controller.
+    Future<void>.delayed(const Duration(milliseconds: 600), title.dispose);
     if (value == null || value.isEmpty) return;
     final item = await support.createWork(c['id'] as String, value);
     // Recovery may return the original customer/work, never silently switch it.
@@ -334,6 +356,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     if (!current.technicianLoggedIn || !current.nativeReady)
       throw StateError('Απαιτείται επιβεβαίωση RustDesk.');
     Map<String, dynamic>? selection;
+    String? contextLabel;
     if (workId != null) {
       // Fresh revision and permissions immediately before connecting.
       final context = await support.get('/support-workflow/items/${Uri.encodeComponent(workId)}');
@@ -346,8 +369,11 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       if (!check.ok) throw StateError(check.reason!);
       selection = check.selection;
       work = Map<String, dynamic>.from(context['item'] as Map);
+      contextLabel = ExSessionContext.fromWorkContext(context, peer);
     }
     support.journal.mobileWork = selection;
+    // Chip only for an explicitly bound work; unbound connections show none.
+    ExSessionContext.label.value = selection == null ? null : contextLabel;
     if (!mounted) return;
     final from = (await bind.mainGetMyId()).trim();
     Map<String, dynamic>? closure;
@@ -367,6 +393,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
               })));
     } finally {
       support.journal.mobileWork = null;
+      ExSessionContext.label.value = null;
       stateGlobal.isInMainPage = true;
     }
     unawaited(HapticFeedback.lightImpact());
@@ -410,20 +437,10 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       throw StateError(
           'Δεν επιβεβαιώθηκε η ταυτότητα πελάτη. Αντιστοιχίστε τον υπολογιστή στο Office.');
     }
-    final confirmed = await showDialog<bool>(
-        context: this.context,
-        builder: (ctx) => AlertDialog(
-                title: const Text('Σύνδεση συνεδρίας με εργασία'),
-                content: Text('${row['peer_id']} → ${w['title']}'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Άκυρο')),
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Επιβεβαίωση'))
-                ]));
-    if (confirmed != true) return;
+    final confirmed = await showExConfirmDialog(this.context,
+        title: 'Σύνδεση συνεδρίας με εργασία',
+        message: '${row['peer_id']} → ${w['title']}');
+    if (!confirmed) return;
     await support.save(row, {
       'mobile_work': {
         'work_item_id': w['id'],
@@ -512,14 +529,20 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
           gFFI.userModel.logOut(requireServerConfirmation: true));
 
   Future<void> openAccount() async {
-    await showModalBottomSheet<void>(
+    await showExSheet<void>(
         context: context,
-        isScrollControlled: true,
-        builder: (ctx) => SafeArea(
-            child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                    16, 16, 16, 16 + MediaQuery.viewInsetsOf(ctx).bottom),
-                child: accountSettings())));
+        builder: (ctx) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Λογαριασμός Office',
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: ExantasTokens.space3),
+              accountSettings(),
+            ]));
     if (mounted) await run(refresh);
   }
 
