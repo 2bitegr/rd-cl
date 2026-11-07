@@ -23,6 +23,8 @@ import '../widgets/dialog.dart';
 import 'home_page.dart';
 import 'scan_page.dart';
 import '../ui/exantas_strings.dart';
+import '../../models/exantas_biometric.dart';
+import '../ui/ex_app_lock.dart' show ExAuthResult;
 
 class SettingsPage extends StatefulWidget implements PageShape {
   @override
@@ -90,6 +92,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
   var _localIP = "";
   var _directAccessPort = "";
   var _fingerprint = "";
+  bool _biometricSupported = false;
   var _buildDate = "";
   var _autoDisconnectTimeout = "";
   var _hideServer = false;
@@ -154,6 +157,11 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (isAndroid) {
+      exantasBiometricSupported().then((v) {
+        if (mounted) setState(() => _biometricSupported = v);
+      });
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       var update = false;
@@ -954,6 +962,33 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             title: Text(translate("Enhancements")),
             tiles: enhancementsTiles,
           ),
+        if (isAndroid)
+          ExSettingsSection(title: Text(ExStrings.securitySection), tiles: [
+            ExSettingsTile.switchTile(
+              leading: const Icon(Icons.fingerprint),
+              title: const Text(ExStrings.biometricUnlock),
+              description: Text(_biometricSupported
+                  ? ExStrings.biometricUnlockHint
+                  : ExStrings.biometricUnsupported),
+              initialValue: exantasBiometricEnabled(),
+              // Unsupported devices cannot turn it on (a lock with no way to
+              // unlock); an already-on switch can always be turned off.
+              onToggle: !_biometricSupported && !exantasBiometricEnabled()
+                  ? null
+                  : (v) async {
+                      if (v) {
+                        // Prove it works before turning it on.
+                        final r = await exantasAuthenticate();
+                        if (r != ExAuthResult.success) {
+                          if (mounted) setState(() {});
+                          return;
+                        }
+                      }
+                      await exantasSetBiometricEnabled(v);
+                      if (mounted) setState(() {});
+                    },
+            ),
+          ]),
         ExSettingsSection(
           title: Text(translate("About")),
           tiles: [

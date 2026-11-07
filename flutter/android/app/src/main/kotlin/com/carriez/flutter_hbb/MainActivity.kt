@@ -29,13 +29,16 @@ import androidx.annotation.RequiresApi
 import org.json.JSONArray
 import org.json.JSONObject
 import com.hjq.permissions.XXPermissions
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import kotlin.concurrent.thread
 
 
-class MainActivity : FlutterActivity() {
+// FlutterFragmentActivity (a FragmentActivity) is required by local_auth's
+// BiometricPrompt. The channels, MediaProjection result handling and lifecycle
+// overrides below use the same API surface as FlutterActivity.
+class MainActivity : FlutterFragmentActivity() {
     companion object {
         var flutterMethodChannel: MethodChannel? = null
         private var _rdClipboardManager: RdClipboardManager? = null

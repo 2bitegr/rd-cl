@@ -11,7 +11,6 @@ import 'package:zxing2/qrcode.dart';
 import '../../common.dart';
 import '../../models/platform_model.dart';
 import '../widgets/dialog.dart';
-import '../ui/exantas_strings.dart';
 
 class ScanPage extends StatefulWidget {
   @override

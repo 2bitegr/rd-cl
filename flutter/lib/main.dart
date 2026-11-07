@@ -28,6 +28,8 @@ import 'common.dart';
 import 'consts.dart';
 import 'mobile/pages/home_page.dart';
 import 'mobile/pages/server_page.dart';
+import 'mobile/ui/ex_app_lock.dart';
+import 'models/exantas_biometric.dart';
 import 'mobile/widgets/deploy_dialog.dart';
 import 'models/platform_model.dart';
 
@@ -185,6 +187,8 @@ void runMobileApp() async {
   checkUpdate();
   if (isAndroid) androidChannelInit();
   if (isAndroid) platformFFI.syncAndroidServiceAppDirConfigPath();
+  // Registered before the app so the lock can consume Back while locked.
+  if (isAndroid) exantasAppLock.attach();
   draggablePositions.load();
   await Future.wait([gFFI.abModel.loadCache(), gFFI.groupModel.loadCache()]);
   gFFI.userModel.refreshCurrentUser();
@@ -532,11 +536,14 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           ],
           builder: isAndroid
               ? (context, child) => AccessibilityListener(
-                    child: MediaQuery(
-                      data: MediaQuery.of(context).copyWith(
-                        textScaler: TextScaler.linear(1.0),
+                    child: ExAppLockGate(
+                      controller: exantasAppLock,
+                      child: MediaQuery(
+                        data: MediaQuery.of(context).copyWith(
+                          textScaler: TextScaler.linear(1.0),
+                        ),
+                        child: child ?? Container(),
                       ),
-                      child: child ?? Container(),
                     ),
                   )
               : (context, child) {

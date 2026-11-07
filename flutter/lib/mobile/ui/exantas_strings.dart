@@ -81,4 +81,21 @@ class ExStrings {
   static const mouseWheel = 'Τροχός κύλισης';
   static const mouseDragHandle = 'Μετακίνηση ποντικιού';
   static const gestureHelp = 'Βοήθεια χειρονομιών';
+
+  // Biometric unlock
+  static const securitySection = 'Ασφάλεια';
+  static const biometricUnlock = 'Ξεκλείδωμα με βιομετρικά';
+  static const biometricUnlockHint =
+      'Ζητά δακτυλικό αποτύπωμα, πρόσωπο ή κλείδωμα συσκευής όταν ανοίγει η '
+      'εφαρμογή και μετά από 5 λεπτά στο παρασκήνιο.';
+  static const biometricUnsupported =
+      'Η συσκευή δεν έχει βιομετρικά ή κλείδωμα οθόνης.';
+  static const biometricReason =
+      'Επιβεβαιώστε την ταυτότητά σας για να ανοίξει το Exantas Support.';
+  static const lockedTitle = 'Η εφαρμογή είναι κλειδωμένη';
+  static const lockedHint = 'Ξεκλειδώστε για να συνεχίσετε.';
+  static const unlock = 'Ξεκλείδωμα';
+  static const unlockFailed = 'Η επαλήθευση δεν ολοκληρώθηκε. Δοκιμάστε ξανά.';
+  static const unlockLockedOut =
+      'Πολλές αποτυχημένες προσπάθειες. Δοκιμάστε ξανά σε λίγο.';
 }
