@@ -1,5 +1,25 @@
 import 'dart:convert';
 
+/// A non-2xx Office reply. Keeps the HTTP status and Office `status` code so a
+/// financial caller can tell a definitive rejection (supportOnce rolled the
+/// transaction back) from an unknown outcome such as a timeout. toString keeps
+/// the previous `Exception: message` form for display.
+class ExantasOfficeRejection implements Exception {
+  ExantasOfficeRejection(this.statusCode, this.code, this.message);
+  final int statusCode;
+  final String? code;
+  final String message;
+
+  /// 4xx ApiError raised inside the request transaction: nothing was stored, so
+  /// the idempotency key was never consumed. Never true for 5xx/timeouts, and
+  /// never for idempotency_conflict (the key belongs to another operation).
+  bool get definitive =>
+      const {400, 403, 404, 409, 412, 422}.contains(statusCode) &&
+      code != 'idempotency_conflict';
+  @override
+  String toString() => 'Exception: $message';
+}
+
 /// Proxies can return plain text/HTML. Never present it as a JSON parse error
 /// or accept an unsuccessful/invalid response as an authenticated Office reply.
 Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
@@ -44,9 +64,13 @@ Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
       if (nativeErrors.containsKey(code)) throw Exception(nativeErrors[code]);
     }
 
-    throw Exception(message is String && message.trim().isNotEmpty
-        ? message.trim()
-        : 'Το Office δεν ολοκλήρωσε το αίτημα (HTTP $statusCode). Δοκιμάστε ξανά.');
+    final code = decoded?['status'];
+    throw ExantasOfficeRejection(
+        statusCode,
+        code is String ? code : null,
+        message is String && message.trim().isNotEmpty
+            ? message.trim()
+            : 'Το Office δεν ολοκλήρωσε το αίτημα (HTTP $statusCode). Δοκιμάστε ξανά.');
   }
   if (decoded == null) {
     throw Exception(

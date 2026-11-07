@@ -281,4 +281,44 @@ void main() {
     expect(find.byKey(const ValueKey('support-tab-pending')), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('recent computers: pinned first, pin toggles via callback, tap connects once per tap',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final toggled = <String>[];
+    final connected = <String>[];
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(MaterialApp(
+        theme: ExantasTheme.light(),
+        home: Scaffold(
+            body: ExantasSupportHome(
+                account: const Text('Office'),
+                signedIn: true,
+                busy: false,
+                controller: controller,
+                devices: const [
+                  ExantasRecentDevice(id: '111', label: 'A', platform: 'Linux', online: false),
+                  ExantasRecentDevice(id: '222', label: 'B', platform: 'Linux', online: false),
+                ],
+                pinnedIds: const {'222'},
+                onTogglePin: toggled.add,
+                searchController: TextEditingController(),
+                pendingCount: 2,
+                pendingSummary: '2 χρειάζονται απόφαση',
+                onConnect: connected.add,
+                onSearchCustomers: (_) {},
+                onOpenPending: () {},
+                onRefresh: () {},
+                onConfirmNative: () {}))));
+    expect(find.text('2 χρειάζονται απόφαση'), findsOneWidget);
+    final top = tester.getTopLeft(find.byKey(const ValueKey('recent-222'))).dy;
+    expect(top, lessThan(tester.getTopLeft(find.byKey(const ValueKey('recent-111'))).dy));
+    await tester.tap(find.byKey(const ValueKey('pin-222')));
+    expect(toggled, ['222']);
+    await tester.tap(find.byKey(const ValueKey('recent-111')));
+    expect(connected, ['111']);
+  });
 }
