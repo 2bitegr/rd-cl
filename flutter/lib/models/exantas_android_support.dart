@@ -185,7 +185,11 @@ class ExantasAndroidSupport {
       result = await post('/support-workflow/items', {'customer_id': customerId, 'title': title,
         'support_kind': 'remote_support', 'idempotency_key': record['request_key']}, scope: record);
     } on ExantasOfficeRejection catch (e) {
-      if (e.definitive) await save(record, {'rejected': {'status': e.statusCode, 'code': e.code}});
+      if (e.definitive) {
+        // Server rolled back (definitive 4xx): free the reservation now so a
+        // retry uses a NEW key. Uncertain failures keep it pending (2-min rule).
+        await save(record, {'rejected': {'status': e.statusCode, 'code': e.code}, 'creation_pending': false});
+      }
       rethrow;
     }
     if (result['item']?['customer_id'] != customerId) throw StateError('Creation receipt mismatch');

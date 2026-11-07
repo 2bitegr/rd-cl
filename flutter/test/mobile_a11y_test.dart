@@ -75,4 +75,32 @@ void main() {
       expect(ex, isNull, reason: '$ex');
     });
   }
+
+  testWidgets('disconnect sheet never stacks; ExFixedTextScale pins 1.0',
+      (tester) async {
+    late BuildContext ctx;
+    double? scale;
+    await tester.pumpWidget(MaterialApp(
+        theme: ExantasTheme.light(),
+        builder: (c, w) => MediaQuery(
+            data: MediaQuery.of(c).copyWith(textScaler: TextScaler.linear(1.3)),
+            child: w!),
+        home: Builder(builder: (c) {
+          ctx = c;
+          return ExFixedTextScale(child: Builder(builder: (c2) {
+            scale = MediaQuery.textScalerOf(c2).scale(10);
+            return const SizedBox();
+          }));
+        })));
+    expect(scale, 10);
+    final first = showExDisconnectSheet(ctx, 'A');
+    await tester.pumpAndSettle();
+    final second = await showExDisconnectSheet(ctx, 'A');
+    expect(second, false);
+    await tester.pumpAndSettle();
+    expect(find.byType(ExDisconnectContent), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ex-disconnect-confirm')));
+    await tester.pumpAndSettle();
+    expect(await first, true);
+  });
 }

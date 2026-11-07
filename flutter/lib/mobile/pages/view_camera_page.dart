@@ -320,8 +320,9 @@ class _ViewCameraPageState extends State<ViewCameraPage>
   }
 
   Widget getBottomAppBar() {
-    final waiting = gFFI.ffiModel.waitForFirstImage.isTrue;
-    return ExSessionToolbar(actions: [
+    return Obx(() {
+      final waiting = gFFI.ffiModel.waitForFirstImage.isTrue;
+      return ExSessionToolbar(actions: [
       ExSessionAction(
           id: 'screens',
           label: ExStrings.screens,
@@ -358,6 +359,7 @@ class _ViewCameraPageState extends State<ViewCameraPage>
           onPressed:
               waiting ? null : () => setState(() => _showBar = !_showBar)),
     ]);
+    });
   }
 
   Widget getBodyForMobile() {

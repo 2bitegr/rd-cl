@@ -607,8 +607,9 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   Widget getBottomAppBar() {
     final ffiModel = Provider.of<FfiModel>(context);
     final canInput = !(isWebDesktop || ffiModel.viewOnly || !ffiModel.keyboard);
-    final waiting = gFFI.ffiModel.waitForFirstImage.isTrue;
-    return ExSessionToolbar(actions: [
+    return Obx(() {
+      final waiting = gFFI.ffiModel.waitForFirstImage.isTrue;
+      return ExSessionToolbar(actions: [
       if (canInput)
         ExSessionAction(
             id: 'keyboard',
@@ -667,6 +668,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
           onPressed:
               waiting ? null : () => setState(() => _showBar = !_showBar)),
     ]);
+    });
   }
 
   bool get showCursorPaint =>

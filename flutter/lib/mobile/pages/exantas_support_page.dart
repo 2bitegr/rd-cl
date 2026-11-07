@@ -18,6 +18,7 @@ import '../../models/exantas_pending.dart';
 import '../ui/ex_confirm_dialog.dart';
 import '../ui/ex_session_toolbar.dart';
 import '../ui/ex_sheet.dart';
+import '../ui/ex_list_row.dart';
 import '../ui/exantas_theme.dart';
 import '../widgets/exantas_support_home_sections.dart';
 import '../widgets/exantas_work_screens.dart';
@@ -212,6 +213,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       await connectPeer(device.peerId,
           workId: detail.id, customerId: detail.customerId);
     } finally {
+      work = null;
       if (mounted) setState(() => busy = false);
     }
   }
@@ -225,6 +227,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       work = null;
       await createWork();
       final created = work;
+      work = null;
       return created == null ? null : OfficeWorkCard.fromFlat(created);
     } finally {
       if (mounted) setState(() => busy = false);
@@ -330,6 +333,14 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
           openWorks: open,
           loadSuggestions: () => suggestionsFor(peer, open));
       if (choice == null || !mounted) return;
+      if (busy) {
+        // Never drop an explicit choice silently.
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+              content: Text('Υπάρχει άλλη ενέργεια σε εξέλιξη. Δοκιμάστε ξανά.')));
+        return;
+      }
       await run(() => connectPeer(peer, workId: choice.workId));
     });
   }
@@ -371,15 +382,18 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       work = Map<String, dynamic>.from(context['item'] as Map);
       contextLabel = ExSessionContext.fromWorkContext(context, peer);
     }
-    support.journal.mobileWork = selection;
-    // Chip only for an explicitly bound work; unbound connections show none.
-    ExSessionContext.label.value = selection == null ? null : contextLabel;
     if (!mounted) return;
     final from = (await bind.mainGetMyId()).trim();
+    if (!mounted) return;
     Map<String, dynamic>? closure;
     stateGlobal.isInMainPage = false;
     unawaited(HapticFeedback.lightImpact());
+    // Bind and clear in one try/finally set right before the push: a throw or
+    // dispose can never leave the work bound to a later scan/URL connection.
     try {
+      support.journal.mobileWork = selection;
+      // Chip only for an explicitly bound work; unbound connections show none.
+      ExSessionContext.label.value = selection == null ? null : contextLabel;
       await Navigator.of(context).push(MaterialPageRoute<void>(
           builder: (_) => RemotePage(
               id: peer,
@@ -394,6 +408,8 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     } finally {
       support.journal.mobileWork = null;
       ExSessionContext.label.value = null;
+      // A leftover page-level work must never be reused by later actions.
+      work = null;
       stateGlobal.isInMainPage = true;
     }
     unawaited(HapticFeedback.lightImpact());
@@ -425,10 +441,58 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     }
   }
 
+  /// Explicit pick of one of the user's open works for [row]. Never reuses a
+  /// page-level selection left over from an earlier connect.
+  Future<ExantasWorkOption?> pickWorkFor(Map<String, dynamic> row) async {
+    try {
+      await office.loadOpen().timeout(const Duration(seconds: 4));
+    } catch (_) {}
+    if (!mounted) return null;
+    final cid = row['customer_id'];
+    final open = office.open.items
+        .where((c) => ['draft', 'review'].contains(c.supportState))
+        .toList();
+    final sameCustomer = cid == null
+        ? open
+        : open.where((c) => c.customerId == '$cid').toList();
+    final options = (sameCustomer.isEmpty ? open : sameCustomer)
+        .map((c) => ExantasWorkOption(
+            id: c.id, title: c.title, customerName: c.customerName))
+        .toList();
+    if (options.isEmpty) {
+      throw StateError('Δεν υπάρχει ανοιχτή εργασία για αντιστοίχιση.');
+    }
+    return showExSheet<ExantasWorkOption>(
+        context: context,
+        builder: (ctx) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Επιλέξτε εργασία για ${row['peer_id']}',
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: ExantasTokens.space2),
+              for (final o in options)
+                ExListRow(
+                    key: ValueKey('associate-${o.id}'),
+                    title: o.title,
+                    subtitle: o.customerName,
+                    icon: Icons.work_outline,
+                    onTap: () => Navigator.pop(ctx, o)),
+            ]));
+  }
+
   Future<void> associate(Map<String, dynamic> row) async {
-    final w = work;
-    if (w == null)
-      throw StateError('Επιλέξτε πρώτα την κατάλληλη εργασία και υπολογιστή.');
+    final picked = await pickWorkFor(row);
+    if (picked == null) return;
+    final fresh = await support.get('/support-workflow/items/${Uri.encodeComponent(picked.id)}');
+    if (fresh['permissions']?['can_edit'] != true ||
+        !['draft', 'review'].contains(fresh['item']?['support_state'])) {
+      throw StateError('Η εργασία δεν είναι ανοιχτή ή δεν επιτρέπεται αλλαγή.');
+    }
+    final w = Map<String, dynamic>.from(fresh['item'] as Map);
     final context = await support.get('/support-workflow/items/${w['id']}');
     final candidates = maps(context['candidate_sessions']);
     if (!candidates.any((s) =>
@@ -439,7 +503,8 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     }
     final confirmed = await showExConfirmDialog(this.context,
         title: 'Σύνδεση συνεδρίας με εργασία',
-        message: '${row['peer_id']} → ${w['title']}');
+        message:
+            '${row['peer_id']} → ${picked.customerName.isEmpty ? '' : '${picked.customerName} · '}${w['title']}');
     if (!confirmed) return;
     await support.save(row, {
       'mobile_work': {

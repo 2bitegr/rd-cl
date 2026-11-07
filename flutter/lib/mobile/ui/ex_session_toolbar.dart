@@ -161,11 +161,21 @@ class ExSessionContextChip extends StatelessWidget {
 /// Asks "Αποσύνδεση από <peer>;". Returns true only for explicit Αποσύνδεση;
 /// dismissing or tapping Παραμονή (the default) returns false.
 Future<bool> showExDisconnectSheet(BuildContext context, String peer) async {
-  final r = await showExSheet<bool>(
-      context: context,
-      builder: (ctx) => ExDisconnectContent(peer: peer));
-  return r == true;
+  // Back guard and toolbar/close buttons share this entry point: never stack
+  // a second sheet on top of one that is already open.
+  if (_disconnectSheetOpen) return false;
+  _disconnectSheetOpen = true;
+  try {
+    final r = await showExSheet<bool>(
+        context: context,
+        builder: (ctx) => ExDisconnectContent(peer: peer));
+    return r == true;
+  } finally {
+    _disconnectSheetOpen = false;
+  }
 }
+
+bool _disconnectSheetOpen = false;
 
 class ExDisconnectContent extends StatelessWidget {
   const ExDisconnectContent({super.key, required this.peer});
@@ -229,5 +239,18 @@ class ExSessionBackGuard extends StatelessWidget {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) requestDisconnect(context);
       },
+      // Remote/terminal canvases rely on fixed sizes: keep system text scale
+      // at 1.0 inside a session; every other mobile page honours up to 1.3.
+      child: ExFixedTextScale(child: child));
+}
+
+/// Pins the text scale to 1.0 for the subtree (session canvases only).
+class ExFixedTextScale extends StatelessWidget {
+  const ExFixedTextScale({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
       child: child);
 }

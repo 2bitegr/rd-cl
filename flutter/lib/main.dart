@@ -16,6 +16,7 @@ import 'package:flutter_hbb/desktop/screen/desktop_port_forward_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_remote_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_terminal_screen.dart';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
+import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart' show TabbarTheme;
 import 'package:flutter_hbb/mobile/ui/exantas_theme.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
@@ -513,10 +514,12 @@ class _AppState extends State<App> with WidgetsBindingObserver {
               : bind.mainGetAppNameSync(),
           // Material 3 Exantas theme on mobile only; desktop keeps MyTheme.
           theme: _isMobileUi
-              ? ExantasTheme.light(extra: [ColorThemeExtension.light])
+              ? ExantasTheme.light(
+                  extra: [ColorThemeExtension.light, TabbarTheme.light])
               : MyTheme.lightTheme,
           darkTheme: _isMobileUi
-              ? ExantasTheme.dark(extra: [ColorThemeExtension.dark])
+              ? ExantasTheme.dark(
+                  extra: [ColorThemeExtension.dark, TabbarTheme.dark])
               : MyTheme.darkTheme,
           themeMode: MyTheme.currentThemeMode(),
           home: isDesktop
@@ -539,8 +542,11 @@ class _AppState extends State<App> with WidgetsBindingObserver {
                     child: ExAppLockGate(
                       controller: exantasAppLock,
                       child: MediaQuery(
+                        // Mobile only: honour system font size up to 1.3x.
+                        // Session pages pin 1.0 via ExFixedTextScale.
                         data: MediaQuery.of(context).copyWith(
-                          textScaler: TextScaler.linear(1.0),
+                          textScaler: MediaQuery.textScalerOf(context).clamp(
+                              minScaleFactor: 1.0, maxScaleFactor: 1.3),
                         ),
                         child: child ?? Container(),
                       ),

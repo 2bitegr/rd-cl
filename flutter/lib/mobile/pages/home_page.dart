@@ -81,7 +81,11 @@ class HomePageState extends State<HomePage> {
       }
     }
     if (_selectedIndex >= _pages.length) _selectedIndex = 0;
-    if (_chatPage == null) _chatOpen = false;
+    // Chat only lives inside Share: leave it when Share is gone/not selected.
+    if (_chatPage == null ||
+        _destinations[_selectedIndex] != HomeDestination.share) {
+      _chatOpen = false;
+    }
   }
 
   void _openWork() {
