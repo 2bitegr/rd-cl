@@ -16,6 +16,8 @@ class ExStrings {
   static const remoteIdHint = 'Πληκτρολόγησε το ID';
   static const searchCustomer = 'Αναζήτηση πελάτη';
   static const customers = 'Πελάτες';
+  static const today = 'Σήμερα';
+  static const openWork = 'Ανοιχτές';
   static const pending = 'Εκκρεμή';
   static const pendingDecisions = 'Εκκρεμείς αποφάσεις';
   static const recent = 'Πρόσφατοι υπολογιστές';

@@ -134,7 +134,7 @@ class ExantasQuickConnect extends StatelessWidget {
                   icon: const Icon(Icons.arrow_forward_rounded, size: 20),
                   label: const Text(ExStrings.connect))),
           const SizedBox(height: ExantasTokens.space2),
-          Text('Για σύνδεση με επιλεγμένη εργασία, άνοιξε «Εργασίες».',
+          Text('Θα επιλέξεις αν η σύνδεση γίνεται με ή χωρίς εργασία.',
               style: text.bodySmall),
         ]));
   }
@@ -146,9 +146,10 @@ class ExantasRecentDevice {
       {required this.id,
       required this.label,
       required this.platform,
-      required this.online});
+      required this.online,
+      this.pinned = false});
   final String id, label, platform;
-  final bool online;
+  final bool online, pinned;
 }
 
 /// Reads existing native recent peers; availability is not session evidence.
@@ -157,10 +158,12 @@ class ExantasRecentDevices extends StatelessWidget {
       {super.key,
       required this.devices,
       required this.busy,
-      required this.onConnect});
+      required this.onConnect,
+      this.onTogglePin});
   final List<ExantasRecentDevice> devices;
   final bool busy;
   final ValueChanged<String> onConnect;
+  final ValueChanged<String>? onTogglePin;
 
   IconData _platformIcon(String platform) {
     final value = platform.toLowerCase();
@@ -235,7 +238,27 @@ class ExantasRecentDevices extends StatelessWidget {
                               color: devices[index].online
                                   ? colors.primary
                                   : colors.onSurfaceVariant)),
-                      const SizedBox(width: 8),
+                      if (onTogglePin != null)
+                        IconButton(
+                            key: ValueKey('pin-${devices[index].id}'),
+                            tooltip: devices[index].pinned
+                                ? 'Ξεκαρφίτσωμα'
+                                : 'Καρφίτσωμα',
+                            constraints: const BoxConstraints(
+                                minWidth: 48, minHeight: 48),
+                            onPressed: busy
+                                ? null
+                                : () => onTogglePin!(devices[index].id),
+                            icon: Icon(
+                                devices[index].pinned
+                                    ? Icons.push_pin
+                                    : Icons.push_pin_outlined,
+                                size: 20,
+                                color: devices[index].pinned
+                                    ? colors.primary
+                                    : colors.onSurfaceVariant))
+                      else
+                        const SizedBox(width: 8),
                       Icon(Icons.chevron_right,
                           color: colors.onSurfaceVariant, size: 20),
                     ]),
@@ -264,6 +287,9 @@ class ExantasSupportHome extends StatefulWidget {
       required this.onRefresh,
       required this.onConfirmNative,
       this.nativeRecoveryRequired = false,
+      this.pendingSummary = '',
+      this.pinnedIds = const {},
+      this.onTogglePin,
       this.error});
   final Widget account;
   final bool signedIn, nativeRecoveryRequired, busy;
@@ -273,6 +299,9 @@ class ExantasSupportHome extends StatefulWidget {
   final ValueChanged<String> onConnect, onSearchCustomers;
   final VoidCallback onOpenPending, onRefresh, onConfirmNative;
   final String? error;
+  final String pendingSummary;
+  final Set<String> pinnedIds;
+  final ValueChanged<String>? onTogglePin;
   @override
   State<ExantasSupportHome> createState() => _ExantasSupportHomeState();
 }
@@ -284,6 +313,18 @@ class _ExantasSupportHomeState extends State<ExantasSupportHome> {
   Widget build(BuildContext context) {
     final t = context.ex;
     const gap = SizedBox(height: ExantasTokens.space4);
+    // Pinned (RustDesk favorites) first; recents keep their native order.
+    final sorted = [
+      ...widget.devices.where((d) => widget.pinnedIds.contains(d.id)),
+      ...widget.devices.where((d) => !widget.pinnedIds.contains(d.id)),
+    ].map((d) => d.pinned == widget.pinnedIds.contains(d.id)
+        ? d
+        : ExantasRecentDevice(
+            id: d.id,
+            label: d.label,
+            platform: d.platform,
+            online: d.online,
+            pinned: widget.pinnedIds.contains(d.id))).toList();
     return ColoredBox(
         color: t.surfaceAlt,
         child: ListView(
@@ -340,7 +381,10 @@ class _ExantasSupportHomeState extends State<ExantasSupportHome> {
                               children: [
                             Text(ExStrings.pendingCount(widget.pendingCount),
                                 style: Theme.of(context).textTheme.titleSmall),
-                            Text(ExStrings.pendingHint(widget.pendingCount),
+                            Text(
+                                widget.pendingSummary.isNotEmpty
+                                    ? widget.pendingSummary
+                                    : ExStrings.pendingHint(widget.pendingCount),
                                 style: Theme.of(context).textTheme.bodySmall),
                           ])),
                       Icon(Icons.chevron_right, color: t.textSecondary),
@@ -354,11 +398,10 @@ class _ExantasSupportHomeState extends State<ExantasSupportHome> {
                             size: 21, color: t.textSecondary))),
                 const SizedBox(height: ExantasTokens.space2),
                 ExantasRecentDevices(
-                    devices: showAllRecent
-                        ? widget.devices
-                        : widget.devices.take(8).toList(),
+                    devices: showAllRecent ? sorted : sorted.take(8).toList(),
                     busy: widget.busy,
-                    onConnect: widget.onConnect),
+                    onConnect: widget.onConnect,
+                    onTogglePin: widget.onTogglePin),
                 if (widget.devices.length > 8)
                   TextButton(
                       onPressed: () =>
@@ -396,10 +439,10 @@ class ExantasErrorCard extends StatelessWidget {
   }
 }
 
-enum ExantasWorkSection { customers, pending }
+enum ExantasWorkSection { today, open, customers, pending }
 
-/// Work tab: Πελάτες | Εκκρεμή. Goal 2 adds Σήμερα/Ανοιχτές from Office as
-/// extra segments here; no placeholder data until then.
+/// Work tab: Σήμερα | Ανοιχτές | Πελάτες | Εκκρεμή. Panels are supplied by the
+/// controller; this widget only lays out the segments.
 class ExantasWorkView extends StatelessWidget {
   const ExantasWorkView(
       {super.key,
@@ -411,7 +454,10 @@ class ExantasWorkView extends StatelessWidget {
       required this.pendingPanel,
       required this.pendingCount,
       required this.onRefresh,
+      this.todayPanel = const SizedBox.shrink(),
+      this.openPanel = const SizedBox.shrink(),
       this.error});
+  final Widget todayPanel, openPanel;
   final bool signedIn, busy;
   final ExantasWorkSection section;
   final ValueChanged<ExantasWorkSection> onSection;
@@ -440,11 +486,17 @@ class ExantasWorkView extends StatelessWidget {
                   Expanded(
                       child: ExSegmented<ExantasWorkSection>(
                           segments: [
+                            const ExSegment(ExantasWorkSection.today, ExStrings.today,
+                                key: ValueKey('support-tab-today')),
+                            const ExSegment(ExantasWorkSection.open, ExStrings.openWork,
+                                key: ValueKey('support-tab-open')),
                             const ExSegment(ExantasWorkSection.customers,
                                 ExStrings.customers,
                                 key: ValueKey('support-tab-customers')),
                             ExSegment(ExantasWorkSection.pending,
-                                ExStrings.pendingCount(pendingCount),
+                                pendingCount == 0
+                                    ? ExStrings.pending
+                                    : ExStrings.pendingCount(pendingCount),
                                 key: const ValueKey('support-tab-pending')),
                           ],
                           selected: section,
@@ -455,6 +507,8 @@ class ExantasWorkView extends StatelessWidget {
                       icon: Icon(Icons.refresh_rounded, color: t.textSecondary)),
                 ]),
                 const SizedBox(height: ExantasTokens.space3),
+                if (section == ExantasWorkSection.today) todayPanel,
+                if (section == ExantasWorkSection.open) openPanel,
                 if (section == ExantasWorkSection.customers) customerPanel,
                 if (section == ExantasWorkSection.pending) pendingPanel,
               ],
