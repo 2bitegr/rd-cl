@@ -11,6 +11,8 @@ import 'home_page.dart';
 import 'remote_page.dart';
 import '../widgets/exantas_session_decision.dart';
 import '../widgets/exantas_support_home_sections.dart';
+import '../widgets/exantas_work_screens.dart';
+import '../../models/exantas_office_work.dart';
 
 enum ExantasSupportView { home, work }
 
@@ -37,22 +39,22 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
   final search = TextEditingController();
   final manual = TextEditingController();
   ExantasCompanionStatus? status;
-  List<Map<String, dynamic>> customers = [],
-      works = [],
-      devices = [],
-      pending = [];
+  List<Map<String, dynamic>> works = [], devices = [], pending = [];
+  late final ExantasOfficeWork office =
+      ExantasOfficeWork((path) => support.get(path));
   Map<String, dynamic>? customer, work;
   bool busy = false;
   String sourceId = '';
   String? error;
   Timer? timer;
-  ExantasWorkSection workSection = ExantasWorkSection.customers;
+  ExantasWorkSection workSection = ExantasWorkSection.today;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     gFFI.recentPeersModel.addListener(recentChanged);
+    office.addListener(recentChanged);
     unawaited(run(refresh));
     timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!busy && mounted && ModalRoute.of(context)?.isCurrent == true)
@@ -61,7 +63,17 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
   }
 
   @override
+  void didUpdateWidget(ExantasSupportPage old) {
+    super.didUpdateWidget(old);
+    if (old.view != widget.view && widget.view == ExantasSupportView.work) {
+      loadSection(workSection);
+    }
+  }
+
+  @override
   void dispose() {
+    office.removeListener(recentChanged);
+    office.dispose();
     gFFI.recentPeersModel.removeListener(recentChanged);
     timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -104,24 +116,100 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
         next.apiBase != status?.apiBase) {
       customer = null;
       work = null;
-      customers = [];
       works = [];
       devices = [];
       pending = [];
+      // Account/API change or logout: drop cached Office work and in-flight
+      // responses, and close any customer/work page of the previous account.
+      office.reset();
+      if (mounted) {
+        final route = ModalRoute.of(context);
+        if (route != null) {
+          Navigator.of(context).popUntil((r) => r == route);
+        }
+      }
     }
     status = next;
-    if (!next.technicianLoggedIn) return;
+    if (!next.technicianLoggedIn) {
+      office.reset();
+      return;
+    }
     try {
       await support.refresh();
     } finally {
       pending = await support.rows();
     }
+    if (widget.view == ExantasSupportView.work) loadSection(workSection);
   }
 
-  Future<void> findCustomers() async {
-    final result = await support.get(
-        '/rustdesk-reports/customers?status=active&page_size=50&search=${Uri.encodeQueryComponent(search.text.trim())}');
-    customers = maps(result['items']);
+  void loadSection(ExantasWorkSection section) {
+    if (status?.technicianLoggedIn != true) return;
+    switch (section) {
+      case ExantasWorkSection.today:
+        unawaited(office.loadToday());
+      case ExantasWorkSection.open:
+        unawaited(office.loadOpen());
+      case ExantasWorkSection.customers:
+        unawaited(office.searchCustomers(search.text));
+      case ExantasWorkSection.pending:
+        break;
+    }
+  }
+
+  void selectSection(ExantasWorkSection section) {
+    setState(() => workSection = section);
+    loadSection(section);
+  }
+
+  Set<String> get pendingWorkIds => {
+        for (final r in pending)
+          if (r['work_item_id'] is String) r['work_item_id'] as String
+      };
+
+  Future<void> openWorkDetail(OfficeWorkCard card) =>
+      Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => OfficeWorkDetailPage(
+              card: card,
+              office: office,
+              pending: pendingWorkIds.contains(card.id),
+              onConnect: connectFromDetail)));
+
+  Future<void> openCustomer(Map<String, dynamic> c) =>
+      Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => OfficeCustomerPage(
+              customer: c,
+              office: office,
+              pendingWorkIds: pendingWorkIds,
+              onOpenWork: openWorkDetail,
+              onNewWork: createWorkFor)));
+
+  /// Connects through the same path as the previous work list: the selected
+  /// work and device are re-validated against Office inside [connectPeer].
+  Future<void> connectFromDetail(WorkDetail detail, WorkDevice device) async {
+    if (busy) throw StateError('Υπάρχει άλλη ενέργεια σε εξέλιξη.');
+    setState(() => busy = true);
+    try {
+      customer = null;
+      work = Map<String, dynamic>.from(detail.rawItem);
+      await connectPeer(device.peerId, device: device.toMap());
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  /// Existing creation flow (dialog + idempotent recovery) for [c].
+  Future<OfficeWorkCard?> createWorkFor(Map<String, dynamic> c) async {
+    if (busy) throw StateError('Υπάρχει άλλη ενέργεια σε εξέλιξη.');
+    setState(() => busy = true);
+    try {
+      customer = c;
+      work = null;
+      await createWork();
+      final created = work;
+      return created == null ? null : OfficeWorkCard.fromFlat(created);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   List<Map<String, dynamic>> maps(dynamic rows) => (rows as List? ?? [])
@@ -395,65 +483,32 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     widget.onOpenWork?.call();
   }
 
-  void searchFromHome(String _) {
+  void searchFromHome(String query) {
     openWork(ExantasWorkSection.customers);
-    if (!busy) unawaited(run(findCustomers));
+    unawaited(office.searchCustomers(query));
   }
 
-  Widget customerPanel() => Card(
-      child: Padding(
-          padding: const EdgeInsets.all(16),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            TextField(
-                controller: search,
-                textInputAction: TextInputAction.search,
-                onSubmitted: busy ? null : (_) => run(findCustomers),
-                decoration: InputDecoration(
-                    labelText: 'Αναζήτηση πελάτη',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.business_outlined),
-                    suffixIcon: IconButton(
-                        tooltip: 'Αναζήτηση πελάτη',
-                        onPressed: busy ? null : () => run(findCustomers),
-                        icon: const Icon(Icons.search)))),
-            for (final c in customers)
-              ListTile(
-                  leading: const Icon(Icons.business_outlined),
-                  title: Text('${c['company_name']}'),
-                  selected: c['id'] == customer?['id'],
-                  onTap: busy ? null : () => run(() => selectCustomer(c))),
-            if (customer != null) ...[
-              const SizedBox(height: 12),
-              Text('Πελάτης: ${customer!['company_name']}'),
-              TextButton.icon(
-                  onPressed: busy ? null : () => run(createWork),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Νέα εργασία')),
-              for (final w in works)
-                ListTile(
-                    leading: const Icon(Icons.assignment_outlined),
-                    title: Text('${w['title']}'),
-                    subtitle: Text('${w['branch_name'] ?? ''}'),
-                    selected: w['id'] == work?['id'],
-                    onTap: busy ? null : () => run(() => selectWork(w))),
-              if (work != null && devices.isEmpty)
-                const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                        'Δεν υπάρχουν διαθέσιμοι υπολογιστές για αυτή την εργασία.')),
-            ],
-            for (final d in devices)
-              ListTile(
-                  leading: const Icon(Icons.computer),
-                  title: Text('${d['label'] ?? d['peer_id']}'),
-                  subtitle: Text('${d['peer_id']}'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: busy
-                      ? null
-                      : () =>
-                          run(() => connectPeer('${d['peer_id']}', device: d))),
-          ])));
+  Widget todayPanel() => OfficeWorkFeedPanel(
+      feed: office.today,
+      pendingWorkIds: pendingWorkIds,
+      onOpen: openWorkDetail,
+      onRetry: () => unawaited(office.loadToday()),
+      emptyTitle: ExWork.noToday,
+      emptyMessage: ExWork.noTodayHint);
+
+  Widget openPanel() => OfficeWorkFeedPanel(
+      feed: office.open,
+      pendingWorkIds: pendingWorkIds,
+      onOpen: openWorkDetail,
+      onRetry: () => unawaited(office.loadOpen()),
+      onMore: () => unawaited(office.loadOpen(more: true)),
+      emptyTitle: ExWork.noOpen);
+
+  Widget customerPanel() => OfficeCustomersPanel(
+      controller: search,
+      feed: office.customers,
+      onSearch: (q) => unawaited(office.searchCustomers(q)),
+      onOpen: openCustomer);
 
   Widget pendingPanel() =>
       Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -522,7 +577,9 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
           signedIn: signedIn,
           busy: busy,
           section: workSection,
-          onSection: (v) => setState(() => workSection = v),
+          onSection: selectSection,
+          todayPanel: todayPanel(),
+          openPanel: openPanel(),
           customerPanel: customerPanel(),
           pendingPanel: pendingPanel(),
           pendingCount: pending.length,

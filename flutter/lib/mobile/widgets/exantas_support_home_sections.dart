@@ -396,10 +396,10 @@ class ExantasErrorCard extends StatelessWidget {
   }
 }
 
-enum ExantasWorkSection { customers, pending }
+enum ExantasWorkSection { today, open, customers, pending }
 
-/// Work tab: Πελάτες | Εκκρεμή. Goal 2 adds Σήμερα/Ανοιχτές from Office as
-/// extra segments here; no placeholder data until then.
+/// Work tab: Σήμερα | Ανοιχτές | Πελάτες | Εκκρεμή. Panels are supplied by the
+/// controller; this widget only lays out the segments.
 class ExantasWorkView extends StatelessWidget {
   const ExantasWorkView(
       {super.key,
@@ -411,7 +411,10 @@ class ExantasWorkView extends StatelessWidget {
       required this.pendingPanel,
       required this.pendingCount,
       required this.onRefresh,
+      this.todayPanel = const SizedBox.shrink(),
+      this.openPanel = const SizedBox.shrink(),
       this.error});
+  final Widget todayPanel, openPanel;
   final bool signedIn, busy;
   final ExantasWorkSection section;
   final ValueChanged<ExantasWorkSection> onSection;
@@ -440,11 +443,17 @@ class ExantasWorkView extends StatelessWidget {
                   Expanded(
                       child: ExSegmented<ExantasWorkSection>(
                           segments: [
+                            const ExSegment(ExantasWorkSection.today, ExStrings.today,
+                                key: ValueKey('support-tab-today')),
+                            const ExSegment(ExantasWorkSection.open, ExStrings.openWork,
+                                key: ValueKey('support-tab-open')),
                             const ExSegment(ExantasWorkSection.customers,
                                 ExStrings.customers,
                                 key: ValueKey('support-tab-customers')),
                             ExSegment(ExantasWorkSection.pending,
-                                ExStrings.pendingCount(pendingCount),
+                                pendingCount == 0
+                                    ? ExStrings.pending
+                                    : ExStrings.pendingCount(pendingCount),
                                 key: const ValueKey('support-tab-pending')),
                           ],
                           selected: section,
@@ -455,6 +464,8 @@ class ExantasWorkView extends StatelessWidget {
                       icon: Icon(Icons.refresh_rounded, color: t.textSecondary)),
                 ]),
                 const SizedBox(height: ExantasTokens.space3),
+                if (section == ExantasWorkSection.today) todayPanel,
+                if (section == ExantasWorkSection.open) openPanel,
                 if (section == ExantasWorkSection.customers) customerPanel,
                 if (section == ExantasWorkSection.pending) pendingPanel,
               ],

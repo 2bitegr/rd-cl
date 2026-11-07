@@ -6,10 +6,11 @@ class ExSearchField extends StatelessWidget {
       required this.controller,
       required this.label,
       this.onSubmitted,
+      this.onChanged,
       this.enabled = true});
   final TextEditingController controller;
   final String label;
-  final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onSubmitted, onChanged;
   final bool enabled;
 
   @override
@@ -18,6 +19,7 @@ class ExSearchField extends StatelessWidget {
       enabled: enabled,
       textInputAction: TextInputAction.search,
       onSubmitted: onSubmitted,
+      onChanged: onChanged,
       decoration: InputDecoration(
           labelText: label,
           prefixIcon: const Icon(Icons.search),

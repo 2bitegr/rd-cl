@@ -28,6 +28,8 @@ Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
             'Το Office χρειάζεται ενημέρωση για υποστήριξη από Android. Η σύνδεσή σας διατηρείται.');
       }
       const nativeErrors = {
+        'work_participant_required':
+            'Δεν συμμετέχετε σε αυτή την εργασία. Ζητήστε από τον υπεύθυνο να σας προσθέσει στο Office.',
         'native_auth_rejected':
             'Το RustDesk δεν δέχθηκε την ταυτότητα της συσκευής. Η σύνδεση Office διατηρείται.',
         'native_auth_unconfirmed':

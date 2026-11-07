@@ -1,18 +1,11 @@
 import 'package:uuid/uuid.dart';
+import 'exantas_session_timing.dart';
 import 'exantas_companion_model.dart';
 import 'exantas_lifecycle_outbox.dart';
 import 'exantas_session_report.dart';
 import 'platform_model.dart';
 export 'exantas_native_auth.dart' show normalizeAndroidPeerId;
-
-/// No client duration or price is promoted to Office evidence.
-bool androidSessionVerified(Map<String, dynamic> session) {
-  final start = DateTime.tryParse('${session['started_at'] ?? ''}');
-  final end = DateTime.tryParse('${session['ended_at'] ?? ''}');
-  final seconds = num.tryParse('${session['duration_seconds'] ?? ''}');
-  return session['timing_quality'] == 'verified' && start != null && end != null &&
-      end.isAfter(start) && seconds != null && seconds.isFinite && seconds > 0;
-}
+export 'exantas_session_timing.dart' show androidSessionVerified;
 
 /// Auto-open a completion only for its exact native source tuple.
 bool androidClosureMatches(Map<String, dynamic> row, Map<String, dynamic>? closure) {
