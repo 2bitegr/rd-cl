@@ -13,6 +13,13 @@ import '../../common/widgets/dialog.dart';
 import '../../consts.dart';
 import '../../models/platform_model.dart';
 import '../../models/server_model.dart';
+import '../ui/ex_card.dart';
+import '../ui/ex_empty_state.dart';
+import '../ui/ex_list_row.dart';
+import '../ui/ex_section_header.dart';
+import '../ui/ex_status_pill.dart';
+import '../ui/exantas_strings.dart';
+import '../ui/exantas_theme.dart';
 import 'home_page.dart';
 
 class ServerPage extends StatefulWidget implements PageShape {
@@ -203,23 +210,27 @@ class _ServerPageState extends State<ServerPage> {
     return ChangeNotifierProvider.value(
         value: gFFI.serverModel,
         child: Consumer<ServerModel>(
-            builder: (context, serverModel, child) => SingleChildScrollView(
+            builder: (context, serverModel, child) => ColoredBox(
+                color: context.ex.surfaceAlt,
+                child: SingleChildScrollView(
                   controller: gFFI.serverModel.controller,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        buildPresetPasswordWarningMobile(),
-                        gFFI.serverModel.isStart
-                            ? ServerInfo()
-                            : ServiceNotRunningNotification(),
-                        const ConnectionManager(),
-                        const PermissionChecker(),
-                        SizedBox.fromSize(size: const Size(0, 15.0)),
-                      ],
-                    ),
+                  padding: const EdgeInsets.fromLTRB(
+                      ExantasTokens.gutter,
+                      ExantasTokens.space4,
+                      ExantasTokens.gutter,
+                      ExantasTokens.space8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      buildPresetPasswordWarningMobile(),
+                      gFFI.serverModel.isStart
+                          ? ServerInfo()
+                          : ServiceNotRunningNotification(),
+                      const ConnectionManager(),
+                      const PermissionChecker(),
+                    ],
                   ),
-                )));
+                ))));
   }
 }
 
@@ -242,16 +253,14 @@ class ServiceNotRunningNotification extends StatelessWidget {
 
     return PaddingCard(
         title: translate("Service is not running"),
-        titleIcon:
-            const Icon(Icons.warning_amber_sharp, color: Colors.redAccent),
+        titleIcon: Icon(Icons.warning_amber_rounded, color: context.ex.warning),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(translate("android_start_service_tip"),
-                    style:
-                        const TextStyle(fontSize: 12, color: MyTheme.darkGray))
-                .marginOnly(bottom: 8),
-            ElevatedButton.icon(
+                    style: Theme.of(context).textTheme.bodySmall)
+                .marginOnly(bottom: ExantasTokens.space3),
+            FilledButton.icon(
                 icon: const Icon(Icons.play_arrow),
                 onPressed: () {
                   if (gFFI.userModel.userName.value.isEmpty &&
@@ -311,263 +320,213 @@ class ScamWarningDialogState extends State<ScamWarningDialog> {
   @override
   Widget build(BuildContext context) {
     final isButtonLocked = _countdown > 0;
+    final t = context.ex;
+    final text = Theme.of(context).textTheme;
 
     return AlertDialog(
-      content: ClipRRect(
-        borderRadius: BorderRadius.circular(20.0),
-        child: SingleChildScrollView(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: [
-                  Color(0xffe242bc),
-                  Color(0xfff4727c),
-                ],
-              ),
-            ),
-            padding: EdgeInsets.all(25.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.warning_amber_sharp,
-                      color: Colors.white,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      translate("Warning"),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20.0,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                Center(
-                  child: Image.asset(
-                    'assets/scam.png',
-                    width: 180,
-                  ),
-                ),
-                SizedBox(height: 18),
-                Text(
-                  translate("scam_title"),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22.0,
-                  ),
-                ),
-                SizedBox(height: 18),
-                Text(
-                  "${translate("scam_text1")}\n\n${translate("scam_text2")}\n",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.0,
-                  ),
-                ),
-                Row(
-                  children: <Widget>[
-                    Checkbox(
-                      value: show_warning,
-                      onChanged: (value) {
-                        setState(() {
-                          show_warning = value!;
-                        });
-                      },
-                    ),
-                    Text(
-                      translate("Don't show again"),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15.0,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Container(
-                      constraints: BoxConstraints(maxWidth: 150),
-                      child: ElevatedButton(
-                        onPressed: isButtonLocked
-                            ? null
-                            : () {
-                                Navigator.of(context).pop();
-                                _serverModel.toggleService();
-                                if (show_warning) {
-                                  bind.mainSetLocalOption(
-                                      key: "show-scam-warning", value: "N");
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                        ),
-                        child: Text(
-                          isButtonLocked
-                              ? "${translate("I Agree")} (${_countdown}s)"
-                              : translate("I Agree"),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13.0,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 15),
-                    Container(
-                      constraints: BoxConstraints(maxWidth: 150),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                        ),
-                        child: Text(
-                          translate("Decline"),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13.0,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+      scrollable: true,
+      title: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: t.danger),
+          const SizedBox(width: ExantasTokens.space2),
+          Expanded(child: Text(translate("Warning"))),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Image.asset(
+              'assets/scam.png',
+              width: 160,
             ),
           ),
-        ),
+          const SizedBox(height: ExantasTokens.space3),
+          Text(
+            translate("scam_title"),
+            textAlign: TextAlign.center,
+            style: text.titleMedium,
+          ),
+          const SizedBox(height: ExantasTokens.space3),
+          Text(
+            "${translate("scam_text1")}\n\n${translate("scam_text2")}",
+            style: text.bodyMedium,
+          ),
+          const SizedBox(height: ExantasTokens.space2),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: show_warning,
+            onChanged: (value) {
+              setState(() {
+                show_warning = value!;
+              });
+            },
+            title: Text(translate("Don't show again")),
+          ),
+        ],
       ),
-      contentPadding: EdgeInsets.all(0.0),
+      actions: [
+        OutlinedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: Text(
+            translate("Decline"),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        FilledButton(
+          onPressed: isButtonLocked
+              ? null
+              : () {
+                  Navigator.of(context).pop();
+                  _serverModel.toggleService();
+                  if (show_warning) {
+                    bind.mainSetLocalOption(
+                        key: "show-scam-warning", value: "N");
+                  }
+                },
+          child: Text(
+            isButtonLocked
+                ? "${translate("I Agree")} (${_countdown}s)"
+                : translate("I Agree"),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }
 
-class ServerInfo extends StatelessWidget {
-  final model = gFFI.serverModel;
-  final emptyController = TextEditingController(text: "-");
-
+class ServerInfo extends StatefulWidget {
   ServerInfo({Key? key}) : super(key: key);
+
+  @override
+  State<ServerInfo> createState() => _ServerInfoState();
+}
+
+class _ServerInfoState extends State<ServerInfo> {
+  final model = gFFI.serverModel;
+  bool _showPassword = false;
+
+  void _copyToClipboard(String value) {
+    Clipboard.setData(ClipboardData(text: value));
+    showToast(translate('Copied'));
+  }
+
+  Widget _connectionStatus(ServerModel serverModel) {
+    if (serverModel.connectStatus == -1) {
+      return ExStatusPill(translate('not_ready_status'),
+          status: ExStatus.danger, icon: Icons.warning_amber_rounded);
+    } else if (serverModel.connectStatus == 0) {
+      return ExStatusPill(translate('connecting_status'),
+          status: ExStatus.warning, icon: Icons.sync);
+    } else {
+      return ExStatusPill(translate('Ready'), status: ExStatus.success);
+    }
+  }
+
+  Widget _field(BuildContext context,
+      {required String label,
+      required IconData icon,
+      required String value,
+      required List<Widget> actions}) {
+    final t = context.ex;
+    final text = Theme.of(context).textTheme;
+    return Padding(
+        padding: const EdgeInsets.symmetric(vertical: ExantasTokens.space1),
+        child: Row(children: [
+          Icon(icon, size: 22, color: t.textSecondary),
+          const SizedBox(width: ExantasTokens.space3),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(label, style: text.labelMedium),
+                const SizedBox(height: 2),
+                Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.titleLarge?.copyWith(
+                        fontSize: 22,
+                        letterSpacing: 1,
+                        fontFeatures: const [FontFeature.tabularFigures()])),
+              ])),
+          ...actions,
+        ]));
+  }
 
   @override
   Widget build(BuildContext context) {
     final serverModel = Provider.of<ServerModel>(context);
-
-    const Color colorPositive = Colors.green;
-    const Color colorNegative = Colors.red;
-    const double iconMarginRight = 15;
-    const double iconSize = 24;
-    const TextStyle textStyleHeading = TextStyle(
-        fontSize: 16.0, fontWeight: FontWeight.bold, color: Colors.grey);
-    const TextStyle textStyleValue =
-        TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold);
-
-    void copyToClipboard(String value) {
-      Clipboard.setData(ClipboardData(text: value));
-      showToast(translate('Copied'));
-    }
-
-    Widget ConnectionStateNotification() {
-      if (serverModel.connectStatus == -1) {
-        return Row(children: [
-          const Icon(Icons.warning_amber_sharp,
-                  color: colorNegative, size: iconSize)
-              .marginOnly(right: iconMarginRight),
-          Expanded(child: Text(translate('not_ready_status')))
-        ]);
-      } else if (serverModel.connectStatus == 0) {
-        return Row(children: [
-          SizedBox(width: 20, height: 20, child: CircularProgressIndicator())
-              .marginOnly(left: 4, right: iconMarginRight),
-          Expanded(child: Text(translate('connecting_status')))
-        ]);
-      } else {
-        return Row(children: [
-          const Icon(Icons.check, color: colorPositive, size: iconSize)
-              .marginOnly(right: iconMarginRight),
-          Expanded(child: Text(translate('Ready')))
-        ]);
-      }
-    }
+    final t = context.ex;
 
     final showOneTime = serverModel.approveMode != 'click' &&
         serverModel.verificationMethod != kUsePermanentPassword;
-    return PaddingCard(
-        title: translate('Your Device'),
-        child: Column(
-          // ID
+    final password = model.serverPasswd.value.text;
+    return Padding(
+        padding: const EdgeInsets.only(bottom: ExantasTokens.space4),
+        child: ExCard(
+            child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(children: [
-              const Icon(Icons.perm_identity,
-                      color: Colors.grey, size: iconSize)
-                  .marginOnly(right: iconMarginRight),
-              Text(
-                translate('ID'),
-                style: textStyleHeading,
-              )
+              Expanded(
+                  child: Semantics(
+                      header: true,
+                      child: Text(translate('Your Device'),
+                          style: Theme.of(context).textTheme.titleMedium))),
+              _connectionStatus(serverModel),
             ]),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(
-                model.serverId.value.text,
-                style: textStyleValue,
-              ),
-              IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.copy_outlined),
-                  onPressed: () {
-                    copyToClipboard(model.serverId.value.text.trim());
-                  })
-            ]).marginOnly(left: 39, bottom: 10),
-            // Password
-            Row(children: [
-              const Icon(Icons.lock_outline, color: Colors.grey, size: iconSize)
-                  .marginOnly(right: iconMarginRight),
-              Text(
-                translate('One-time Password'),
-                style: textStyleHeading,
-              )
-            ]),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(
-                !showOneTime ? '-' : model.serverPasswd.value.text,
-                style: textStyleValue,
-              ),
-              !showOneTime
-                  ? SizedBox.shrink()
-                  : Row(children: [
-                      IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.refresh),
-                          onPressed: () => bind.mainUpdateTemporaryPassword()),
-                      IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: Icon(Icons.copy_outlined),
-                          onPressed: () {
-                            copyToClipboard(
-                                model.serverPasswd.value.text.trim());
-                          })
-                    ])
-            ]).marginOnly(left: 40, bottom: 15),
-            ConnectionStateNotification()
+            const SizedBox(height: ExantasTokens.space3),
+            _field(context,
+                label: translate('ID'),
+                icon: Icons.perm_identity,
+                value: model.serverId.value.text,
+                actions: [
+                  IconButton(
+                      tooltip: ExStrings.copyId,
+                      icon: const Icon(Icons.copy_outlined),
+                      onPressed: () {
+                        _copyToClipboard(model.serverId.value.text.trim());
+                      })
+                ]),
+            Divider(height: ExantasTokens.space4, color: t.border),
+            _field(context,
+                label: translate('One-time Password'),
+                icon: Icons.lock_outline,
+                value:
+                    !showOneTime ? '-' : (_showPassword ? password : '•' * 6),
+                actions: !showOneTime
+                    ? const []
+                    : [
+                        IconButton(
+                            tooltip: _showPassword
+                                ? ExStrings.hidePassword
+                                : ExStrings.showPassword,
+                            icon: Icon(_showPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined),
+                            onPressed: () =>
+                                setState(() => _showPassword = !_showPassword)),
+                        IconButton(
+                            tooltip: ExStrings.newPassword,
+                            icon: const Icon(Icons.refresh),
+                            onPressed: () =>
+                                bind.mainUpdateTemporaryPassword()),
+                        IconButton(
+                            tooltip: ExStrings.copyPassword,
+                            icon: const Icon(Icons.copy_outlined),
+                            onPressed: () {
+                              _copyToClipboard(password.trim());
+                            })
+                      ]),
           ],
-        ));
+        )));
   }
 }
 
@@ -593,83 +552,105 @@ class _PermissionCheckerState extends State<PermissionChecker> {
     final permissionChangeLocked = isAndroid &&
         serverModel.clients.any((c) => !c.disconnected) &&
         !allowPermChangeInAcceptWindow;
-    return PaddingCard(
-        title: translate("Permissions"),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          serverModel.mediaOk && !hideStopService
-              ? ElevatedButton.icon(
-                      style: ButtonStyle(
-                          backgroundColor:
-                              MaterialStateProperty.all(Colors.red)),
-                      icon: const Icon(Icons.stop),
-                      onPressed: serverModel.toggleService,
-                      label: Text(translate("Stop service")))
-                  .marginOnly(bottom: 8)
-              : SizedBox.shrink(),
-          if (!hideStopService || !serverModel.mediaOk)
-            PermissionRow(
-                translate("Screen Capture"),
-                serverModel.mediaOk,
-                !serverModel.mediaOk &&
-                        gFFI.userModel.userName.value.isEmpty &&
-                        bind.mainGetLocalOption(key: "show-scam-warning") != "N"
-                    ? () => showScamWarning(context, serverModel)
-                    : serverModel.toggleService),
-          PermissionRow(
-            translate("Input Control"),
-            serverModel.inputOk,
-            serverModel.toggleInput,
-          ),
-          PermissionRow(
-            translate("Transfer file"),
-            serverModel.fileOk,
-            serverModel.toggleFile,
-            enabled: !permissionChangeLocked,
-          ),
-          hasAudioPermission
-              ? PermissionRow(translate("Audio Capture"), serverModel.audioOk,
-                  serverModel.toggleAudio,
-                  enabled: !permissionChangeLocked)
-              : Row(children: [
-                  Icon(Icons.info_outline).marginOnly(right: 15),
-                  Expanded(
-                      child: Text(
-                    translate("android_version_audio_tip"),
-                    style: const TextStyle(color: MyTheme.darkGray),
-                  ))
-                ]),
-          PermissionRow(
-            translate("Enable clipboard"),
-            serverModel.clipboardOk,
-            serverModel.toggleClipboard,
-            enabled: !permissionChangeLocked,
-          ),
-        ]));
+    final t = context.ex;
+    final rows = <Widget>[
+      if (!hideStopService || !serverModel.mediaOk)
+        PermissionRow(
+            translate("Screen Capture"),
+            serverModel.mediaOk,
+            !serverModel.mediaOk &&
+                    gFFI.userModel.userName.value.isEmpty &&
+                    bind.mainGetLocalOption(key: "show-scam-warning") != "N"
+                ? () => showScamWarning(context, serverModel)
+                : serverModel.toggleService,
+            icon: Icons.screen_share_outlined),
+      PermissionRow(
+        translate("Input Control"),
+        serverModel.inputOk,
+        serverModel.toggleInput,
+        icon: Icons.touch_app_outlined,
+      ),
+      PermissionRow(
+        translate("Transfer file"),
+        serverModel.fileOk,
+        serverModel.toggleFile,
+        enabled: !permissionChangeLocked,
+        icon: Icons.folder_outlined,
+      ),
+      hasAudioPermission
+          ? PermissionRow(translate("Audio Capture"), serverModel.audioOk,
+              serverModel.toggleAudio,
+              enabled: !permissionChangeLocked, icon: Icons.mic_none)
+          : Padding(
+              padding: const EdgeInsets.all(ExantasTokens.space4),
+              child: Row(children: [
+                Icon(Icons.info_outline, color: t.textSecondary),
+                const SizedBox(width: ExantasTokens.space3),
+                Expanded(
+                    child: Text(
+                  translate("android_version_audio_tip"),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ))
+              ])),
+      PermissionRow(
+        translate("Enable clipboard"),
+        serverModel.clipboardOk,
+        serverModel.toggleClipboard,
+        enabled: !permissionChangeLocked,
+        icon: Icons.content_paste,
+      ),
+    ];
+    final spaced = <Widget>[];
+    for (var i = 0; i < rows.length; i++) {
+      if (i > 0) spaced.add(Divider(height: 1, color: t.border));
+      spaced.add(rows[i]);
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (serverModel.mediaOk && !hideStopService)
+        Padding(
+            padding: const EdgeInsets.only(bottom: ExantasTokens.space4),
+            child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: t.danger),
+                icon: const Icon(Icons.stop),
+                onPressed: serverModel.toggleService,
+                label: Text(translate("Stop service")))),
+      ExSectionHeader(translate("Permissions")),
+      const SizedBox(height: ExantasTokens.space2),
+      Card(clipBehavior: Clip.antiAlias, child: Column(children: spaced)),
+    ]);
   }
 }
 
 class PermissionRow extends StatelessWidget {
   const PermissionRow(this.name, this.isOk, this.onPressed,
-      {Key? key, this.enabled = true})
+      {Key? key, this.enabled = true, this.icon})
       : super(key: key);
 
   final String name;
   final bool isOk;
   final VoidCallback onPressed;
   final bool enabled;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-        visualDensity: VisualDensity.compact,
-        contentPadding: EdgeInsets.all(0),
-        title: Text(name),
-        value: isOk,
-        onChanged: enabled
-            ? (bool value) {
-                onPressed();
-              }
-            : null);
+    return ExListRow(
+        title: name,
+        icon: icon,
+        onTap: enabled ? onPressed : null,
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          ExStatusPill(isOk ? ExStrings.permOn : ExStrings.permOff,
+              status: isOk ? ExStatus.success : ExStatus.neutral,
+              icon: isOk ? Icons.check_circle_outline : Icons.circle_outlined),
+          const SizedBox(width: ExantasTokens.space2),
+          Switch(
+              value: isOk,
+              onChanged: enabled
+                  ? (bool value) {
+                      onPressed();
+                    }
+                  : null),
+        ]));
   }
 }
 
@@ -679,51 +660,69 @@ class ConnectionManager extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final serverModel = Provider.of<ServerModel>(context);
-    return Column(
-        children: serverModel.clients
-            .map((client) => PaddingCard(
-                title: translate(
-                    client.isFileTransfer ? "Transfer file" : "Share screen"),
-                titleIcon: client.isFileTransfer
-                    ? Icon(Icons.folder_outlined)
-                    : Icon(Icons.mobile_screen_share),
-                child: Column(children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(child: ClientInfo(client)),
-                      Expanded(
-                          flex: -1,
-                          child: client.isFileTransfer || !client.authorized
-                              ? const SizedBox.shrink()
-                              : IconButton(
-                                  onPressed: () {
-                                    gFFI.chatModel.changeCurrentKey(
-                                        MessageKey(client.peerId, client.id));
-                                    HomePage.homeKey.currentState?.openChat();
-                                  },
-                                  icon: unreadTopRightBuilder(
-                                      client.unreadChatMessageCount)))
-                    ],
-                  ),
-                  client.authorized
-                      ? const SizedBox.shrink()
-                      : Text(
-                          translate("android_new_connection_tip"),
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ).marginOnly(bottom: 5),
-                  client.authorized
-                      ? _buildDisconnectButton(client)
-                      : _buildNewConnectionHint(serverModel, client),
-                  if (client.incomingVoiceCall && !client.inVoiceCall)
-                    ..._buildNewVoiceCallHint(context, serverModel, client),
-                ])))
-            .toList());
+    return Padding(
+        padding: const EdgeInsets.only(bottom: ExantasTokens.space4),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          ExSectionHeader(ExStrings.incomingConnections),
+          const SizedBox(height: ExantasTokens.space2),
+          if (serverModel.clients.isEmpty)
+            ExCard(
+                child: ExEmptyState(
+                    icon: Icons.devices_other_outlined,
+                    title: ExStrings.noIncoming,
+                    message: ExStrings.noIncomingHint)),
+          ...serverModel.clients.map((client) => Padding(
+              padding: const EdgeInsets.only(bottom: ExantasTokens.space3),
+              child: ExCard(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                    Row(
+                      children: [
+                        Expanded(child: ClientInfo(client)),
+                        client.isFileTransfer || !client.authorized
+                            ? const SizedBox.shrink()
+                            : IconButton(
+                                tooltip: ExStrings.chat,
+                                onPressed: () {
+                                  gFFI.chatModel.changeCurrentKey(
+                                      MessageKey(client.peerId, client.id));
+                                  HomePage.homeKey.currentState?.openChat();
+                                },
+                                icon: unreadTopRightBuilder(
+                                    client.unreadChatMessageCount)),
+                      ],
+                    ),
+                    Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: ExStatusPill(
+                            translate(client.isFileTransfer
+                                ? "Transfer file"
+                                : "Share screen"),
+                            status: ExStatus.info,
+                            icon: client.isFileTransfer
+                                ? Icons.folder_outlined
+                                : Icons.mobile_screen_share)),
+                    const SizedBox(height: ExantasTokens.space3),
+                    if (!client.authorized)
+                      Text(
+                        translate("android_new_connection_tip"),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ).marginOnly(bottom: ExantasTokens.space3),
+                    client.authorized
+                        ? _buildDisconnectButton(context, client)
+                        : _buildNewConnectionHint(serverModel, client),
+                    if (client.incomingVoiceCall && !client.inVoiceCall)
+                      ..._buildNewVoiceCallHint(context, serverModel, client),
+                  ])))),
+        ]));
   }
 
-  Widget _buildDisconnectButton(Client client) {
-    final disconnectButton = ElevatedButton.icon(
-      style: ButtonStyle(backgroundColor: MaterialStatePropertyAll(Colors.red)),
+  Widget _buildDisconnectButton(BuildContext context, Client client) {
+    final danger = FilledButton.styleFrom(backgroundColor: context.ex.danger);
+    final disconnectButton = FilledButton.icon(
+      style: danger,
       icon: const Icon(Icons.close),
       onPressed: () {
         bind.cmCloseConnection(connId: client.id);
@@ -735,9 +734,8 @@ class ConnectionManager extends StatelessWidget {
     if (client.inVoiceCall) {
       buttons.insert(
         0,
-        ElevatedButton.icon(
-          style: ButtonStyle(
-              backgroundColor: MaterialStatePropertyAll(Colors.red)),
+        FilledButton.icon(
+          style: danger,
           icon: const Icon(Icons.phone),
           label: Text(translate("Stop")),
           onPressed: () {
@@ -749,55 +747,64 @@ class ConnectionManager extends StatelessWidget {
     }
 
     if (buttons.length == 1) {
-      return Container(
-        alignment: Alignment.centerRight,
-        child: disconnectButton,
-      );
+      return disconnectButton;
     } else {
       return Row(
-        children: buttons,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: buttons[0]),
+          const SizedBox(width: ExantasTokens.space2),
+          Expanded(child: buttons[1]),
+        ],
       );
     }
   }
 
   Widget _buildNewConnectionHint(ServerModel serverModel, Client client) {
-    return Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-      TextButton(
-          child: Text(translate("Dismiss")),
-          onPressed: () {
-            serverModel.sendLoginResponse(client, false);
-          }).marginOnly(right: 15),
-      if (serverModel.approveMode != 'password')
-        ElevatedButton.icon(
-            icon: const Icon(Icons.check),
-            label: Text(translate("Accept")),
-            onPressed: () {
-              serverModel.sendLoginResponse(client, true);
-            }),
+    return Row(children: [
+      Expanded(
+          child: OutlinedButton(
+              child: Text(translate("Dismiss")),
+              onPressed: () {
+                serverModel.sendLoginResponse(client, false);
+              })),
+      if (serverModel.approveMode != 'password') ...[
+        const SizedBox(width: ExantasTokens.space2),
+        Expanded(
+            child: FilledButton.icon(
+                icon: const Icon(Icons.check),
+                label: Text(translate("Accept")),
+                onPressed: () {
+                  serverModel.sendLoginResponse(client, true);
+                })),
+      ],
     ]);
   }
 
   List<Widget> _buildNewVoiceCallHint(
       BuildContext context, ServerModel serverModel, Client client) {
     return [
+      const SizedBox(height: ExantasTokens.space3),
       Text(
         translate("android_new_voice_call_tip"),
         style: Theme.of(context).textTheme.bodyMedium,
-      ).marginOnly(bottom: 5),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-        TextButton(
-            child: Text(translate("Dismiss")),
-            onPressed: () {
-              serverModel.handleVoiceCall(client, false);
-            }).marginOnly(right: 15),
-        if (serverModel.approveMode != 'password')
-          ElevatedButton.icon(
-              icon: const Icon(Icons.check),
-              label: Text(translate("Accept")),
-              onPressed: () {
-                serverModel.handleVoiceCall(client, true);
-              }),
+      ).marginOnly(bottom: ExantasTokens.space3),
+      Row(children: [
+        Expanded(
+            child: OutlinedButton(
+                child: Text(translate("Dismiss")),
+                onPressed: () {
+                  serverModel.handleVoiceCall(client, false);
+                })),
+        if (serverModel.approveMode != 'password') ...[
+          const SizedBox(width: ExantasTokens.space2),
+          Expanded(
+              child: FilledButton.icon(
+                  icon: const Icon(Icons.check),
+                  label: Text(translate("Accept")),
+                  onPressed: () {
+                    serverModel.handleVoiceCall(client, true);
+                  })),
+        ],
       ])
     ];
   }
@@ -813,40 +820,31 @@ class PaddingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final children = [child];
-    if (title != null) {
-      children.insert(
-          0,
-          Padding(
-              padding: const EdgeInsets.fromLTRB(0, 5, 0, 8),
-              child: Row(
-                children: [
-                  titleIcon?.marginOnly(right: 10) ?? const SizedBox.shrink(),
-                  Expanded(
-                    child: Text(title!,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.merge(TextStyle(fontWeight: FontWeight.bold))),
-                  )
-                ],
-              )));
-    }
-    return SizedBox(
-        width: double.maxFinite,
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(13),
-          ),
-          margin: const EdgeInsets.fromLTRB(12.0, 10.0, 12.0, 0),
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+    return Padding(
+        padding: const EdgeInsets.only(bottom: ExantasTokens.space4),
+        child: ExCard(
             child: Column(
-              children: children,
-            ),
-          ),
-        ));
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (title != null)
+              Padding(
+                  padding: const EdgeInsets.only(bottom: ExantasTokens.space3),
+                  child: Row(
+                    children: [
+                      if (titleIcon != null)
+                        titleIcon!.marginOnly(right: ExantasTokens.space3),
+                      Expanded(
+                        child: Semantics(
+                            header: true,
+                            child: Text(title!,
+                                style:
+                                    Theme.of(context).textTheme.titleMedium)),
+                      )
+                    ],
+                  )),
+            child,
+          ],
+        )));
   }
 }
 
@@ -856,27 +854,23 @@ class ClientInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(children: [
-          Row(
-            children: [
-              Expanded(
-                  flex: -1,
-                  child: Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: _buildAvatar(context))),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(client.name, style: const TextStyle(fontSize: 18)),
-                    const SizedBox(width: 8),
-                    Text(client.peerId, style: const TextStyle(fontSize: 10))
-                  ]))
-            ],
-          ),
-        ]));
+    final text = Theme.of(context).textTheme;
+    return Row(
+      children: [
+        Padding(
+            padding: const EdgeInsets.only(right: ExantasTokens.space3),
+            child: _buildAvatar(context)),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(client.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.titleSmall),
+          Text(client.peerId, style: text.bodySmall)
+        ]))
+      ],
+    );
   }
 
   Widget _buildAvatar(BuildContext context) {

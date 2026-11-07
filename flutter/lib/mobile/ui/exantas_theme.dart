@@ -254,8 +254,12 @@ class ExantasTheme {
       dialogTheme: DialogTheme(
           backgroundColor: t.surface,
           surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(
+              horizontal: ExantasTokens.gutter, vertical: 24),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(ExantasTokens.radiusLg)),
+              borderRadius: BorderRadius.circular(ExantasTokens.radiusLg),
+              side: BorderSide(color: t.border)),
           titleTextStyle: s(20, FontWeight.w600),
           contentTextStyle: s(14, FontWeight.w400, null, 1.4)),
       bottomSheetTheme: BottomSheetThemeData(

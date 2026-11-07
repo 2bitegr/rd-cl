@@ -6,6 +6,9 @@ class ExStrings {
   static const navSettings = 'Ρυθμίσεις';
   static const chat = 'Κουβέντα';
   static const back = 'Πίσω';
+  static const chatEmpty = 'Δεν υπάρχουν μηνύματα ακόμη.';
+  static const chatEmptyHint =
+      'Γράψε ένα μήνυμα για να ξεκινήσεις τη συζήτηση.';
 
   static const newConnection = 'Νέα σύνδεση';
   static const connect = 'Σύνδεση';
@@ -35,4 +38,16 @@ class ExStrings {
       ? 'Δεν υπάρχουν εκκρεμείς αποφάσεις συνεδριών.'
       : 'Συνεδρίες που περιμένουν απόφαση ή αντιστοίχιση.';
   static String allRecentCount(int n) => 'Όλοι οι πρόσφατοι ($n)';
+
+  static const copyId = 'Αντιγραφή ID';
+  static const copyPassword = 'Αντιγραφή κωδικού';
+  static const showPassword = 'Εμφάνιση κωδικού';
+  static const hidePassword = 'Απόκρυψη κωδικού';
+  static const newPassword = 'Νέος κωδικός μίας χρήσης';
+  static const permOn = 'Ενεργό';
+  static const permOff = 'Ανενεργό';
+  static const incomingConnections = 'Εισερχόμενες συνδέσεις';
+  static const noIncoming = 'Δεν υπάρχουν εισερχόμενες συνδέσεις.';
+  static const noIncomingHint =
+      'Όταν κάποιος συνδεθεί στη συσκευή σου, θα εμφανιστεί εδώ.';
 }
