@@ -779,7 +779,8 @@ class Build:
                  'test/server_settings_dialog_test.dart', 'test/exantas_identity_settings_test.dart',
                  'test/exantas_native_auth_test.dart', 'test/exantas_installation_test.dart', 'test/exantas_account_settings_test.dart',
                  'test/exantas_device_enrollment_test.dart',
-                 'test/exantas_office_response_test.dart', 'test/exantas_lifecycle_queue_test.dart', 'test/exantas_launch_ticket_test.dart'],
+                 'test/exantas_office_response_test.dart', 'test/exantas_lifecycle_queue_test.dart', 'test/exantas_launch_ticket_test.dart',
+                 'test/exantas_customer_ticket_test.dart', 'test/exantas_customer_support_page_test.dart'],
                  cwd=self.source / 'flutter')
         self.run('cargo-metadata', [self.tools['cargo'], 'metadata', '--frozen', '--features', 'flutter,hwcodec,vram',
                                               '--format-version', '1', '--filter-platform', 'x86_64-pc-windows-msvc'])
