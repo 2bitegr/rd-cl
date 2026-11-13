@@ -124,3 +124,36 @@ finalization/debit/report after double click and fake notification delivery only
 Private storage, the three published Office migrations and separate manual API/Web
 rollout are required before activation/native customer acceptance. All new flags
 remain OFF. No S1 delivery build or product installation is authorized here.
+
+
+## Windows widget teardown correction2026-11-13
+
+The S2 attempt at0cd3c64810ee85959d0206442211cea6e635f600 is **not** a
+completed3.1.0 delivery:120test bodies passed, but the widget-suite tearDownAll
+failed with Windows sharing violation32 while deleting its media fixture.
+Application compilation/packaging did not run. Preserve its snapshot, output and
+logs, the compressed warm Cargo target and genuine codec receipt, and the last
+completed3.0.0 delivery at602d462d3309cd5d045f48e01df2dbd924d79af4.
+
+S1 reproduced the same deletion failure using native Flutter3.24.5 on NTFS.
+The fixture previously assumed80ms plus fake-clock frame pumping was enough for
+real file I/O; it also checked only that an Image widget existed, not that the
+file preview had decoded. The test now yields the real event loop between frames,
+waits for the visible operation to finish with a10second failure deadline, and
+asserts a decoded RawImage in both screenshot/pending-upload paths. A finally
+block unmounts the preview and evicts its actual provider before fixture deletion.
+The existing recursive tearDownAll remains mandatory, with no catch/retry/skip.
+Original-file preservation and no-upload assertions remain in place.
+
+Impact is limited to the widget fixture and its pinned profile hash. No runtime
+UI, Office/API/portal contracts, dependency/codec/tool/SDK pins, identity, media
+retention or product-version changes. Version remains3.1.0 because no3.1.0 EXE has
+been produced or hosted. Native S1 widget verification is11/11PASS including
+teardown; delivery application/EXE/installation/hosting acceptance remains separate.
+
+The latest forwarded S2 free space is4778434560bytes, below the5368709120byte
+cold guard by590274560bytes. Measure fresh space before the corrected attempt;
+never weaken the guard or repeat the completed compression/UAC/reboot stages.
+A corrected published SHA requires a new owned snapshot/output while preserving
+the failed attempt. Reuse compatible existing codecs and application caches;
+a test-only correction does not justify another codec bootstrap.

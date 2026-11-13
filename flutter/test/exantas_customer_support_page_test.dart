@@ -101,11 +101,55 @@ Future<void> newForm(WidgetTester tester) async {
 Future<void> press(WidgetTester tester, String text) async {
   final button = find.text(text);
   await tester.ensureVisible(button);
-  await tester.runAsync(() async {
-    await tester.tap(button);
-    await Future<void>.delayed(const Duration(milliseconds: 80));
-  });
+  await tester.tap(button);
+  await settleNativeWork(tester,
+      ready: () => find.byType(LinearProgressIndicator).evaluate().isEmpty);
   await tester.pumpAndSettle();
+}
+
+// Frame pumping alone can starve real file I/O in a widget test's fake clock.
+// Yield to the OS between frames and fail if the operation never completes.
+Future<void> settleNativeWork(WidgetTester tester,
+    {required bool Function() ready}) async {
+  await tester.runAsync(() async {
+    final elapsed = Stopwatch()..start();
+    do {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await tester.pump(const Duration(milliseconds: 16));
+      if (elapsed.elapsed > const Duration(seconds: 10)) {
+        fail('Native preview/file operation did not finish within 10 seconds.');
+      }
+    } while (!ready());
+  });
+}
+
+// pumpAndSettle only drains Flutter frames, not FileImage's native file I/O.
+// Wait for a decoded frame while the real event loop is running, then unmount
+// and evict this preview before the suite deletes its Windows media fixture.
+Future<void> withDecodedPreview(
+    WidgetTester tester, Future<void> Function() body) async {
+  final finder = find.byType(Image);
+  expect(finder, findsOneWidget);
+  final provider = tester.widget<Image>(finder).image;
+  try {
+    await settleNativeWork(tester, ready: () {
+      final raw = find.descendant(of: finder, matching: find.byType(RawImage));
+      return raw.evaluate().length == 1 &&
+          tester.widget<RawImage>(raw).image != null;
+    });
+    expect(
+        tester
+            .widget<RawImage>(
+                find.descendant(of: finder, matching: find.byType(RawImage)))
+            .image,
+        isNotNull,
+        reason: 'The real file preview must finish decoding before removal.');
+    await body();
+  } finally {
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await tester.runAsync(() => provider.evict());
+  }
 }
 
 void main() {
@@ -201,13 +245,15 @@ void main() {
     await newForm(tester);
     await press(tester, 'Νέο screenshot');
     await press(tester, 'Λήψη screenshot');
-    expect(captures, 1);
-    expect(find.byType(Image), findsOneWidget);
-    expect(transport.uploads, 0);
-    expect(transport.creates, isEmpty);
-    await press(tester, 'Αφαίρεση από το πρόχειρο');
-    expect(await tester.runAsync(file.exists), true);
-    expect(store.value!['draft']['files'], isEmpty);
+    await withDecodedPreview(tester, () async {
+      expect(captures, 1);
+      expect(transport.uploads, 0);
+      expect(transport.creates, isEmpty);
+      await press(tester, 'Αφαίρεση από το πρόχειρο');
+      expect(find.byType(Image), findsNothing);
+      expect(await tester.runAsync(file.exists), true);
+      expect(store.value!['draft']['files'], isEmpty);
+    });
   });
   testWidgets(
       'video selection offers explicit local-player preview without upload',
@@ -296,12 +342,14 @@ void main() {
       await c.dispose();
     });
     await mount(tester, store, transport);
-    await press(tester, 'Διακοπή εκκρεμών μεταφορτώσεων');
-    await press(tester, 'Διακοπή μεταφορτώσεων');
-    expect(store.value!['draft'], isNull);
-    expect(transport.creates.length, 1);
-    expect(await tester.runAsync(screenshot.exists), true);
-    expect(find.text('Synthetic customer problem'), findsWidgets);
+    await withDecodedPreview(tester, () async {
+      await press(tester, 'Διακοπή εκκρεμών μεταφορτώσεων');
+      await press(tester, 'Διακοπή μεταφορτώσεων');
+      expect(store.value!['draft'], isNull);
+      expect(transport.creates.length, 1);
+      expect(await tester.runAsync(screenshot.exists), true);
+      expect(find.text('Synthetic customer problem'), findsWidgets);
+    });
   });
   testWidgets('narrow window keeps create controls usable without overflow',
       (tester) async {
