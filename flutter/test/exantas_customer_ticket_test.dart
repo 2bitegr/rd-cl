@@ -61,7 +61,7 @@ class FakeTransport extends ExantasTicketTransport {
         'limits': {
           'files': 5,
           'imageBytes': 10000000,
-          'videoBytes': 100000000,
+          'videoBytes': 50000000,
           'totalBytes': 200000000
         }
       };
@@ -264,6 +264,30 @@ void main() {
     expect(
         () => checkTicketFileQuota(
             List.generate(3, (_) => {...info, 'byte_size': 100000000})),
+        throwsA(isA<ExantasTicketFailure>()));
+  });
+  test(
+      '50 MB video boundary is accepted and overflow rejected before transport',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('office-ticket-video-');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/boundary.mp4');
+    final handle = await file.open(mode: FileMode.write);
+    await handle.truncate(50000000);
+    await handle.close();
+    final info = await inspectTicketFile(file.path);
+    expect(info['byte_size'], 50000000);
+    expect(info['sha256'], hasLength(64));
+    final growing = await file.open(mode: FileMode.append);
+    await growing.writeByte(0);
+    await growing.close();
+    await expectLater(
+        inspectTicketFile(file.path),
+        throwsA(predicate((e) =>
+            e is ExantasTicketFailure && e.code == 'invalid_ticket_upload')));
+    expect(await file.length(), 50000001);
+    checkTicketFileQuota(List.generate(4, (_) => info));
+    expect(() => checkTicketFileQuota(List.generate(5, (_) => info)),
         throwsA(isA<ExantasTicketFailure>()));
   });
   test(

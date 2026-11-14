@@ -543,7 +543,7 @@ class _CustomerSupportState extends State<ExantasCustomerSupportPage> {
         const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text(
-                'PNG/JPEG έως 10 MB · MP4/WebM έως 100 MB. Έως 5 αρχεία και 200 MB συνολικά. Δεν γίνεται αυτόματη καταγραφή.')),
+                'PNG/JPEG έως 10 MB · MP4/WebM έως 50 MB. Έως 5 αρχεία και 200 MB συνολικά. Δεν γίνεται αυτόματη καταγραφή.')),
         ..._files.asMap().entries.map((entry) => _localFile(entry.value,
             remove: _frozen
                 ? null

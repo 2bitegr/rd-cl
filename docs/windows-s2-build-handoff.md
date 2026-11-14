@@ -1,6 +1,43 @@
 # One complete rd-cl build prompt for S2
 
-## Caller Popup native readiness fix —candidate2.0.3+75 (2026-10-28)
+
+2026-11-14 source preparation: clean3.1.1 reduces ticket video selection/help to
+50,000,000bytes, matching local Office1.12.53 and a forward DB constraint. The
+global Storage limit stays52,428,800bytes. Do not execute a replacement build
+from the previous SHAs. Use the coordinator's verified full published Office/rd-cl
+SHAs and one complete S2 prompt for this correction. Preserve
+the completed3.1.0 baseline below; use a new owned snapshot/output and compatible
+verified caches/codec receipt. Application-only limit/version changes do not
+require codec bootstrap. Hosting, migrations/storage, activation and real native
+installation/acceptance remain separate stages.
+
+## Current completed delivery —3.1.0, build/EXE/maintenance/hosting PASS (2026-11-13)
+
+Current completed S2 application/EXE and hosting baseline (user-forwarded
+receipt2026-11-13; native Windows package/report not independently inspected by S1):
+`1d76e7d176637bf74962a7061d77395def3082bc`, rd-cl `3.1.0`, Windows x64, NotSigned.
+Office handoff source: `d7330fc05cd197573cc522e4f50a822b0e2886d0` (1.12.52).
+Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\3.1.0\delivery-s2-1d76e7d1`.
+EXE: `rd-cl-3.1.0-windows-x64-install.exe`, 24499200 bytes.
+SHA256: `7be3409f23788d5422b02add17fbe966e738c1b451955a52591b9f9b1336d541`.
+Public installer: `https://office.exantas.eu/downloads/rd-cl/rd-cl-3.1.0-7be3409f2378-windows-x64-install.exe`.
+Build/EXE, maintenance and hosting PASS are user-reported; no repeated build for
+hosting. S1 independently streamed the public HTTPS bytes with normal TLS
+verification: exact size/SHA256 and MZ header PASS, without saving/executing EXE.
+Native installation/customer acceptance remains NOT_RUN. S2 retains previous
+3.0.0 and reusable caches. Detailed S2 checks/timings/commands/hosting receipts:
+`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Reports\2026-11-13\rd-cl-1d76e7d1\BUILD-STATUS.md`.
+No new exact test counts, free-space/compression results or server retirement
+receipts were supplied in this summary; do not invent those details. This
+supersedes the blocked 0cd3c648 teardown and 1d76e7d1 space-only attempts as the
+current delivery state. Preserve their historical evidence. Do not rebuild this
+unchanged completed source; installation, migrations/storage/flags, manual
+deployment and real customer acceptance remain separate, unproven by this receipt.
+
+The dated preparation and older baseline sections below are historical. They do
+not request a new build of the already completed current source.
+
+## Historical Caller Popup native readiness fix —candidate2.0.3+75 (2026-10-28)
 
 User reports:Office was already signed in and showing native readiness. The SAME
 peer connects from the main rd-cl screen,but Caller Popup launch receives server
@@ -31,9 +68,9 @@ acceptance remains NOT_RUN until real evidence. Manual main-window connection is
 the current working workaround;no customer re-enrollment or logout is required.
 
 
-## Current completed build —2.0.2+74;hosting pending (2026-10-28)
+## Historical completed build —2.0.2+74 (2026-10-28)
 
-Current completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
+Historical completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
 not independently inspected on Windows here):
 `680628f2b9e798ef63e6d29c73954807d9012e12`,rd-cl `2.0.2+74`,Windows x64,UNSIGNED.
 Directory:`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.2+74\delivery-s2-680628f2`.

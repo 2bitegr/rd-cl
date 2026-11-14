@@ -75,7 +75,7 @@ String ticketFailureMessage(Object error) {
       'ticket_file_limit':
           'Επιτρέπονται έως 5 αρχεία και 200 MB συνολικά ανά αίτημα.',
       'invalid_ticket_upload':
-          'Επιλέξτε PNG/JPEG έως 10 MB ή MP4/WebM έως 100 MB.',
+          'Επιλέξτε PNG/JPEG έως 10 MB ή MP4/WebM έως 50 MB.',
       'ticket_upload_expired':
           'Έληξε το παράθυρο μεταφοράς. Το αίτημα και το αρχικό αρχείο διατηρούνται.',
       'ticket_file_expired':
@@ -155,7 +155,7 @@ Future<Map<String, dynamic>> inspectTicketFile(String path) async {
       RegExp(r'[/\\\x00-\x1f\x7f"]').hasMatch(name) ||
       name.contains('..') ||
       info.size <= 0 ||
-      info.size > (type.startsWith('video/') ? 100000000 : 10000000)) {
+      info.size > (type.startsWith('video/') ? 50000000 : 10000000)) {
     throw const ExantasTicketFailure('invalid_ticket_upload');
   }
   final digest = (await sha256.bind(file.openRead()).first).toString();

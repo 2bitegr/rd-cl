@@ -1,4 +1,56 @@
-# Customer support tickets — rd-cl3.1.0 release candidate
+# Customer support tickets — rd-cl3.1.1
+
+
+## 50 MB correction —3.1.1 source preparation2026-11-14
+
+User approved reducing videos to50,000,000bytes while leaving the shared Storage
+global limit at52,428,800bytes, with a new installer. Source/PE/Flutter/profile
+metadata targets clean3.1.1. Selection rejects50,000,001bytes before hashing or
+transport; help/error copy agrees. Images remain10MB; five files/200MB total and
+retention/original-file behavior are unchanged. No dependency/tool/codec change.
+
+Office1.12.53 prepares the matching API/bucket contract and new forward migration
+20261114000100 after unchanged20261112 SQL. Portal help reads capability limits.
+Old3.1.0 can still select/display100MB before server rejection; use the new
+installer for consistent50MB guidance, preserving customer identity/enrollment.
+
+Source is prepared for coordinated publication. No3.1.1 EXE or hosting receipt exists.
+The completed3.1.0 below remains the last delivered version. After publication,
+use one S2 build/package/maintenance/hosting prompt with exact new SHAs, an unused
+owned snapshot/output and verified reuse of compatible caches/codecs. Preserve
+3.1.0, prior failure evidence and unrelated hbb_common. New source is not permission
+to repeat cleanup/compression/UAC changes, bootstrap codecs or install the product.
+
+Migration/storage remain blocked independently by the forwarded backup-fingerprint
+evidence gap. Never solve it by guessing the writer or changing the global limit.
+
+## Delivery completion2026-11-13
+
+Current completed S2 application/EXE and hosting baseline (user-forwarded
+receipt2026-11-13; native Windows package/report not independently inspected by S1):
+`1d76e7d176637bf74962a7061d77395def3082bc`, rd-cl `3.1.0`, Windows x64, NotSigned.
+Office handoff source: `d7330fc05cd197573cc522e4f50a822b0e2886d0` (1.12.52).
+Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\3.1.0\delivery-s2-1d76e7d1`.
+EXE: `rd-cl-3.1.0-windows-x64-install.exe`, 24499200 bytes.
+SHA256: `7be3409f23788d5422b02add17fbe966e738c1b451955a52591b9f9b1336d541`.
+Public installer: `https://office.exantas.eu/downloads/rd-cl/rd-cl-3.1.0-7be3409f2378-windows-x64-install.exe`.
+Build/EXE, maintenance and hosting PASS are user-reported; no repeated build for
+hosting. S1 independently streamed the public HTTPS bytes with normal TLS
+verification: exact size/SHA256 and MZ header PASS, without saving/executing EXE.
+Native installation/customer acceptance remains NOT_RUN. S2 retains previous
+3.0.0 and reusable caches. Detailed S2 checks/timings/commands/hosting receipts:
+`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Reports\2026-11-13\rd-cl-1d76e7d1\BUILD-STATUS.md`.
+No new exact test counts, free-space/compression results or server retirement
+receipts were supplied in this summary; do not invent those details. This
+supersedes the blocked 0cd3c648 teardown and 1d76e7d1 space-only attempts as the
+current delivery state. Preserve their historical evidence. Do not rebuild this
+unchanged completed source; installation, migrations/storage/flags, manual
+deployment and real customer acceptance remain separate, unproven by this receipt.
+
+Earlier preparation/blocked notes below retain their dated historical meaning;
+the completed delivery above supersedes their build/package/hosting status only.
+
+## Historical source preparation2026-11-12
 
 2026-11-12. Local source on S1, based on main
 602d462d3309cd5d045f48e01df2dbd924d79af4 (3.0.0). Release metadata now targets3.1.0 with Office1.12.52;
@@ -29,7 +81,7 @@ Local originals remain where the customer chose them. The program neither delete
 nor modifies selected originals; capture creates a new PNG exclusively and cannot
 overwrite an existing file. Office stores a separate private copy so authorized
 technicians/portal readers do not depend on the customer computer being online.
-Limits: image10,000,000 bytes, video100,000,000 bytes, five active files and
+Limits: image10,000,000 bytes, video50,000,000 bytes, five active files and
 200,000,000 bytes total per ticket. No silent conversion/compression.
 
 ## State and transport

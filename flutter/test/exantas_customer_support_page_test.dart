@@ -171,6 +171,8 @@ void main() {
     expect(find.text('Email Office'), findsNothing);
     expect(find.text('Κωδικός Office'), findsNothing);
     await newForm(tester);
+    expect(find.textContaining('MP4/WebM έως 50 MB'), findsOneWidget);
+    expect(find.textContaining('MP4/WebM έως 100 MB'), findsNothing);
     await press(tester, 'Υποβολή αιτήματος');
     expect(transport.creates.length, 1);
     expect(transport.creates.single.containsKey('customer_id'), false);
