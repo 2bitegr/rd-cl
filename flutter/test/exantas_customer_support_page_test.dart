@@ -26,6 +26,11 @@ class UiTransport extends fixture.FakeTransport {
   Future<Map<String, dynamic>> request(
       ExantasTicketIdentity identity, String method, String path,
       {Map<String, dynamic>? body, Map<String, String>? query}) async {
+    if (path == '/capabilities') {
+      final response = await super.request(identity, method, path, body: body, query: query);
+      response['context']['device_label'] = 'Synthetic POS';
+      return response;
+    }
     if (method == 'GET' && path == '') {
       return {
         'status': 'ok',
@@ -168,6 +173,8 @@ void main() {
       (tester) async {
     final store = fixture.MemoryStore(), transport = UiTransport();
     await mount(tester, store, transport);
+    expect(find.text('Synthetic company'), findsOneWidget);
+    expect(find.text('Synthetic POS'), findsOneWidget);
     expect(find.text('Email Office'), findsNothing);
     expect(find.text('Κωδικός Office'), findsNothing);
     await newForm(tester);

@@ -11,6 +11,7 @@ import 'package:flutter_hbb/models/exantas_native_source.dart';
 import 'package:flutter_hbb/models/exantas_office_response.dart';
 import 'package:flutter_hbb/models/exantas_identity.dart';
 import 'package:flutter_hbb/models/exantas_device_enrollment.dart';
+import 'package:flutter_hbb/models/exantas_device_display.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/exantas_workflow_http_policy.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
@@ -547,6 +548,21 @@ class ExantasCompanionService implements ExantasIdentityActions {
     }
     await bind.mainSetLocalOption(key: kExantasNativeConfirm, value: '');
   }
+
+  Future<ExantasDeviceDisplay?> loadDeviceDisplay() => readExantasDeviceDisplay(
+    readScope: () async {
+      final status = await loadStatus();
+      return ExantasDeviceDisplayScope(apiBase: status.apiBase,
+        deviceId: bind.mainGetLocalOption(key: kExantasDeviceId),
+        deviceToken: status.deviceToken, peerId: (await bind.mainGetMyId()).trim(),
+        enabled: status.enrolled && !status.technicianLoggedIn && !status.enrollmentPending);
+    },
+    readPolicy: (scope) async {
+      final response = await http.get(Uri.parse('${scope.apiBase}/rustdesk-devices/policy'),
+        headers: _headers(scope.deviceToken));
+      return _decodeResponse(response.statusCode, response.body);
+    },
+  );
 
   Future<void> heartbeat() async {
     final status = await loadStatus();

@@ -1,5 +1,20 @@
 # One complete rd-cl build prompt for S2
 
+## Current requested target —3.1.2 publication2026-11-16
+
+Company/computer presentation and its tests are coordinated with Office1.12.59
+customer directory/group search. Source/runtime test bindings are retained;
+normal core/packer/Flutter/profile versions and exact input hashes are updated.
+No codec/dependency/SDK/ABI/icon change. Use the coordinator's newly published
+full Office/rd-cl SHAs, a separate owned3.1.2 snapshot/output, and compatible
+verified receipts/warm Cargo/Flutter caches. Preserve the outstanding3.1.1
+receipts/active resources; do not assume completion from an installed screenshot.
+Read actual S2 state before proceeding and do not run parallel release sessions.
+The known completed3.1.0 baseline below remains historical evidence. New build,
+maintenance and latest-only hosting must pass before delivery; installation and
+deploy are not authorized. The later dated3.1.1 source-preparation section is
+historical and is not an instruction to build that superseded source.
+
 
 2026-11-14 source preparation: clean3.1.1 reduces ticket video selection/help to
 50,000,000bytes, matching local Office1.12.53 and a forward DB constraint. The

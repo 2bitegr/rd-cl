@@ -1,4 +1,27 @@
-# Customer support tickets — rd-cl3.1.1
+# Customer support tickets — rd-cl3.1.2
+
+## Company and computer display —3.1.2 publication2026-11-16
+
+The customer home card reads current company and assigned computer label/peer
+from the existing authenticated device-policy GET, rather than the cached
+installation preview name. Long company/computer labels wrap in the sidebar.
+Ticket dialog shows company/computer from its existing authorized context.
+API/device/peer/credential/mode and refresh-generation checks discard obsolete
+metadata. Missing labels stay explicit; no staff/contact fallback, ownership
+transfer, credential rotation, enrollment replay or ticket-permission bypass.
+20 focused Dart cases PASS, no analyzer errors/warnings; 4 unchanged home-page
+INFO retained. Profile/input and core/packer/Flutter version metadata agree.
+No dependency/codec/SDK/icon change; reuse compatible verified S2 inputs.
+
+The screenshot's actual ticket 401/403 cause and specific live assignment remain
+unverified; presentation is not a repair or authorization of that live identity.
+New 3.1.2 build/EXE/hosting/installation acceptance is NOT_RUN on S1. The previous
+3.1.1 handoff at 466650cb remains historical/unknown until S2 receipts are read;
+it is superseded as the requested target, with active work and evidence retained.
+The known completed 3.1.0 baseline below is not rebuilt. Existing migration/
+storage and manual rollout work is separate and must not be replayed by S2.
+
+The dated 3.1.1 preparation notes below retain their historical meaning.
 
 
 ## 50 MB correction —3.1.1 source preparation2026-11-14

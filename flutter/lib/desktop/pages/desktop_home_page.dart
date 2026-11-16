@@ -17,6 +17,8 @@ import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/desktop/widgets/update_progress.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/exantas_companion_model.dart';
+import 'package:flutter_hbb/models/exantas_device_display.dart';
+import 'package:flutter_hbb/desktop/widgets/exantas_customer_computer.dart';
 import 'package:flutter_hbb/models/exantas_customer_ticket.dart';
 import 'package:flutter_hbb/models/exantas_customer_ticket_runtime.dart';
 import 'package:flutter_hbb/desktop/pages/exantas_customer_support_page.dart';
@@ -63,6 +65,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   bool _customerSupportOpen = false;
   late final Future<String> _appVersion = bind.mainGetVersion();
   ExantasCompanionStatus? _exantasStatus;
+  ExantasDeviceDisplay? _exantasDeviceDisplay;
+  int _exantasDisplayGeneration = 0;
   Timer? _exantasHeartbeatTimer;
   Timer? _exantasPendingSessionsTimer;
   bool _checkingPendingSessions = false;
@@ -464,13 +468,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             style: TextStyle(
                 fontSize: 12, color: textColor?.withOpacity(0.7)),
           ),
-          if (enrolled && (status?.customerName ?? '').isNotEmpty)
-            Text(
-              status!.customerName,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 12, color: textColor?.withOpacity(0.6)),
-            ),
+          if (enrolled && !technicianLoggedIn)
+            ExantasCustomerComputer(display: _exantasDeviceDisplay, compact: true),
           if (technicianLoggedIn)
             Text(
               status?.supportRole == 'technician'
@@ -566,21 +565,31 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Future<void> _refreshExantasStatus() async {
+    final generation = ++_exantasDisplayGeneration;
     try {
       final next = await _exantasCompanion.loadStatus();
-      if (!mounted) {
+      if (!mounted || generation != _exantasDisplayGeneration) {
         return;
       }
       final pairingChanged =
           _exantasStatus?.companionToken != next.companionToken;
       setState(() {
         _exantasStatus = next;
+        _exantasDeviceDisplay = null;
       });
       if (pairingChanged) {
         _resetPendingSessionTracking();
         if (next.technicianLoggedIn) {
           unawaited(_pollExantasPendingSessions());
         }
+      }
+      try {
+        final display = await _exantasCompanion.loadDeviceDisplay();
+        if (mounted && generation == _exantasDisplayGeneration) {
+          setState(() => _exantasDeviceDisplay = display);
+        }
+      } catch (_) {
+        // Display lookup cannot change credentials or authorize support.
       }
     } catch (e) {
       debugPrint('Exantas status refresh failed: $e');

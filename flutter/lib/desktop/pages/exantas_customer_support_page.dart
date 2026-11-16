@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter_hbb/models/exantas_device_display.dart';
+import 'package:flutter_hbb/desktop/widgets/exantas_customer_computer.dart';
+
 import 'package:flutter/material.dart';
 import '../../models/exantas_customer_ticket.dart';
 
@@ -814,9 +817,12 @@ class _CustomerSupportState extends State<ExantasCustomerSupportPage> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (company.isNotEmpty && !_identityBlocked)
-                        Text(site.isEmpty ? company : '$company · $site',
-                            style: Theme.of(context).textTheme.titleMedium),
+                      if (company.isNotEmpty && !_identityBlocked) ...[
+                        ExantasCustomerComputer(display: ExantasDeviceDisplay(
+                            companyName: company, computerName: _text(contextInfo, 'device_label'))),
+                        if (site.isNotEmpty) Text(site),
+                        const SizedBox(height: 8),
+                      ],
                       const Text(
                           'Περιγράψτε το πρόβλημα χωρίς τηλεφώνημα. Η υποβολή δεν ξεκινά απομακρυσμένη σύνδεση ή χρέωση.'),
                       const SizedBox(height: 12),
