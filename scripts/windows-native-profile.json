@@ -81,13 +81,15 @@
     "src/lib.rs": "19104398428611f5a88ffbdca37c231a24c13ce17cdeb5a7254728cd7f8450b6",
     "src/office_identity.rs": "75b3c1e64e78635b79aeda58208a586916a66a32e58a5ef37ab9ba61fd6d5193",
     "src/server/connection.rs": "7ef8fe6a54523310aaa1ca1de2e0a589060f8dfc49b3f76050d130aa57381510",
-    "src/office_update.rs": "3e4d27fa837f4a780505d0b4393a1ac06f51a90f8f62f73b4235f770a423ea1e",
+    "src/office_update.rs": "06b112f175ecfc73b7f7b315ccdf6cfe745aefe7f49da2083f8605f54f1fc3ba",
     "src/office_update_policy.rs": "83c7d4375699b62623ea3c166bd38ede7fa0c88c37a08fbdb9726ef4548c9168",
     "res/office-update.ps1": "7b058b0eed75e4e243a4cbe4246d5bb985386b0aa513c2ec4bd71c3e64c35770",
     "flutter/lib/models/exantas_update_registration.dart": "5eb02e9e10c7535f69f37559cf793144a3080c571f81021586d7abbbc7ccb92d",
     "flutter/test/exantas_update_registration_test.dart": "024f11ed0ee7be8e2ffd8e8f07a70885bf9ce0f780b32ebf1406d54f5748a31a",
     "scripts/tests/test-office-update.ps1": "2b2f181b80b2f87a28871bf52e0fc89e8efc6381b2bbb5ccefd2df652d04af31",
-    "scripts/tests/test_windows_office_updates.py": "2ddb54ff40415e22f6c13734c4adfc99d2158a62023071866e47177486529749"
+    "scripts/tests/test_windows_office_updates.py": "2ddb54ff40415e22f6c13734c4adfc99d2158a62023071866e47177486529749",
+    "scripts/tests/test_windows_office_update_contracts.py": "6629059b931a2546248f17e77eb37c2dd0c7e959ace0cd9e931bdb4c4ab297b0",
+    "scripts/tests/fixtures/office_update_envelope_probe.rs": "ee70c76675639be4245c472945c357ba50f47e68432b3f88d21be675780ee09b"
   },
   "vcpkg_override_trees": {
     "amd-amf": "47db5211b49a66cf05a86858cddd41d2c4b5d8a9",

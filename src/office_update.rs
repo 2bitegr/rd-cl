@@ -275,18 +275,20 @@ fn verify_envelope(path: &Path) -> ResultType<Value> {
     let key = machine["trusted_keys"][key_id]
         .as_str()
         .ok_or_else(|| hbb_common::anyhow::anyhow!("unknown_signer"))?;
-    let key = base64::decode(key, base64::Variant::Original)?;
+    let key = base64::decode(key, base64::Variant::Original)
+        .map_err(|_| hbb_common::anyhow::anyhow!("invalid_signer_encoding"))?;
     let key = hbb_common::sodiumoxide::crypto::sign::PublicKey::from_slice(&key)
         .ok_or_else(|| hbb_common::anyhow::anyhow!("invalid_signer"))?;
     let raw = base64::decode(
         envelope["payload"].as_str().unwrap_or(""),
         base64::Variant::Original,
-    )?;
+    ).map_err(|_| hbb_common::anyhow::anyhow!("invalid_payload_encoding"))?;
     let signature = base64::decode(
         envelope["signature"].as_str().unwrap_or(""),
         base64::Variant::Original,
-    )?;
-    let signature = hbb_common::sodiumoxide::crypto::sign::Signature::from_bytes(&signature)?;
+    ).map_err(|_| hbb_common::anyhow::anyhow!("invalid_signature_encoding"))?;
+    let signature = hbb_common::sodiumoxide::crypto::sign::Signature::from_bytes(&signature)
+        .map_err(|_| hbb_common::anyhow::anyhow!("invalid_signature_size"))?;
     if !hbb_common::sodiumoxide::crypto::sign::verify_detached(&signature, &raw, &key) {
         bail!("invalid_signature");
     }
@@ -363,10 +365,10 @@ fn create_barrier() -> ResultType<usize> {
         verify_root()?;
     }
     use winapi::{
-        shared::minwindef::LPVOID,
+        shared::{minwindef::LPVOID, sddl::ConvertStringSecurityDescriptorToSecurityDescriptorW},
         um::{
             minwinbase::SECURITY_ATTRIBUTES,
-            sddl::ConvertStringSecurityDescriptorToSecurityDescriptorW, synchapi::CreateEventW,
+            synchapi::CreateEventW,
             winbase::LocalFree,
         },
     };

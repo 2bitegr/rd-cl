@@ -92,3 +92,13 @@ Do not attach silent-update metadata without actual matching clean-install and
 upgrade acceptance. S1's encrypted private signing key and recovery secret stay
 on S1; S2 receives only public keys or already signed metadata. Runtime/DB policy
 stays OFF/paused until separate explicit activation.
+
+## Native compiler regression correction —2026-11-17
+
+The initial3.1.3/da4256e5 native build failed, not delivered. Local correction
+uses winapi shared::sddl and redacted explicit conversions for sodiumoxide's
+unit/signature parse errors. Actual production verifier/barrier bodies reproduce
+all5old compiler errors with real Rust1.75 cached libraries. Corrected bodies
+compile and7real signed/malformed envelope cases pass; the barrier never executes
+in this probe. No dependency, protocol or security-policy relaxation. Full product
+compile/package/acceptance remains on S2 after new source publication.

@@ -1,5 +1,25 @@
 # One complete rd-cl build prompt for S2
 
+## Latest S2 attempt BLOCKED —3.1.3/da4256e5,2026-11-17
+
+Cargo exit101: incorrect WinAPI sddl import and4unsupported crypto error
+conversions. No EXE/ZIP/package, maintenance or hosting. Guards90PASS, updater38,
+Dart137PASS and analyzer0/0/0 are retained, not application acceptance. Preserve
+this failed snapshot/output/receipts and existing C:\Build\rd-cl\a23ec301\target.
+Last completed build/hosting remains3.1.2/babdbfc0; not a new3.1.3 delivery.
+
+S1 local fixes and real native regression probe are prepared. Wait for NEW full
+published Office/rd-cl SHAs; never replay da4256e5 as a corrected target. Use a
+new owned snapshot/output for the corrected SHA, compatible verified codec/cache
+reuse and one normal Build-to-EXE invocation. No new codec/dependency/SDK change.
+The optional native contract probe accepts RDCL_TEST_RUSTC and
+RDCL_TEST_NATIVE_DEPS pointing at real pinned Rust1.75/compiled release deps;
+it compiles actual production function bodies and executes disposable envelope
+cases only, never the product barrier. Full native application compile is still
+mandatory. Original S2 migration was0attempts/BLOCKED by sequence default UPDATE;
+its separate corrected published SQL/hash handoff must enforce fresh ledger checks.
+
+
 ## Current source candidate —3.1.3 / Office1.12.60,2026-11-17
 
 The reviewed sequential silent-update implementation is ready for coordinated S1
