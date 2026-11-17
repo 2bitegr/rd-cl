@@ -87,6 +87,11 @@ async fn response_json(response: reqwest::Response) -> Result<Value, &'static st
 
 static RESET_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
+// The updater must observe a reset reserved before its admission barrier.
+pub(crate) fn reset_in_progress() -> bool {
+    RESET_IN_PROGRESS.load(Ordering::Acquire)
+}
+
 // Reserve the operation without holding a mutex across network awaits. Dropping
 // the request (including cancellation) releases this reservation.
 struct ResetReservation<'a>(&'a AtomicBool);
@@ -110,6 +115,9 @@ fn ready(r: &Request) -> Result<(), &'static str> {
     }
     if Config::get_id() != r.expected_id {
         return Err("id_changed");
+    }
+    if crate::office_update::blocked() {
+        return Err("update_in_progress");
     }
     if !crate::updater::has_no_active_conns() {
         return Err("active_sessions");

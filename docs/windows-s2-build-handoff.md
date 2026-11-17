@@ -1,6 +1,59 @@
 # One complete rd-cl build prompt for S2
 
-## Current requested target —3.1.2 publication2026-11-16
+## Current source candidate —3.1.3 / Office1.12.60,2026-11-17
+
+The reviewed sequential silent-update implementation is ready for coordinated S1
+publication; the final user-forwarded prompt supplies both full published SHAs.
+This heading is not a completed build receipt. No new EXE exists yet. Preserve the
+completed3.1.2/babdbfc0 delivery below and its source/cache/rollback provenance.
+
+Build the changed3.1.3 source through one normal `Build -WithExe` invocation,
+including the new update-registration Dart case and Windows synthetic updater
+fixtures. Compatible verified codecs and warm application targets should be
+reused; application-only changes do not justify codec bootstrap. Full native
+compilation/package checks remain mandatory. Publish the common interactive EXE
+through the same reviewed Office publisher and volume/retention guard, with native
+acceptance honestly NOT_RUN. No signed silent-release envelope is supplied by
+this build job; never fabricate clean-install/upgrade PASS, request a private key
+or unlock a production key on S2. Native installation and pilot acceptance, live
+SQL/configuration, feature activation and Dokploy deployment stay separate.
+
+
+## Current completed delivery —3.1.2,2026-11-16
+
+Current completed S2 application/EXE and hosting baseline (user-forwarded
+receipt2026-11-16; native Windows logs/package not independently inspected by S1):
+`babdbfc0dad64f6725ba938222c7b70503ed2b31`, rd-cl `3.1.2`, Windows x64, NotSigned.
+Office handoff: `bc7f82801fd962200e86bc66aebcb77dd1bedd97` (1.12.59).
+Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\3.1.2\delivery-s2-babdbfc0`.
+EXE: `rd-cl-3.1.2-windows-x64-install.exe`, 24497152 bytes.
+SHA256: `7251af67957c5c064ce9c095ddd079aa6f74ec7a37972eeea6a38050645d02d5`.
+Runtime ZIP SHA256: `f32ca8b028bcf17ed58647c3b2d55107b289b2b2a9bebf99a4204e097de491c8`.
+Public URL: `https://office.exantas.eu/downloads/rd-cl/rd-cl-3.1.2-7251af67957c-windows-x64-install.exe`.
+S2 reports exact-source sync/snapshot, verified codec/toolchain/cache reuse without
+bootstrap, 89 executed guard PASS + 1 REUSED_VERIFIED + 1 Linux-only NOT_RUN,
+analyzer0errors/0warnings/4INFO,130 Dart PASS and one Build-to-EXE1060.234s PASS.
+EXE/ZIP/PE/icons/inventories, maintenance plan/apply/verify (zero removals) and
+hosting/HTTPS/retirement/staging cleanup PASS. Only the previous manifest-owned
+3.1.1 server EXE was retired; one current server EXE, rollback packages/caches
+retained on S2. These native/server details are user-reported, not S1 re-execution.
+S1 independently streamed both immutable Web and common API downloads: HTTP200,
+normal TLS, exact size/SHA256 and MZ header PASS; no binary saved or executed.
+Native installation/upgrade/customer acceptance remains NOT_RUN; no SQL, flags,
+activation or service deployment/restart in this delivery. The live customer
+mapping/ticket403 is not proven fixed by build/hosting. Detailed S2 commands,
+exits/timings/inputs are in BUILD-STATUS.md and stage-summary.json beside the EXE.
+Do not rebuild unchanged babdbfc0 source or reissue its completed S2 handoff.
+Previous3.1.0/earlier receipts stay historical. This receipt supplies no newer
+individual toolchain/codec hash or free-space measurement; discover actual state
+on S2 when required, without inventing it. Tracking-doc updates alone do not
+request another build. See docs/rdcl-3.1.2-delivery.md in Office.
+
+The requested3.1.2 section below is now historical: the user returned DELIVERY_PASS.
+Do not replay it or the old3.1.1 handoff. For unchanged runtime/build inputs,
+NO_RDCL_BUILD_NEEDED; installation/acceptance remains a separate manual step.
+
+## Historical requested target —3.1.2 publication2026-11-16
 
 Company/computer presentation and its tests are coordinated with Office1.12.59
 customer directory/group search. Source/runtime test bindings are retained;
@@ -26,7 +79,7 @@ verified caches/codec receipt. Application-only limit/version changes do not
 require codec bootstrap. Hosting, migrations/storage, activation and real native
 installation/acceptance remain separate stages.
 
-## Current completed delivery —3.1.0, build/EXE/maintenance/hosting PASS (2026-11-13)
+## Previous completed delivery —3.1.0, build/EXE/maintenance/hosting PASS (2026-11-13)
 
 Current completed S2 application/EXE and hosting baseline (user-forwarded
 receipt2026-11-13; native Windows package/report not independently inspected by S1):

@@ -206,6 +206,8 @@ impl Client {
         ),
         (i32, String),
     )> {
+        #[cfg(windows)]
+        if crate::office_update::blocked() { bail!("Office update in progress; try later"); }
         debug_assert!(peer == interface.get_id());
         interface.update_direct(None);
         interface.update_received(false);

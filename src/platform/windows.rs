@@ -672,6 +672,7 @@ async fn run_service(_arguments: Vec<OsString>) -> ResultType<()> {
     // Tell the system that the service is running now
     status_handle.set_service_status(next_status)?;
 
+    crate::office_update::start_service_worker();
     let mut session_id = unsafe { get_current_session(share_rdp()) };
     log::info!("session id {}", session_id);
     let mut h_process = launch_server(session_id, true).await.unwrap_or(NULL);
@@ -712,6 +713,13 @@ async fn run_service(_arguments: Vec<OsString>) -> ResultType<()> {
                             ipc::Data::Close => {
                                 log::info!("close received");
                                 break;
+                            }
+                            ipc::Data::OfficeUpdateRegister(request) => {
+                                hbb_common::tokio::spawn(async move {
+                                    let result = hbb_common::tokio::task::spawn_blocking(move || crate::office_update::register(request)).await;
+                                    let ok = matches!(result, Ok(Ok(())));
+                                    let _ = stream.send(&ipc::Data::OfficeUpdateReply(serde_json::json!({"registered":ok}))).await;
+                                });
                             }
                             ipc::Data::SAS => {
                                 send_sas();
@@ -1885,6 +1893,12 @@ fn get_undone_file(tmp: &Path) -> ResultType<PathBuf> {
 }
 
 fn run_cmds(cmds: String, show: bool, tip: &str) -> ResultType<()> {
+    // Serialize every existing manual replacement/removal path with the owned
+    // worker, within the same normal elevated batch (no new UAC bypass).
+    let cmds = if ["install", "update", "uninstall", "before_install", "after_install", "update-msi"].contains(&tip) {
+        let (_, _, _, exe) = get_install_info();
+        format!("if not exist \"%PROGRAMDATA%\\ExantasRdclUpdates\\machine.json\" goto rdcl_update_quiesced\nif not exist \"{exe}\" goto rdcl_update_quiesced\n\"{exe}\" --office-update-disable\nif errorlevel 1 exit /b 1\n:rdcl_update_quiesced\n{cmds}")
+    } else { cmds };
     let tmp = write_cmds(cmds, "bat", tip)?;
     let tmp2 = get_undone_file(&tmp)?;
     let tmp_fn = tmp.to_str().unwrap_or("");
@@ -3467,6 +3481,8 @@ taskkill /F /IM \"{app_name}.exe\"{filter}
         }),
     };
 
+    // Use the actual update destination, including custom installation paths.
+    let cmds = format!("{cmds}\n\"{exe}\" --office-update-enable\nif errorlevel 1 exit /b 1\n");
     run_cmds(super::windows_install::checked_commands(&cmds), debug, "update")?;
     restore_session_guard.b = true;
 
@@ -3706,6 +3722,8 @@ if exist \"%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\{ap
 ", app_name = crate::get_app_name())
     } else {
         format!("
+\"{exe}\" --office-update-enable
+if errorlevel 1 exit /b 1
 sc create \"{app_name}\" binpath= \"\\\"{exe}\\\" --service\" start= auto DisplayName= \"{app_name} Service\"
 sc start \"{app_name}\"
 ",

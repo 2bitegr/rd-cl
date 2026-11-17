@@ -60,6 +60,9 @@ mod whiteboard;
 mod updater;
 #[cfg(windows)]
 mod office_identity;
+#[cfg(windows)]
+mod office_update;
+mod office_update_policy;
 
 #[cfg(any(windows, target_os = "android"))]
 mod office_native_auth;
