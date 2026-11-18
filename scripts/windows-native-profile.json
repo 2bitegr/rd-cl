@@ -73,7 +73,7 @@
     "flutter/lib/desktop/widgets/exantas_customer_computer.dart": "e0e54d1cc1bfb4795c2e36dca6fa9025d6441e7502e2e58cf649809566633346",
     "flutter/test/exantas_device_display_test.dart": "580e499e633a38b7428803d292e6a172fb8995ef3472ee54f9b97b98e7f1d130",
     "flutter/test/exantas_customer_computer_test.dart": "fa86bf431d1270bd14a1bc356538a2721c78ba6784bc426cc0307350f6d3e0e1",
-    "scripts/tests/test_windows_installer.py": "1263c5787da38ea837fb9248f087e05f059fc3b20e2bf53551d93ff5d0cd591e",
+    "scripts/tests/test_windows_installer.py": "dbcd621856e0d11f54a82e22c706471fd15483d27ad96d84c4d54fe8c11fb169",
     "libs/portable/src/bin_reader.rs": "7a27cbab151bd45e90cc2d285fb15dda0e178dbe392edf09a079e916f1045552",
     "src/client.rs": "e72308bb1445a014254f5f3bfe666da81cd2e8c99fbdbc25c778ddf20130e1f3",
     "src/core_main.rs": "d348afd1ea311463892040700ae765b9693d8b4f32112ea6a3180f1f997ffa9f",

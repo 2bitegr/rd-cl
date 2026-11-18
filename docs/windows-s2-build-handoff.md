@@ -1,6 +1,43 @@
 # One complete rd-cl build prompt for S2
 
-## Latest S2 attempt BLOCKED —3.1.3/da4256e5,2026-11-17
+## Latest S2 attempt BLOCKED — 3.1.3/2e8babad, 2026-11-18
+
+User-forwarded native S2 receipt: source recovery and the 79 profile pins passed;
+guards 91 PASS/2 SKIP (Linux-only and synthetic symlink privilege), updater
+7 envelope cases/38 recovery checks, analyzer zero diagnostics, Dart137 PASS,
+and virtual-display compilation PASS. One Build-WithExe invocation stopped at
+Cargo101/E0382 in update_me: exe was moved into the restore callback before
+formatting the updater-enable command. Flutter release/ZIP/EXE were NOT_RUN;
+maintenance and hosting did not execute. Completed delivery remains3.1.2.
+
+S1 moves the pure command formatting before the move capture without cloning or
+changing the command, target path, checked execution or restore guard. The new
+metadata-only native regression compiles the actual command/callback region and
+actual guard with inert helper signatures: the original fails E0382, the fix
+passes with Rust1.75. No product, installer, callback or service is executed.
+The final handoff must supply the NEW published rd-cl SHA; do not replay2e8babad.
+
+S2 genuinely rebuilt codecs and produced compiled-cache-receipt.json under
+Builds/rd-cl/3.1.3/codec-bootstrap-s2-2e8babad, SHA256
+32cdda39d3b73e8c16988c4eb46e1df9571ea260171dfb2fb82ce7ba25e077a6.
+Its sibling toolchain-codecs-local.json selects the new receipt. Reverify its
+actual SDK10.0.22621/tool/triplet/424ABI-file/16-port evidence for reuse; this
+application-only correction does not require another codec bootstrap. Preserve
+all failed outputs, that receipt/root and C:\Build\rd-cl\a23ec301\target.
+An old hwcodec build-script output still references the old codec root; final
+link provenance was NOT established before failure. Inspect selected native
+search/link inputs; use a new isolated application target only if their provenance
+cannot be verified, without purging or modifying the existing cache/receipt.
+
+S2 retained the recovered3.1.2 installer with its known hash; original ZIP and
+BUILD-INFO remain historical MISSING. Use a new truthful maintenance config with
+the real recovered installer/new package/receipt and cleanup:[], not absent old
+required paths. Migration20261116000100 already has user-forwarded APPLIED /
+MIGRATION_GATE_PASS; no replay or new SQL audit. All S2 facts here are reported
+evidence, not independent S1 inspection of its filesystem or database.
+
+
+## Previous S2 attempt BLOCKED —3.1.3/da4256e5,2026-11-17
 
 Cargo exit101: incorrect WinAPI sddl import and4unsupported crypto error
 conversions. No EXE/ZIP/package, maintenance or hosting. Guards90PASS, updater38,

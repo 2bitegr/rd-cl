@@ -102,3 +102,21 @@ all5old compiler errors with real Rust1.75 cached libraries. Corrected bodies
 compile and7real signed/malformed envelope cases pass; the barrier never executes
 in this probe. No dependency, protocol or security-policy relaxation. Full product
 compile/package/acceptance remains on S2 after new source publication.
+
+## Update restore ownership correction — 2026-11-18
+
+S2 reached the main Windows DLL compilation at2e8babad after source recovery,
+genuine SDK-aware codec bootstrap, native guards, analyzer and137Dart passes.
+It then failed E0382: update_me moved the installed exe String into its restore
+callback and subsequently borrowed it to format --office-update-enable.
+Build/EXE/hosting did not complete. The fix constructs the same checked command
+before moving the path into the unchanged callback; no new clone, protocol,
+identity, installation target or restore policy is introduced.
+
+The focused installer regression typechecks the actual production command and
+callback region plus SimpleCallOnReturn using inert helper signatures and Rust
+metadata emission. It reproduces the old compiler error and accepts the fix
+without executing installer commands, callbacks, services or the product. Full
+native application/link/package and installation acceptance remain separate.
+Preserve/reverify S2's new genuine codec receipt rather than recompiling codecs
+for this source-only correction; see the latest S2 handoff checkpoint.
