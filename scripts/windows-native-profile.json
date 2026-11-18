@@ -23,7 +23,7 @@
     "libs/portable/generate.py": "f4c1d6f24f9cb3e106112b88b52eec39bee9b65871c2538892885a118d8dda11",
     "libs/portable/build.rs": "bde0743bc7410ce73155fe9c802dfa96ed5f6bd064f31015bc26f9c8a37df7b6",
     "flutter/windows/CMakeLists.txt": "69a73f1689ba4cf5d272cf6520b324f06067606b308229aabe5d6ef09c21fe9a",
-    "src/platform/windows.rs": "85210b95fbe6636c0522a85fadf13a5aac2b25c4e6740b4d8e1a801e70fdf058",
+    "src/platform/windows.rs": "b4321110aa0770aef7c002167acd90d7148d02d083f31eaaed437939f467560b",
     "src/platform/windows_install.rs": "3c29c350175982eea0afeef384cce67d397dc52f0881ad57ecd443f363a07eb4",
     "src/ui_interface.rs": "e1206d186eea831917e5b03061925077256bbea4750b0a58144e14df66641c61",
     "flutter/lib/desktop/pages/desktop_setting_page.dart": "b51a91302de29706e93e9bb7b58635b592bd83acc5e362f36b61fb90c37b6d88",

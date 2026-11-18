@@ -3424,6 +3424,9 @@ taskkill /F /IM \"{app_name}.exe\"{filter}
         sleep = if debug { "timeout 300" } else { "" },
     );
 
+    // Use the actual update destination, including custom installation paths.
+    let cmds = format!("{cmds}\n\"{exe}\" --office-update-enable\nif errorlevel 1 exit /b 1\n");
+
     let mut restore_session_guard = crate::common::SimpleCallOnReturn {
         b: false,
         f: Box::new(move || {
@@ -3481,8 +3484,6 @@ taskkill /F /IM \"{app_name}.exe\"{filter}
         }),
     };
 
-    // Use the actual update destination, including custom installation paths.
-    let cmds = format!("{cmds}\n\"{exe}\" --office-update-enable\nif errorlevel 1 exit /b 1\n");
     run_cmds(super::windows_install::checked_commands(&cmds), debug, "update")?;
     restore_session_guard.b = true;
 
