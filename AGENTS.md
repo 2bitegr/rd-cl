@@ -88,17 +88,21 @@ Then translate that source into the file's target language (infer the language f
 ## Office workstation roles
 
 Development, source/version/build-tooling corrections, commits and pushes belong
-only to S1 (Windows DESKTOP-IQ8ORD5). S2 (Windows S2) pulls published source;
-its delivery-build role covers changed rd-cl only, never this API or other apps.
-S2 performs reviewed Office migrations only through a separate user-forwarded
-handoff with target, ledger, backup, ownership and locking safeguards. Verify the
-actual host before work. S2 must not author source, bump versions, commit or push;
-return corrections to S1. Prepare missing pinned rd-cl inputs under the download policy below. Explicit
-offline tasks or unavailable/unverifiable inputs mean BLOCKED; no fallback
-builds on S1. The user performs final deployment manually
-from S1 through Dokploy; report when/what to deploy and prerequisite gaps. Read
-the published Office AGENTS.md for the full shared handoff/deployment procedure.
-These roles grant no standing Git, installation, deployment or SQL permission.
+to S1 (Windows DESKTOP-IQ8ORD5). Ubuntu Exantas-S2 coordinates only production
+of the published rd-cl Windows x64 EXE. Run the native build inside the
+Windows11-Development VirtualBox guest (UUID 8c15378e-e71b-4c78-bf41-e77ba3915205,
+Windows hostname DESKTOP-5OTBBT7). Keep build work on guest-local NTFS and pass
+the verified EXE and build evidence through UbuntuTransfer. The codec scripts
+retain compatibility with the previously approved native Windows S2 hostname.
+
+Use S2 communication and authenticated remote access only for this build and
+its build prerequisites. S2 may prepare pinned inputs and the scoped build
+workspace, run tests and packaging, verify maintenance and transfer. S1 handles
+source fixes. Other application builds, Git commits/pushes, migrations, production
+access, hosting, product installation/acceptance and Dokploy are outside S2's role.
+The user performs final Dokploy deployment manually from S1. For a separately
+authorized production operation, follow the current Office instructions.
+Historical delivery records do not grant current authority.
 
 ## One complete S2 build handoff
 
@@ -324,7 +328,8 @@ future rd-cl S2 build handoff. Approval covers the specified published-source
 synchronization, owned snapshot/config preparation, required pinned downloads
 and prerequisite provisioning (including necessary native UAC), existing-receipt/
 cache verification and reuse, tests/analyzer, application build, packaging,
-hashes/reports and reviewed task-owned cleanup under the existing gates. Proceed
+hashes/reports, reviewed task-owned cleanup and verified UbuntuTransfer under
+these gates. Proceed
 through those authorized phases without asking the user to approve them again.
 For an already running job, continue from its actual stage with the same approved
 SHAs/config/outputs; do not restart, change source or repeat completed phases
@@ -363,7 +368,8 @@ acceptance PASS/VM hosting block. Never fabricate PASS or publish FAIL; keep nat
 results separate. Use the updated Office publisher and hosting/automatic-enrollment
 guides;all source/hash/PE/HTTPS/atomic-retention gates remain. No extra confirmation
 for the same reviewed scoped upload. No automatic Dokploy deploy/SQL/reboot or
-host/customer installation is granted to the S2 build job by this policy.
+host/customer installation is granted to the S2 build job. The user assigns any
+hosting work to a separately authorized release operator.
 Current completed S2 baseline is babdbfc0/3.1.2 per the latest receipt above;
 hosting PASS is user-reported and public Web/API bytes/hash verified by S1.
 Preserve rollback packages/caches; no repeat build or hosting job for this source.
@@ -394,47 +400,16 @@ Only the new verified HTTPS bytes may become current;the previous EXE can then b
 retired under this gate. Record exact volume/path/old-new hashes and removal result.
 Use the updated publisher plus rdcl-installer-volume-guard.mjs from the SAME reviewed
 published Office revision. An older publisher without this gate is forbidden.
-This tooling change does not require another rd-cl build. Do not run the new script
-from an unpublished/mixed revision;source publication is a prerequisite for S2.
+This tooling change does not require another rd-cl build. The release operator
+uses the reviewed published Office revision.
 
-### Mandatory completion after every rd-cl change — reaffirmed2026-10-28
+### Separate hosting after S2 build delivery
 
-Every delivery with rd-cl changes MUST include S2 publication of the latest
-verified installer and retirement of the previous server installer. Build/package
-PASS alone is not delivery completion: report BUILD_PACKAGE_PASS and HOSTING_PENDING
-separately until actual public download verification passes. Include this stage
-and its existing scoped upload/removal authorization in EVERY S2 handoff; do not
-wait for another user request or omit it from a build-only prompt.
-Order: verify the new package/source/hash/maintenance, stage it, verify public HTTPS
-bytes, atomically activate current.json, then remove ONLY the previous manifest-owned
-EXE from the dedicated server volume. Never delete the old installer before the new
-one is verified. Final server storage contains one current installer; retain useful
-rollback packages and reusable caches separately on S2. Do not touch customer data.
-If access, space, mounts/config or manual rollout blocks hosting, preserve the
-verified package and issue/continue a publish-only handoff after the blocker clears;
-never rebuild an unchanged completed SHA merely to retry hosting. S2 may prepare
-reviewed mounts/config without deploy; final Dokploy deploy/restart stays manual
-with the user. Native acceptance remains truthful PASS/NOT_RUN under current policy;
-FAIL never qualifies. Use the reviewed Office publisher; no broad deletion/guard bypass.
-
-Every future S2 prompt for changed rd-cl includes building/verifying the latest
-EXE and publishing only that approved version to the dedicated server installer
-volume with matching honest native acceptance status and maintenance PASS. The technician installs it on
-the customer's PC; customer confirmation/login is not part of this workflow.
-Keep EXE for this supported interactive path; MSI packaging exists but is not a
-substitute for required EXE/install/upgrade acceptance or MSI migration ownership.
-S2 may use existing verified server access for this scoped artifact publication,
-without source development/Git publication, Dokploy deployment/restart or SQL.
-Use Office docs/rdcl-installer-hosting.md and its exact reviewed publisher: verify
-EXE/build/acceptance receipts, real x64 bytes and the public HTTPS download BEFORE
-activating current.json/removing the old file. Retain one EXE on the hosting
-server; preserve the last verified S2 delivery and build caches separately.
-Remove only the previous manifest-owned installer in that dedicated volume;
-never broad-delete historical files or touch another application's storage.
-Missing server access/shared mounts/native evidence means report the precise
-pending phase, not a fabricated publication or request to rebuild older source.
-Source/build-only prompts must carry the hosting phase even when blocked, and
-NO_RDCL_BUILD_NEEDED must not trigger a redundant build or installer replacement.
+The S2 handoff ends when package, maintenance and UbuntuTransfer SHA-256 checks
+pass. A separately authorized release operator handles hosting using the Office
+docs/rdcl-installer-hosting.md procedure and all volume/retention checks above.
+A hosting-only retry reuses the verified package and receipts. Keep the verified
+EXE and evidence on S2 for reuse.
 
 ## Mandatory cleanup before commit, push and release
 

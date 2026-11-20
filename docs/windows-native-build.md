@@ -3,8 +3,8 @@
 > inventories, complete recorded tools/SDK identity and a locked release session
 > are required. The historical S2 codec receipt lacks SDK identity; preserve it
 > and produce a new receipt through actual isolated codec compilation before
-> using this hardened tooling. Current user-authorized product version is2.0.0+72;
-> see [installer correction](windows-installer-2.0.0.md). Dependency pins are unchanged.
+> using this hardened tooling. The historical 2.0.0+72
+> [installer correction](windows-installer-2.0.0.md) describes the package design.
 
 # Pinned native Windows x64 build
 
@@ -18,10 +18,10 @@ Use `scripts/windows-native-build.ps1` and its reviewed
 accepted repeatable workflow: it uses moving refs, an unlocked pub resolve,
 fixed tool paths and a suppressed SDK patch failure.
 
-The current source product is **2.0.0+72** (displayed version2.0.0). The prior
-1.4.13+71 package has user-reported installation/upgrade failures; see the
-[installer correction and native acceptance requirements](windows-installer-2.0.0.md).
-S1 publishes source/version/tooling; S2 alone performs delivery builds. Supply the
+Take the product version from the profile at the published commit.
+S1 publishes source, versions and tooling. The Ubuntu Exantas-S2 station
+coordinates delivery builds inside the approved Windows11-Development guest
+described in the [S2 handoff](windows-s2-build-handoff.md). Supply the
 full published commit as `-SourceCommit`; branch names are rejected. The owned
 snapshot marker and actual HEAD must match it, and the profile must be identical
 to the profile stored in that commit. This avoids a self-referential commit pin.
@@ -32,12 +32,12 @@ The handoff must independently verify the exact commit against the live remote.
 
 ## Requested EXE installer (no MSI)
 
-After successful preflight, use the published wrapper on S2:
+After successful preflight, use the published wrapper inside the Windows guest.
+Use the actual guest-local OutputRoot resolved from its Desktop Known Folder:
 
 ```powershell
 & .\scripts\windows-native-release.ps1 -Mode Build -WithExe `
-  -Toolchain <S2-local-toolchain.json> -SourceCommit <full-published-SHA> `
-  -OutputRoot <verified-Desktop>\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-<source-sha>
+  -Toolchain $toolchain -SourceCommit $published -OutputRoot $delivery
 ```
 
 `PackageExe` can resume packaging from the same verified build. It rejects a stale
@@ -47,7 +47,7 @@ Python Brotli and packer Cargo dependencies must already be cached; no pip insta
 download or fallback compiler is permitted. The packer uses the root workspace
 Cargo.lock, not the historical nested standalone lockfile.
 
-Output: `rd-cl-2.0.0+72-windows-x64-install.exe`, `EXE-INFO.json` and SHA256SUMS,
+Output: `rd-cl-<version>-windows-x64-install.exe`, `EXE-INFO.json` and SHA256SUMS,
 alongside the verified runtime ZIP/provenance. The `install.exe` suffix is required
 by the existing launcher to open its interactive `--install` screen. Compilation
 never executes the product. No `-WithMsi`/`PackageMsi` is requested; existing MSI

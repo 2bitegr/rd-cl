@@ -1,5 +1,41 @@
 # One complete rd-cl build prompt for S2
 
+## S2 build station
+
+S2 coordinates from Ubuntu **Exantas-S2** and builds inside **Windows11-Development**
+(UUID 8c15378e-e71b-4c78-bf41-e77ba3915205, Windows hostname **DESKTOP-5OTBBT7**).
+Verify both identities at the start of each handoff. Inspect the actual
+UbuntuTransfer mapping with `VBoxManage showvminfo <uuid> --machinereadable`.
+Start the VM manually from the Ubuntu user's normal session if the automation
+executor cannot start VirtualBox. Run the native commands in the guest console
+or with already authorized Guest Control. Keep credentials out of transfer
+files and command logs. If using SSH to reach Ubuntu, use the verified host
+identity and already authorized access to build work and the transfer directory.
+
+Resolve the guest Desktop using the Windows Known Folder API. Store the owned
+source snapshot, toolchain, short TEMP/TMP, Cargo/Flutter/vcpkg caches, and
+OutputRoot on guest-local NTFS. Use a new owned snapshot and delivery root per
+published commit. Reuse compatible verified tools and warm build caches. Budget
+guest NTFS and Ubuntu storage separately, including temporary build and transfer
+space. Reserve UbuntuTransfer for input handoff, verified packages and reports.
+
+Provision the pinned C++ tools and Windows SDK10.0.22621.0 before codec
+bootstrap. Record the selected installation from vswhere, x64 tool paths from
+VsDevCmd, and tool versions and hashes. Keep provisioning and offline builds
+separate. When a tool or an ABI changes, reverify existing receipts before reuse.
+If the guest lacks a verified codec cache, run the separate offline codec
+bootstrap in a new guest-local root. Run native guards, Dart tests and analyzer
+before the one application build and packaging invocation. Report host identity,
+toolchain, codecs, application, EXE verification, maintenance and transfer
+as separate gates.
+
+After package and maintenance PASS, transfer the EXE, runtime ZIP, manifests and
+reports through UbuntuTransfer. Verify Windows-generated SHA-256 inventories
+independently in Ubuntu. This transfer completes the S2 handoff. Keep the last
+verified package and reusable caches for the next delivery. Production hosting,
+Office migrations, Dokploy and install/upgrade acceptance belong to separately
+authorized work outside S2. This scope supersedes historical S2 assignments below.
+
 ## Latest S2 attempt BLOCKED — 3.1.3/2e8babad, 2026-11-18
 
 User-forwarded native S2 receipt: source recovery and the 79 profile pins passed;
@@ -314,85 +350,26 @@ future rd-cl S2 build handoff. Approval covers the specified published-source
 synchronization, owned snapshot/config preparation, required pinned downloads
 and prerequisite provisioning (including necessary native UAC), existing-receipt/
 cache verification and reuse, tests/analyzer, application build, packaging,
-hashes/reports and reviewed task-owned cleanup under the existing gates. Proceed
+hashes/reports, reviewed task-owned cleanup and verified UbuntuTransfer under
+these gates. Proceed
 through those authorized phases without asking the user to approve them again.
 For an already running job, continue from its actual stage with the same approved
 SHAs/config/outputs; do not restart, change source or repeat completed phases
 merely to apply this approval. Preserve active processes, source and caches.
-The2026-10-27 hosting policy also authorizes scoped verified artifact publication
-and native acceptance only inside an owned disposable Windows environment.
-This is not permission for product installation on the S2 host or customer PCs,
-deployment, production DB changes, real customer sessions, source/guard changes,
-credential disclosure, Git publication on S2 or unrelated destructive operations.
+Build approval ends after verified transfer. Other builds, source changes/Git
+publication, production SSH, hosting, migrations, deployment, installation,
+acceptance and real customer use are outside this handoff.
 It does not override sandbox/tool/UAC approval mechanisms: use required approvals
 normally, never disable/bypass them or claim a prompt removes them. When mandatory
 platform approval is still needed, explain the concrete action and platform rule;
 when automatic review rejects it, report its reason and preserve dependent work.
 
-## Mandatory latest-only server phase —reaffirmed2026-10-28
+## Delivery boundary
 
-### Non-negotiable volume identity gate before deletion —2026-10-28
-
-Retention deletion is limited to ZERO files on first/same-version publication or
-ONE exact previous-version EXE named in the prior current.json,with verified hash.
-Never delete all folder contents,other EXEs/files/subfolders,glob matches or a list
-of old versions. Unexpected files remain untouched and stop publication for review.
-Publisher-owned lock/staging housekeeping is separate from previous-EXE retirement;
-it never authorizes cleanup of pre-existing files or directory contents.
-
-Before EVERY deletion of an old installer, prove the exact Docker daemon and
-named local volume office-rdcl-installer-ro, its creation identity and backing
-host directory /var/lib/office/rd-cl-installer with type=none,o=bind,ro. Pin the
-real directory identity (device/inode;no symlink) and recheck immediately before
-unlink. Revalidate the previous manifest-owned basename and its actual bytes/hash;
-never select EXEs by wildcard, age, parent directory or recursive traversal.
-Missing Docker access, ambiguous identity, a different daemon/volume/path/options,
-changed directory/file/manifest or any failed check MUST abort deletion and retain
-the files. No force/skip/manual-rm fallback, even after the new EXE is published.
-The publisher also gates staging/rollback/lock-file unlink with the same volume
-proof;on failure keep leftovers for explicit inspection,not automatic cleanup.
-Only the new verified HTTPS bytes may become current;the previous EXE can then be
-retired under this gate. Record exact volume/path/old-new hashes and removal result.
-Use the updated publisher plus rdcl-installer-volume-guard.mjs from the SAME reviewed
-published Office revision. An older publisher without this gate is forbidden.
-This tooling change does not require another rd-cl build. Do not run the new script
-from an unpublished/mixed revision;source publication is a prerequisite for S2.
-
-
-
-### Mandatory completion after every rd-cl change — reaffirmed2026-10-28
-
-Every delivery with rd-cl changes MUST include S2 publication of the latest
-verified installer and retirement of the previous server installer. Build/package
-PASS alone is not delivery completion: report BUILD_PACKAGE_PASS and HOSTING_PENDING
-separately until actual public download verification passes. Include this stage
-and its existing scoped upload/removal authorization in EVERY S2 handoff; do not
-wait for another user request or omit it from a build-only prompt.
-Order: verify the new package/source/hash/maintenance, stage it, verify public HTTPS
-bytes, atomically activate current.json, then remove ONLY the previous manifest-owned
-EXE from the dedicated server volume. Never delete the old installer before the new
-one is verified. Final server storage contains one current installer; retain useful
-rollback packages and reusable caches separately on S2. Do not touch customer data.
-If access, space, mounts/config or manual rollout blocks hosting, preserve the
-verified package and issue/continue a publish-only handoff after the blocker clears;
-never rebuild an unchanged completed SHA merely to retry hosting. S2 may prepare
-reviewed mounts/config without deploy; final Dokploy deploy/restart stays manual
-with the user. Native acceptance remains truthful PASS/NOT_RUN under current policy;
-FAIL never qualifies. Use the reviewed Office publisher; no broad deletion/guard bypass.
-
-
-
-For every changed-rd-cl build handoff include the reviewed hosting phase from
-Office docs/rdcl-installer-hosting.md. The technician operates the install on the
-customer computer; no customer confirmation or staff login on that PC is needed.
-After verified EXE/build/maintenance and honest native status, use existing verified server access and the
-exact Office publisher to stage/check the new public HTTPS file, atomically
-activate it and remove only the old manifest-owned EXE. Hosting retains only the
-latest approved installer; keep rollback delivery/caches on S2. Missing access,
-shared mounts, rollout or native evidence blocks only that dependent phase and
-must be reported. No guessed URL/receipt, broad cleanup, SQL, S2 Git publication
-or automatic Dokploy rollout. Carry this phase in the single prompt; do not ask
-for another prompt merely because build and hosting are separate steps.
+The S2 build-only handoff stops after package, maintenance and UbuntuTransfer
+verification. Keep older delivery, production and migration receipts below as
+historical evidence. A separately authorized release operator may use the
+received EXE and the reviewed Office publisher without rebuilding it.
 
 ## Earlier attempt87e01f40 — notifier analyzer BLOCKED,2026-10-27
 
@@ -590,19 +567,24 @@ Read [the reviewed tooling explanation](windows-s2-shallow-vcpkg.md). Preserve:
 αυτού του συγκεκριμένου build: ασφαλή συγχρονισμό των δοσμένων published SHAs,
 owned snapshot/config, απαιτούμενες pinned λήψεις και prerequisite provisioning
 (με αναγκαίο UAC), επαλήθευση/επαναχρησιμοποίηση receipts και caches, tests,
-analyzer, compilation, packaging, hashes/reports και ελεγμένο task-owned cleanup
-με τα υποχρεωτικά gates. Συνέχισε χωρίς να ζητάς ξανά την ίδια έγκριση.
+analyzer, compilation, packaging, hashes/reports, ελεγμένο task-owned cleanup
+και επαληθευμένη μεταφορά μέσω UbuntuTransfer με τα υποχρεωτικά gates. Συνέχισε χωρίς να ζητάς ξανά την ίδια έγκριση.
 Αν το build ήδη εκτελείται, συνέχισε από το πραγματικό τρέχον στάδιο με τα ίδια
 εγκεκριμένα SHAs/config/outputs. Μην το επανεκκινήσεις, αλλάξεις source ή
 επαναλάβεις ολοκληρωμένα στάδια μόνο εξαιτίας αυτής της έγκρισης.
-Η έγκριση δεν καλύπτει εγκατάσταση προϊόντος, deployment, production SQL,
-πραγματικές συνδέσεις πελάτη, source/guard edits ή commit/push στον S2.
+Η έγκριση αφορά αποκλειστικά την παραγωγή του rd-cl EXE. Hosting, Dokploy,
+production SSH, migrations, εγκατάσταση, αποδοχή, customer sessions και Git
+publication είναι εκτός του ρόλου του S2.
 Οι υποχρεωτικές εγκρίσεις sandbox/tools/UAC εξακολουθούν να ισχύουν· μην τις
 παρακάμψεις ή απενεργοποιήσεις. Αν απαιτηθούν, εξήγησε τη συγκεκριμένη ενέργεια
 και τον κανόνα της πλατφόρμας. Πραγματική αποτυχία σταματά τα εξαρτώμενα στάδια.
 
 Προετοίμασε τα απαιτούμενα pinned inputs και εκτέλεσε το πλήρες build/package
-του rd-cl στον native Windows S2. Επιτρέπονται οι αναγκαίες λήψεις κατά την
+του rd-cl στη VirtualBox VM Windows11-Development (UUID
+8c15378e-e71b-4c78-bf41-e77ba3915205, Windows hostname DESKTOP-5OTBBT7).
+Ο Exantas-S2 συντονίζει από Ubuntu, οι εντολές build εκτελούνται στο guest και τα
+πακέτα μεταφέρονται μέσω UbuntuTransfer με επαλήθευση SHA-256 και στις δύο πλευρές.
+Επιτρέπονται οι αναγκαίες λήψεις κατά την
 προετοιμασία, με TLS, signatures/checksums και ακριβή lockfile/Git/version pins.
 Τα υπάρχοντα guarded build/codec scripts παραμένουν offline/frozen.
 
@@ -640,7 +622,8 @@ docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
 επέστρεψε NO_RDCL_BUILD_NEEDED με το existing EXE evidence.
 
 1. ΠΡΩΤΑ pull/συγχρονισμός των δημοσιευμένων commits, ΜΕΤΑ build.
-   Επιβεβαίωσε native Windows host S2, Git roots/remotes και τοπική κατάσταση.
+   Επιβεβαίωσε τον Ubuntu Exantas-S2, το UUID της VM, το Windows hostname
+   DESKTOP-5OTBBT7, το UbuntuTransfer, τα Git roots/remotes και την τοπική κατάσταση.
    Κάνε ασφαλές fast-forward-only pull/sync των Office οδηγιών και του rd-cl
    από τα ακριβή repositories/branches/SHAs που δίνονται παραπάνω. Έλεγξε live
    refs· μην υποθέσεις ότι το Office push δημοσίευσε και το rd-cl. Αν δεν είναι
@@ -668,11 +651,8 @@ docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
    Κατέγραψε τις επαληθευμένες διαδρομές στις $snapshot και $toolchain,
    και το υπάρχον config.paths.python στην $python. Όρισε επίσης
    $sourceCommit στο ακριβές full SHA που δόθηκε στην αρχή του prompt.
-   Το γνωστό artifact root από την τελευταία παράδοση είναι:
-   C:\Users\Support-2\Desktop\Office-Workspace-Artifacts
-   Το γνωστό υπάρχον toolchain είναι:
-   C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.0+72\delivery-s2-d029c35d\toolchain-codecs-d029c35d-local.json
-   Επαλήθευσε αυτά τα δεδομένα στο μηχάνημα· μην μαντέψεις άλλον root.
+   Χρησιμοποίησε το πραγματικό Known Folder Desktop και τα επαληθευμένα
+   paths/config/receipts του guest. Τα παλιά paths του Windows S2 είναι ιστορικά.
 
 Πριν ορίσεις application CARGO_TARGET_DIR, έλεγξε τον τελευταίο επιτυχή
    target και τη συμβατή Flutter cache. Μην δημιουργήσεις cold target ανά SHA
@@ -732,7 +712,7 @@ docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
    αναφορά και αξιολογούνται με την υπάρχουσα πολιτική του analyzer.
 
 6. Επίλεξε OutputRoot κάτω από το πραγματικό Desktop:
-   Office-Workspace-Artifacts\Builds\rd-cl\<version>\delivery-s2-<short-source-sha>
+   Office-Workspace-Artifacts\Builds\rd-cl\<version>\delivery-vm-<short-source-sha>
    ή άλλο επαληθευμένο unused owned delivery path. Το delivery-s2 της έκδοσης
    1.4.13+71 περιέχει ήδη το verified EXE του baseline και πρέπει να διατηρηθεί.
    Εκτύπωσε την πλήρη απόλυτη διαδρομή πριν το build, ως planned destination.
@@ -776,16 +756,13 @@ docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
    path/hash για σύγκριση με το payload manifest· ακολούθησε το diagnostic
    section του docs/windows-s2-build-integrity.md, χωρίς αυθαίρετο reinstall.
 
-8. Πρόσθετο υποχρεωτικό στάδιο για αλλαγμένο rd-cl: ακολούθησε το δημοσιευμένο
-   Office docs/rdcl-installer-hosting.md. Αφού περάσουν build/package και maintenance και καταγραφεί ειλικρινώς
-   native acceptance PASS ή NOT_RUN, χρησιμοποίησε την υπάρχουσα επαληθευμένη πρόσβαση στον server
-   και τον συγκεκριμένο publisher για νέα λήψη HTTPS/αποτύπωμα, ατομικό current
-   και αφαίρεση μόνο του προηγούμενου EXE. Στον server μένει μόνο η τελευταία
-   έκδοση· τα rollback packages/caches διατηρούνται στον S2. Μην εγκαταστήσεις
-   προϊόν στον S2 host ή πελάτη ως μέρος build. Native acceptance γίνεται μόνο
-   σε εξουσιοδοτημένο αναλώσιμο Windows περιβάλλον με συνθετικές ταυτότητες.
-   Έλλειψη Windows περιβάλλοντος σημαίνει acceptance NOT_RUN και δεν μπλοκάρει
-   verified upload. Έλλειψη πρόσβασης/mounts/rollout σημαίνει pending/BLOCKED για hosting, όχι ψευδές PASS ή αυθαίρετο deploy/restart/SQL.
+8. Μετά από package και maintenance PASS, μετέφερε το EXE, το συνοδευτικό runtime
+   ZIP και τα απαραίτητα manifests/logs σε ξεχωριστό φάκελο του UbuntuTransfer.
+   Παρήγαγε τον πίνακα SHA-256 από τα τοπικά αρχεία της VM και την καταγεγραμμένη
+   τιμή SHA-256 του πίνακα. Στο Ubuntu επαλήθευσε ανεξάρτητα τον πίνακα και όλα
+   τα αρχεία με sha256sum --check --strict. Δώσε τις απόλυτες διαδρομές και στις
+   δύο πλευρές. Μια αστοχία μεταφοράς απαιτεί επαλήθευση ή νέα μεταφορά του ίδιου
+   πακέτου. Η εργασία ολοκληρώνεται με επαληθευμένη παράδοση στο Ubuntu.
 
 9. Παράδωσε ενιαία αναφορά: στάδια tests/preflight/codecs/application/EXE/artifact
    gate χωριστά, πραγματικές εντολές/log paths, source SHA και έκδοση. Αν το EXE
@@ -794,16 +771,11 @@ docs/windows-s2-codec-bootstrap.md και docs/windows-s2-build-integrity.md.
    το πραγματικό OutputRoot/EXE-INFO.json και επιβεβαίωσε το αρχείο. Αν δεν έχει
    παραχθεί, πες NOT_PRODUCED και δήλωσε μόνο την planned διαδρομή ως τέτοια.
 
-Χωρίς upgrades, source/authentication αλλαγές,
-commit/push στον S2, bypass guards, εγκατάσταση προϊόντος στον S2 host/πελάτες, signing,
-GitHub Release, Actions, Dokploy deployment ή πραγματική συνεδρία πελάτη.
-Εξαίρεση μόνο η εγκεκριμένη διάθεση installer στον συγκεκριμένο server/volume
-και η απομονωμένη native acceptance του παραπάνω σταδίου· χωρίς SQL/restart.
-Η άδεια λήψεων αφορά απαιτούμενα build inputs, όχι παράκαμψη offline guards,
-αυτόματο upgrade ή κατασκευή receipt από downloaded/precompiled αποτελέσματα.
-Runtime/installation acceptance παραμένει ξεχωριστό στάδιο με πραγματική απόδειξη
-απομονωμένου Windows ελέγχου· χωρίς τέτοιο περιβάλλον δηλώνεται NOT_RUN. Σε πραγματική αποτυχία σταμάτα τα
-εξαρτώμενα βήματα, διατήρησε diagnostics και επέστρεψε ένα συγκεντρωτικό BLOCKED.
+Ο S2 παραδίδει το build του rd-cl Windows x64 EXE και την τεκμηρίωσή του.
+Εγκατάσταση και native acceptance παραμένουν NOT_RUN. Σε πραγματική αποτυχία
+σταμάτα τα εξαρτώμενα βήματα, διατήρησε diagnostics και επέστρεψε συγκεντρωτικό
+BLOCKED. Η προετοιμασία χρησιμοποιεί τα ακριβή pins και η μεταγλώττιση τους
+υπάρχοντες offline guards.
 ```
 
 The template's variables are filled from current source by the sender or resolved
@@ -811,4 +783,4 @@ from actual S2 metadata by the recipient, not guessed. The EXE's current naming
 rule is `rd-cl-<profile.version>-windows-x64-install.exe` directly under OutputRoot;
 verify it against the current packager and actual EXE-INFO.json each time. The
 codec bootstrap output directory is not the application EXE delivery directory.
-Keep build handoff, migration prompt and manual Dokploy rollout instructions separate.
+Include only the rd-cl EXE build and verified transfer in the S2 handoff.

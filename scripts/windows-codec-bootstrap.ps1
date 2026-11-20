@@ -7,8 +7,32 @@ param(
     [Parameter(Mandatory=$true)][string]$ExistingTriplet
 )
 $ErrorActionPreference = 'Stop'
-if ($env:OS -ne 'Windows_NT' -or [Environment]::MachineName -ne 'S2') {
-    throw 'Run on native Windows S2 only. No elevation, downloads or S1 receipt import.'
+$hostError = 'Run on an approved native Windows codec host (S2 or DESKTOP-5OTBBT7). No elevation, downloads or S1 receipt import.'
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+    [Environment]::MachineName -notin @('S2', 'DESKTOP-5OTBBT7')) {
+    throw $hostError
+}
+if (-not ('RdClCodecHost' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class RdClCodecHost {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr GetModuleHandle(string name);
+
+    [DllImport("kernel32.dll", ExactSpelling = true)]
+    private static extern IntPtr GetProcAddress(IntPtr module, string name);
+
+    public static bool IsNativeWindows() {
+        var ntdll = GetModuleHandle("ntdll.dll");
+        return ntdll != IntPtr.Zero && GetProcAddress(ntdll, "wine_get_version") == IntPtr.Zero;
+    }
+}
+'@
+}
+if (-not [RdClCodecHost]::IsNativeWindows()) {
+    throw $hostError
 }
 $config = Get-Content -LiteralPath $Toolchain -Raw | ConvertFrom-Json
 $python = $config.paths.python
