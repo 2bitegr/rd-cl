@@ -954,10 +954,10 @@ packages:
     dependency: "direct main"
     description:
       name: local_auth_android
-      sha256: "8bba79f4f0f7bc812fce2ca20915d15618c37721246ba6c3ef2aa7a763a90cf2"
+      sha256: b77dc490fef9214e785c326bf11fa733feaa47675d0433f05f48b5caa486c8f7
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.47"
+    version: "1.0.40"
   local_auth_darwin:
     dependency: transitive
     description:
