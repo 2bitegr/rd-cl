@@ -7,7 +7,6 @@ import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:settings_ui/settings_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -17,10 +16,15 @@ import '../../common/widgets/login.dart';
 import '../../consts.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
+import '../ui/ex_settings.dart';
+import '../ui/exantas_theme.dart';
 import '../widgets/deploy_dialog.dart';
 import '../widgets/dialog.dart';
 import 'home_page.dart';
 import 'scan_page.dart';
+import '../ui/exantas_strings.dart';
+import '../../models/exantas_biometric.dart';
+import '../ui/ex_app_lock.dart' show ExAuthResult;
 
 class SettingsPage extends StatefulWidget implements PageShape {
   @override
@@ -88,6 +92,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
   var _localIP = "";
   var _directAccessPort = "";
   var _fingerprint = "";
+  bool _biometricSupported = false;
   var _buildDate = "";
   var _autoDisconnectTimeout = "";
   var _hideServer = false;
@@ -152,6 +157,11 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (isAndroid) {
+      exantasBiometricSupported().then((v) {
+        if (mounted) setState(() => _biometricSupported = v);
+      });
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       var update = false;
@@ -276,7 +286,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     Provider.of<FfiModel>(context);
     final outgoingOnly = bind.isOutgoingOnly();
     final incomingOnly = bind.isIncomingOnly();
-    final customClientSection = CustomSettingsSection(
+    final customClientSection = ExCustomSettingsSection(
         child: Column(
       children: [
         if (bind.isCustomClient())
@@ -290,10 +300,10 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
         )
       ],
     ));
-    final List<AbstractSettingsTile> enhancementsTiles = [];
+    final List<ExSettingsTile> enhancementsTiles = [];
     final enable2fa = bind.mainHasValid2FaSync();
-    final List<AbstractSettingsTile> tfaTiles = [
-      SettingsTile.switchTile(
+    final List<ExSettingsTile> tfaTiles = [
+      ExSettingsTile.switchTile(
         title: Text(translate('enable-2fa-title')),
         initialValue: enable2fa,
         onToggle: (v) async {
@@ -312,7 +322,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
         },
       ),
       if (enable2fa)
-        SettingsTile.switchTile(
+        ExSettingsTile.switchTile(
           title: Text(translate('Telegram bot')),
           initialValue: bind.mainHasValidBotSync(),
           onToggle: (v) async {
@@ -331,7 +341,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
           },
         ),
       if (enable2fa)
-        SettingsTile.switchTile(
+        ExSettingsTile.switchTile(
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -351,7 +361,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 },
         ),
       if (enable2fa && _enableTrustedDevices)
-        SettingsTile(
+        ExSettingsTile(
             title: Text(translate('Manage trusted devices')),
             trailing: Icon(Icons.arrow_forward_ios),
             onPressed: (context) {
@@ -360,8 +370,8 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               }));
             })
     ];
-    final List<AbstractSettingsTile> shareScreenTiles = [
-      SettingsTile.switchTile(
+    final List<ExSettingsTile> shareScreenTiles = [
+      ExSettingsTile.switchTile(
         title: Text(translate('Deny LAN discovery')),
         initialValue: _denyLANDiscovery,
         onToggle: isOptionFixed(kOptionEnableLanDiscovery)
@@ -377,13 +387,13 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 });
               },
       ),
-      SettingsTile.switchTile(
+      ExSettingsTile.switchTile(
         title: Row(children: [
           Expanded(child: Text(translate('Use IP Whitelisting'))),
           Offstage(
                   offstage: !_onlyWhiteList,
-                  child: const Icon(Icons.warning_amber_rounded,
-                      color: Color.fromARGB(255, 255, 204, 0)))
+                  child: Icon(Icons.warning_amber_rounded,
+                      color: context.ex.warning))
               .marginOnly(left: 5)
         ]),
         initialValue: _onlyWhiteList,
@@ -400,7 +410,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
           changeWhiteList(callback: update);
         },
       ),
-      SettingsTile.switchTile(
+      ExSettingsTile.switchTile(
         title: Text(translate('Adaptive bitrate')),
         initialValue: _enableAbr,
         onToggle: isOptionFixed(kOptionEnableAbr)
@@ -413,7 +423,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 });
               },
       ),
-      SettingsTile.switchTile(
+      ExSettingsTile.switchTile(
         title: Text(translate('Enable recording session')),
         initialValue: _enableRecordSession,
         onToggle: isOptionFixed(kOptionEnableRecordSession)
@@ -427,7 +437,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 });
               },
       ),
-      SettingsTile.switchTile(
+      ExSettingsTile.switchTile(
         title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -447,6 +457,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               Offstage(
                   offstage: !_enableDirectIPAccess,
                   child: IconButton(
+                    tooltip: 'Επεξεργασία',
                       padding: EdgeInsets.zero,
                       icon: Icon(
                         Icons.edit,
@@ -474,7 +485,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 setState(() {});
               },
       ),
-      SettingsTile.switchTile(
+      ExSettingsTile.switchTile(
         title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -494,6 +505,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               Offstage(
                   offstage: !_allowAutoDisconnect,
                   child: IconButton(
+                    tooltip: 'Επεξεργασία',
                       padding: EdgeInsets.zero,
                       icon: Icon(
                         Icons.edit,
@@ -525,7 +537,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     if (_hasIgnoreBattery) {
       enhancementsTiles.insert(
           0,
-          SettingsTile.switchTile(
+          ExSettingsTile.switchTile(
               initialValue: _ignoreBatteryOpt,
               title: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,7 +572,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 }
               }));
     }
-    enhancementsTiles.add(SettingsTile.switchTile(
+    enhancementsTiles.add(ExSettingsTile.switchTile(
         initialValue: _enableStartOnBoot,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(translate('Start on boot')),
@@ -595,7 +607,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
 
     if (!bind.isCustomClient()) {
       enhancementsTiles.add(
-        SettingsTile.switchTile(
+        ExSettingsTile.switchTile(
           initialValue: _checkUpdateOnStartup,
           title:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -610,7 +622,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     }
 
     enhancementsTiles.add(
-      SettingsTile.switchTile(
+      ExSettingsTile.switchTile(
         initialValue: _showTerminalExtraKeys,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(translate('Show terminal extra keys')),
@@ -642,7 +654,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
       gFFI.serverModel.androidUpdatekeepScreenOn();
     }
 
-    enhancementsTiles.add(SettingsTile.switchTile(
+    enhancementsTiles.add(ExSettingsTile.switchTile(
         initialValue: !_floatingWindowDisabled,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(translate('Floating window')),
@@ -679,17 +691,17 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     final disabledSettings = bind.isDisableSettings();
     final hideSecuritySettings =
         bind.mainGetBuildinOption(key: kOptionHideSecuritySetting) == 'Y';
-    final settings = SettingsList(
+    final settings = ExSettingsList(
       sections: [
         customClientSection,
         if (!bind.isDisableAccount())
-          SettingsSection(
+          ExSettingsSection(
             title: Text(translate('Account')),
             tiles: [
-              SettingsTile(
+              ExSettingsTile(
                 title: Obx(() => Text(gFFI.userModel.userName.value.isEmpty
                     ? translate('Login')
-                    : '${translate('Logout')} (${gFFI.userModel.accountLabelWithHandle})')),
+                    : '${ExStrings.officeLogout} (${gFFI.userModel.accountLabelWithHandle})')),
                 leading: Obx(() {
                   final avatar = bind.mainResolveAvatarUrl(
                       avatar: gFFI.userModel.avatar.value);
@@ -711,9 +723,9 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               ),
             ],
           ),
-        SettingsSection(title: Text(translate("Settings")), tiles: [
+        ExSettingsSection(title: Text(translate("Settings")), tiles: [
           if (!disabledSettings && !_hideNetwork && !_hideServer)
-            SettingsTile(
+            ExSettingsTile(
                 title: Text(translate('ID/Relay Server')),
                 leading: Icon(Icons.cloud),
                 onPressed: (context) {
@@ -723,21 +735,21 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                   });
                 }),
           if (!_hideNetwork && !_hideProxy)
-            SettingsTile(
+            ExSettingsTile(
                 title: Text(translate('Socks5/Http(s) Proxy')),
                 leading: Icon(Icons.network_ping),
                 onPressed: (context) {
                   changeSocks5Proxy();
                 }),
           if (isAndroid && !bind.isOutgoingOnly())
-            SettingsTile(
+            ExSettingsTile(
                 title: Text(translate('Deploy')),
                 leading: Icon(Icons.cloud_upload),
                 onPressed: (context) {
                   showDeployDialog();
                 }),
           if (!disabledSettings && !_hideNetwork && !_hideWebSocket)
-            SettingsTile.switchTile(
+            ExSettingsTile.switchTile(
               title: Text(translate('Use WebSocket')),
               initialValue: _allowWebSocket,
               onToggle: isOptionFixed(kOptionAllowWebSocket)
@@ -752,7 +764,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                     },
             ),
           if (!_isUsingPublicServer)
-            SettingsTile.switchTile(
+            ExSettingsTile.switchTile(
               title: Text(translate('Allow insecure TLS fallback')),
               initialValue: _allowInsecureTlsFallback,
               onToggle: isOptionFixed(kOptionAllowInsecureTLSFallback)
@@ -768,7 +780,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                     },
             ),
           if (isAndroid && !outgoingOnly && !_isUsingPublicServer)
-            SettingsTile.switchTile(
+            ExSettingsTile.switchTile(
               title: Text(translate('Disable UDP')),
               initialValue: _disableUdp,
               onToggle: isOptionFixed(kOptionDisableUdp)
@@ -784,7 +796,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                     },
             ),
           if (!incomingOnly)
-            SettingsTile.switchTile(
+            ExSettingsTile.switchTile(
               title: Text(translate('Enable UDP hole punching')),
               initialValue: _enableUdpPunch,
               onToggle: (v) async {
@@ -797,7 +809,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               },
             ),
           if (!incomingOnly)
-            SettingsTile.switchTile(
+            ExSettingsTile.switchTile(
               title: Text(translate('Enable IPv6 P2P connection')),
               initialValue: _enableIpv6Punch,
               onToggle: (v) async {
@@ -809,13 +821,13 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 });
               },
             ),
-          SettingsTile(
+          ExSettingsTile(
               title: Text(translate('Language')),
               leading: Icon(Icons.translate),
               onPressed: (context) {
                 showLanguageSettings(gFFI.dialogManager);
               }),
-          SettingsTile(
+          ExSettingsTile(
             title: Text(translate(
                 Theme.of(context).brightness == Brightness.light
                     ? 'Light Theme'
@@ -828,7 +840,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             },
           ),
           if (!bind.isDisableAccount())
-            SettingsTile.switchTile(
+            ExSettingsTile.switchTile(
               title: Text(translate('note-at-conn-end-tip')),
               initialValue: _allowAskForNoteAtEndOfConnection,
               onToggle: (v) async {
@@ -846,7 +858,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               },
             ),
           if (!incomingOnly)
-            SettingsTile.switchTile(
+            ExSettingsTile.switchTile(
               title:
                   Text(translate('keep-awake-during-outgoing-sessions-label')),
               initialValue: _preventSleepWhileConnected,
@@ -860,8 +872,8 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             ),
         ]),
         if (isAndroid)
-          SettingsSection(title: Text(translate('Hardware Codec')), tiles: [
-            SettingsTile.switchTile(
+          ExSettingsSection(title: Text(translate('Hardware Codec')), tiles: [
+            ExSettingsTile.switchTile(
               title: Text(translate('Enable hardware codec')),
               initialValue: _enableHardwareCodec,
               onToggle: isOptionFixed(kOptionEnableHwcodec)
@@ -877,11 +889,11 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             ),
           ]),
         if (isAndroid)
-          SettingsSection(
+          ExSettingsSection(
             title: Text(translate("Recording")),
             tiles: [
               if (!outgoingOnly)
-                SettingsTile.switchTile(
+                ExSettingsTile.switchTile(
                   title:
                       Text(translate('Automatically record incoming sessions')),
                   initialValue: _autoRecordIncomingSession,
@@ -902,7 +914,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                         },
                 ),
               if (!incomingOnly)
-                SettingsTile.switchTile(
+                ExSettingsTile.switchTile(
                   title:
                       Text(translate('Automatically record outgoing sessions')),
                   initialValue: _autoRecordOutgoingSession,
@@ -922,7 +934,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                           });
                         },
                 ),
-              SettingsTile(
+              ExSettingsTile(
                 title: Text(translate("Directory")),
                 description: Text(bind.mainVideoSaveDirectory(root: false)),
               ),
@@ -932,12 +944,12 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             !disabledSettings &&
             !outgoingOnly &&
             !hideSecuritySettings)
-          SettingsSection(title: Text('2FA'), tiles: tfaTiles),
+          ExSettingsSection(title: Text('2FA'), tiles: tfaTiles),
         if (isAndroid &&
             !disabledSettings &&
             !outgoingOnly &&
             !hideSecuritySettings)
-          SettingsSection(
+          ExSettingsSection(
             title: Text(translate("Share screen")),
             tiles: shareScreenTiles,
           ),
@@ -946,43 +958,67 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             !disabledSettings &&
             !outgoingOnly &&
             !hideSecuritySettings)
-          SettingsSection(
+          ExSettingsSection(
             title: Text(translate("Enhancements")),
             tiles: enhancementsTiles,
           ),
-        SettingsSection(
+        if (isAndroid)
+          ExSettingsSection(title: Text(ExStrings.securitySection), tiles: [
+            ExSettingsTile.switchTile(
+              leading: const Icon(Icons.fingerprint),
+              title: const Text(ExStrings.biometricUnlock),
+              description: Text(_biometricSupported
+                  ? ExStrings.biometricUnlockHint
+                  : ExStrings.biometricUnsupported),
+              initialValue: exantasBiometricEnabled(),
+              // Unsupported devices cannot turn it on (a lock with no way to
+              // unlock); an already-on switch can always be turned off.
+              onToggle: !_biometricSupported && !exantasBiometricEnabled()
+                  ? null
+                  : (v) async {
+                      if (v) {
+                        // Prove it works before turning it on.
+                        final r = await exantasAuthenticate();
+                        if (r != ExAuthResult.success) {
+                          if (mounted) setState(() {});
+                          return;
+                        }
+                      }
+                      await exantasSetBiometricEnabled(v);
+                      if (mounted) setState(() {});
+                    },
+            ),
+          ]),
+        ExSettingsSection(
           title: Text(translate("About")),
           tiles: [
-            SettingsTile(
+            ExSettingsTile(
                 onPressed: (context) async {
                   await launchUrl(Uri.parse(url));
                 },
                 title: Text(translate("Version: ") + version),
-                value: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('rustdesk.com',
-                      style: TextStyle(
-                        decoration: TextDecoration.underline,
-                      )),
+                value: Text(
+                  'rustdesk.com',
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
                 leading: Icon(Icons.info)),
-            SettingsTile(
+            ExSettingsTile(
                 title: Text(translate("Build Date")),
-                value: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text(_buildDate),
+                value: Text(
+                  _buildDate,
                 ),
                 leading: Icon(Icons.query_builder)),
             if (isAndroid)
-              SettingsTile(
+              ExSettingsTile(
                   onPressed: (context) => onCopyFingerprint(_fingerprint),
                   title: Text(translate("Fingerprint")),
-                  value: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text(_fingerprint),
+                  value: Text(
+                    _fingerprint,
                   ),
                   leading: Icon(Icons.fingerprint)),
-            SettingsTile(
+            ExSettingsTile(
               title: Text(translate("Privacy Statement")),
               onPressed: (context) =>
                   launchUrlString('https://rustdesk.com/privacy.html'),
@@ -1007,10 +1043,10 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
   }
 
   defaultDisplaySection() {
-    return SettingsSection(
+    return ExSettingsSection(
       title: Text(translate("Display Settings")),
       tiles: [
-        SettingsTile(
+        ExSettingsTile(
             title: Text(translate('Display Settings')),
             leading: Icon(Icons.desktop_windows_outlined),
             trailing: Icon(Icons.arrow_forward_ios),
@@ -1118,6 +1154,7 @@ class ScanButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
+      tooltip: 'Σάρωση QR',
       icon: Icon(Icons.qr_code_scanner),
       onPressed: () {
         Navigator.push(
@@ -1156,13 +1193,14 @@ class __DisplayPageState extends State<_DisplayPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
+          tooltip: ExStrings.back,
             onPressed: () => Navigator.pop(context),
             icon: Icon(Icons.arrow_back_ios)),
         title: Text(translate('Display Settings')),
         centerTitle: true,
       ),
-      body: SettingsList(sections: [
-        SettingsSection(
+      body: ExSettingsList(sections: [
+        ExSettingsSection(
           tiles: [
             _getPopupDialogRadioEntry(
               title: 'Default View Style',
@@ -1219,7 +1257,7 @@ class __DisplayPageState extends State<_DisplayPage> {
             ),
           ],
         ),
-        SettingsSection(
+        ExSettingsSection(
           title: Text(translate('Other Default Options')),
           tiles:
               otherDefaultSettings().map((e) => otherRow(e.$1, e.$2)).toList(),
@@ -1228,10 +1266,10 @@ class __DisplayPageState extends State<_DisplayPage> {
     );
   }
 
-  SettingsTile otherRow(String label, String key) {
+  ExSettingsTile otherRow(String label, String key) {
     final value = bind.mainGetUserDefaultOption(key: key) == 'Y';
     final isOptFixed = isOptionFixed(key);
-    return SettingsTile.switchTile(
+    return ExSettingsTile.switchTile(
       initialValue: value,
       title: Text(translate(label)),
       onToggle: isOptFixed
@@ -1264,7 +1302,8 @@ class __ManageTrustedDevicesState extends State<_ManageTrustedDevices> {
         centerTitle: true,
         actions: [
           Obx(() => IconButton(
-              icon: Icon(Icons.delete, color: Colors.white),
+            tooltip: 'Διαγραφή επιλεγμένων',
+              icon: Icon(Icons.delete),
               onPressed: selectedDevices.isEmpty
                   ? null
                   : () {
@@ -1299,7 +1338,7 @@ class _RadioEntry {
 typedef _RadioEntryGetter = String Function();
 typedef _RadioEntrySetter = Future<void> Function(String);
 
-SettingsTile _getPopupDialogRadioEntry({
+ExSettingsTile _getPopupDialogRadioEntry({
   required String title,
   required List<_RadioEntry> list,
   required _RadioEntryGetter getter,
@@ -1351,12 +1390,11 @@ SettingsTile _getPopupDialogRadioEntry({
     }, backDismiss: true, clickMaskDismiss: true);
   }
 
-  return SettingsTile(
+  return ExSettingsTile(
     title: Text(translate(title)),
     onPressed: asyncSetter == null ? null : (context) => showDialog(),
-    value: Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      child: Obx(() => Text(translate(valueText.value))),
+    value: Obx(
+      () => Text(translate(valueText.value)),
     ),
   );
 }

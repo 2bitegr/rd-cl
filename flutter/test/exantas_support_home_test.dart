@@ -4,7 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_hbb/mobile/ui/exantas_theme.dart';
 import 'package:flutter_hbb/mobile/widgets/exantas_support_home_sections.dart';
+
+ThemeData themed(Brightness brightness) {
+  final base = brightness == Brightness.dark
+      ? ExantasTheme.dark()
+      : ExantasTheme.light();
+  final font = Platform.environment['EXANTAS_UI_FONT'];
+  return font == null
+      ? base
+      : base.copyWith(
+          textTheme: base.textTheme.apply(fontFamily: 'ExantasUiTest'));
+}
 
 void main() {
   setUpAll(() async {
@@ -41,20 +53,16 @@ void main() {
         String? connected;
         var copied = false;
         var account = false;
+        var openedPending = false;
+        String? searched;
+        final search = TextEditingController();
+        addTearDown(search.dispose);
         final boundary = GlobalKey();
         await tester.pumpWidget(RepaintBoundary(
             key: boundary,
             child: MaterialApp(
                 debugShowCheckedModeBanner: false,
-                theme: ThemeData(
-                    useMaterial3: false,
-                    brightness: brightness,
-                    colorScheme: ColorScheme.fromSeed(
-                        seedColor: const Color(0xFF0071FF),
-                        brightness: brightness),
-                    fontFamily: Platform.environment['EXANTAS_UI_FONT'] == null
-                        ? null
-                        : 'ExantasUiTest'),
+                theme: themed(brightness),
                 home: MediaQuery(
                     data: MediaQueryData(
                         size: size,
@@ -86,11 +94,16 @@ void main() {
                                   platform: 'Windows',
                                   online: true)
                             ],
-                            customerPanel: const Text('Πάνελ πελατών'),
-                            pendingPanel: const Text('Πάνελ αποφάσεων'),
+                            searchController: search,
                             pendingCount: 2,
                             onConnect: (id) {
                               connected = id;
+                            },
+                            onSearchCustomers: (v) {
+                              searched = v;
+                            },
+                            onOpenPending: () {
+                              openedPending = true;
                             },
                             onRefresh: () {},
                             onConfirmNative: () {}))))));
@@ -115,18 +128,16 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('recent-987654321')));
         expect(connected, '987654321');
+        await tester.enterText(
+            find.byKey(const ValueKey('support-home-search')), 'Alpha');
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        expect(searched, 'Alpha');
         await tester
-            .ensureVisible(find.byKey(const ValueKey('support-tab-customers')));
-        await tester.tap(find.byKey(const ValueKey('support-tab-customers')));
-        await tester.pumpAndSettle();
-        expect(find.text('Πάνελ πελατών'), findsOneWidget);
-        expect(find.text('Πρόσφατες συνδέσεις'), findsNothing);
-        await tester.tap(find.byKey(const ValueKey('support-tab-pending')));
-        await tester.pumpAndSettle();
-        expect(find.text('Πάνελ αποφάσεων'), findsOneWidget);
+            .ensureVisible(find.byKey(const ValueKey('support-pending-card')));
+        await tester.tap(find.byKey(const ValueKey('support-pending-card')));
+        expect(openedPending, true);
+        expect(find.text('Εκκρεμή (2)'), findsOneWidget);
         expect(tester.takeException(), isNull);
-        await tester.tap(find.byKey(const ValueKey('support-tab-recent')));
-        await tester.pumpAndSettle();
         final out = Platform.environment['EXANTAS_UI_OUTPUT'];
         if (out != null && size.width == 390) {
           final scroll =
@@ -169,12 +180,13 @@ void main() {
                       platform: 'Linux',
                       online: false)
                 ],
-                customerPanel: const Text('customers'),
-                pendingPanel: const Text('pending'),
+                searchController: TextEditingController(),
                 pendingCount: 0,
                 onConnect: (_) {
                   calls++;
                 },
+                onSearchCustomers: (_) {},
+                onOpenPending: () {},
                 onRefresh: () {},
                 onConfirmNative: () {})));
     await tester.pumpWidget(home(true));
@@ -209,10 +221,11 @@ void main() {
                 busy: busy,
                 controller: controller,
                 devices: const [],
-                customerPanel: const Text('customers'),
-                pendingPanel: const Text('pending'),
+                searchController: TextEditingController(),
                 pendingCount: 0,
                 onConnect: (_) {},
+                onSearchCustomers: (_) {},
+                onOpenPending: () {},
                 onRefresh: () {},
                 onConfirmNative: () {
                   retries++;
@@ -238,5 +251,74 @@ void main() {
             .onPressed,
         isNull);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('work view switches Πελάτες and Εκκρεμή; signed-out is gated',
+      (tester) async {
+    var section = ExantasWorkSection.customers;
+    Widget work(bool signedIn) => MaterialApp(
+        theme: ExantasTheme.light(),
+        home: Scaffold(
+            body: StatefulBuilder(
+                builder: (ctx, set) => ExantasWorkView(
+                    signedIn: signedIn,
+                    busy: false,
+                    section: section,
+                    onSection: (v) => set(() => section = v),
+                    customerPanel: const Text('Πάνελ πελατών'),
+                    pendingPanel: const Text('Πάνελ αποφάσεων'),
+                    pendingCount: 2,
+                    onRefresh: () {}))));
+    await tester.pumpWidget(work(true));
+    expect(find.text('Πάνελ πελατών'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('support-tab-pending')));
+    await tester.pumpAndSettle();
+    expect(find.text('Πάνελ αποφάσεων'), findsOneWidget);
+    expect(find.text('Πάνελ πελατών'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('support-tab-customers')));
+    await tester.pumpAndSettle();
+    expect(find.text('Πάνελ πελατών'), findsOneWidget);
+    await tester.pumpWidget(work(false));
+    expect(find.byKey(const ValueKey('support-tab-pending')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('recent computers: pinned first, pin toggles via callback, tap connects once per tap',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final toggled = <String>[];
+    final connected = <String>[];
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(MaterialApp(
+        theme: ExantasTheme.light(),
+        home: Scaffold(
+            body: ExantasSupportHome(
+                account: const Text('Office'),
+                signedIn: true,
+                busy: false,
+                controller: controller,
+                devices: const [
+                  ExantasRecentDevice(id: '111', label: 'A', platform: 'Linux', online: false),
+                  ExantasRecentDevice(id: '222', label: 'B', platform: 'Linux', online: false),
+                ],
+                pinnedIds: const {'222'},
+                onTogglePin: toggled.add,
+                searchController: TextEditingController(),
+                pendingCount: 2,
+                pendingSummary: '2 χρειάζονται απόφαση',
+                onConnect: connected.add,
+                onSearchCustomers: (_) {},
+                onOpenPending: () {},
+                onRefresh: () {},
+                onConfirmNative: () {}))));
+    expect(find.text('2 χρειάζονται απόφαση'), findsOneWidget);
+    final top = tester.getTopLeft(find.byKey(const ValueKey('recent-222'))).dy;
+    expect(top, lessThan(tester.getTopLeft(find.byKey(const ValueKey('recent-111'))).dy));
+    await tester.tap(find.byKey(const ValueKey('pin-222')));
+    expect(toggled, ['222']);
+    await tester.tap(find.byKey(const ValueKey('recent-111')));
+    expect(connected, ['111']);
   });
 }

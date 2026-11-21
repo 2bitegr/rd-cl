@@ -6,6 +6,9 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 
 import '../../mobile/pages/home_page.dart';
+import '../../mobile/ui/ex_empty_state.dart';
+import '../../mobile/ui/exantas_strings.dart';
+import '../../mobile/ui/exantas_theme.dart';
 
 enum ChatPageType {
   mobileMain,
@@ -93,8 +96,21 @@ class ChatPage extends StatelessWidget implements PageShape {
                                 (e) => e.id == chatModel.currentKey.connId)
                             ?.disconnected ==
                         true;
+            // Exantas styling applies to mobile only; desktop keeps its look.
+            final ex = isMobile ? context.ex : null;
+            final currentMessages =
+                chatModel.messages[chatModel.currentKey]?.chatMessages ?? [];
             return Stack(
               children: [
+                if (ex != null && currentMessages.isEmpty)
+                  Positioned.fill(
+                      child: IgnorePointer(
+                          child: Align(
+                              alignment: Alignment.topCenter,
+                              child: ExEmptyState(
+                                  icon: Icons.chat_bubble_outline,
+                                  title: ExStrings.chatEmpty,
+                                  message: ExStrings.chatEmptyHint)))),
                 LayoutBuilder(builder: (context, constraints) {
                   final chat = DashChat(
                     onSend: chatModel.send,
@@ -113,20 +129,27 @@ class ChatPage extends StatelessWidget implements PageShape {
                         isDense: true,
                         hintText: translate('Write a message'),
                         filled: true,
-                        fillColor: Theme.of(context).colorScheme.background,
-                        contentPadding: EdgeInsets.all(10),
+                        fillColor: ex?.surface ??
+                            Theme.of(context).colorScheme.background,
+                        contentPadding: ex != null
+                            ? const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14)
+                            : EdgeInsets.all(10),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                          borderSide: const BorderSide(
-                            width: 1,
-                            style: BorderStyle.solid,
-                          ),
+                          borderRadius: BorderRadius.circular(
+                              ex != null ? ExantasTokens.radiusMd : 10.0),
+                          borderSide: ex != null
+                              ? BorderSide(color: ex.inputBorder, width: 1)
+                              : const BorderSide(
+                                  width: 1,
+                                  style: BorderStyle.solid,
+                                ),
                         ),
                       ),
                       sendButtonBuilder: defaultSendButton(
                         padding:
                             EdgeInsets.symmetric(horizontal: 6, vertical: 0),
-                        color: MyTheme.accent,
+                        color: ex?.accent ?? MyTheme.accent,
                         icon: Icons.send_rounded,
                       ),
                     ),
@@ -137,18 +160,22 @@ class ChatPage extends StatelessWidget implements PageShape {
                       maxWidth: constraints.maxWidth * 0.7,
                       messageTextBuilder: (message, _, __) {
                         final isOwnMessage = message.user.id.isBlank!;
+                        final fg =
+                            ex == null || isOwnMessage ? Colors.white : ex.text;
                         return Column(
                           crossAxisAlignment: isOwnMessage
                               ? CrossAxisAlignment.end
                               : CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(message.text,
-                                style: TextStyle(color: Colors.white)),
+                                style: TextStyle(
+                                    color: fg,
+                                    fontSize: ex != null ? 14 : null)),
                             Text(
                               "${message.createdAt.hour}:${message.createdAt.minute.toString().padLeft(2, '0')}",
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
+                                color: ex == null ? Colors.white : fg,
+                                fontSize: ex != null ? 11 : 8,
                               ),
                             ).marginOnly(top: 3),
                           ],
@@ -158,12 +185,17 @@ class ChatPage extends StatelessWidget implements PageShape {
                           (message, previousMessage, nextMessage) {
                         final isOwnMessage = message.user.id.isBlank!;
                         return defaultMessageDecoration(
-                          color:
-                              isOwnMessage ? MyTheme.accent : Colors.blueGrey,
-                          borderTopLeft: 8,
-                          borderTopRight: 8,
-                          borderBottomRight: isOwnMessage ? 2 : 8,
-                          borderBottomLeft: isOwnMessage ? 8 : 2,
+                          color: ex != null
+                              ? (isOwnMessage ? ex.accent : ex.accentSoft)
+                              : (isOwnMessage
+                                  ? MyTheme.accent
+                                  : Colors.blueGrey),
+                          borderTopLeft: ex != null ? 12 : 8,
+                          borderTopRight: ex != null ? 12 : 8,
+                          borderBottomRight:
+                              isOwnMessage ? 2 : (ex != null ? 12 : 8),
+                          borderBottomLeft:
+                              isOwnMessage ? (ex != null ? 12 : 8) : 2,
                         );
                       },
                     ),

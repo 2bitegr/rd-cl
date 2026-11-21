@@ -9,11 +9,16 @@ import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/utils/image.dart';
 import 'package:provider/provider.dart';
 
+import '../ui/exantas_strings.dart';
+import '../ui/exantas_theme.dart';
+
 const int _kDotCount = 60;
 const double _kDotAngle = 2 * pi / _kDotCount;
 final Color _kDefaultColor = Colors.grey.withOpacity(0.7);
 final Color _kDefaultHighlightColor = Colors.white24.withOpacity(0.7);
-final Color _kTapDownColor = Colors.blue.withOpacity(0.7);
+// Pressed state uses the design-system accent; the overlay sits over arbitrary
+// remote content so the dark-theme (brighter) accent keeps contrast.
+final Color _kTapDownColor = ExantasTokens.dark.accent.withOpacity(0.85);
 const double _baseMouseWidth = 112.0;
 const double _baseMouseHeight = 138.0;
 const double _kShowPressedScale = 1.2;
@@ -649,7 +654,19 @@ class _FloatingMouseState extends State<FloatingMouse> {
       return SizedBox(
           width: mouseWidth,
           height: mouseHeight,
-          child: GestureDetector(
+          child: Semantics(
+            button: true,
+            label: ExStrings.mouseExpand,
+            excludeSemantics: true,
+            onTap: () {
+              setState(() {
+                _mouseScale = _baseMouseScale;
+                _isExpanded = true;
+                _position -= _expandOffset;
+              });
+              _resetCollapseTimer();
+            },
+            child: GestureDetector(
             onPanUpdate: _onDragHandleUpdate,
             onTap: () {
               setState(() {
@@ -667,7 +684,7 @@ class _FloatingMouseState extends State<FloatingMouse> {
               scale: _mouseScale,
               resetCollapseTimer: _resetCollapseTimer,
             ),
-          ));
+          )));
     } else {
       return SizedBox(
         width: mouseWidth,
@@ -682,7 +699,13 @@ class _FloatingMouseState extends State<FloatingMouse> {
                   scale: _mouseScale,
                 ),
                 const Spacer(),
-                GestureDetector(
+                Tooltip(
+                  message: ExStrings.mouseCollapse,
+                  child: Semantics(
+                  button: true,
+                  label: ExStrings.mouseCollapse,
+                  excludeSemantics: true,
+                  child: GestureDetector(
                   onTap: () {
                     _collapseTimer?.cancel();
                     setState(() {
@@ -708,7 +731,7 @@ class _FloatingMouseState extends State<FloatingMouse> {
                       ),
                     ),
                   ),
-                ),
+                ))),
               ],
             ),
             Padding(
@@ -1086,7 +1109,7 @@ class DottedCirclePainter extends CustomPainter {
       ..color = Colors.grey.shade400
       ..style = PaintingStyle.fill;
     final pointerPaint = Paint()
-      ..color = Colors.blue
+      ..color = ExantasTokens.dark.accent
       ..style = PaintingStyle.fill;
 
     const dotRadius = 2.5;

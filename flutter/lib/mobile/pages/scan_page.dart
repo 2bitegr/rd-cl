@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../ui/exantas_theme.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
@@ -55,7 +56,7 @@ class _ScanPageState extends State<ScanPage> {
       key: qrKey,
       onQRViewCreated: _onQRViewCreated,
       overlay: QrScannerOverlayShape(
-        borderColor: Colors.red,
+        borderColor: context.ex.accent,
         borderRadius: 10,
         borderLength: 30,
         borderWidth: 10,
@@ -110,7 +111,8 @@ class _ScanPageState extends State<ScanPage> {
 
   Widget _buildImagePickerButton() {
     return IconButton(
-      color: Colors.white,
+      tooltip: 'Επιλογή εικόνας από τη συλλογή',
+      color: context.ex.text,
       icon: Icon(Icons.image_search),
       iconSize: 32.0,
       onPressed: _pickImage,
@@ -119,7 +121,8 @@ class _ScanPageState extends State<ScanPage> {
 
   Widget _buildFlashToggleButton() {
     return IconButton(
-      color: Colors.yellow,
+      tooltip: 'Φακός',
+      color: context.ex.warning,
       icon: Icon(Icons.flash_on),
       iconSize: 32.0,
       onPressed: () async {
@@ -130,7 +133,8 @@ class _ScanPageState extends State<ScanPage> {
 
   Widget _buildCameraSwitchButton() {
     return IconButton(
-      color: Colors.white,
+      tooltip: 'Εναλλαγή κάμερας',
+      color: context.ex.text,
       icon: Icon(Icons.switch_camera),
       iconSize: 32.0,
       onPressed: () async {

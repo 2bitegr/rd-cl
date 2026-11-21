@@ -74,9 +74,10 @@ class DraggableChatWindow extends StatelessWidget {
   }
 
   Widget _buildMobileAppBar(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
     return Container(
       color: Theme.of(context).colorScheme.primary,
-      height: 50,
+      height: 56,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -84,8 +85,8 @@ class DraggableChatWindow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 15),
               child: Text(
                 translate("Chat"),
-                style: const TextStyle(
-                    color: Colors.white,
+                style: TextStyle(
+                    color: onPrimary,
                     fontFamily: 'WorkSans',
                     fontWeight: FontWeight.bold,
                     fontSize: 20),
@@ -97,18 +98,18 @@ class DraggableChatWindow extends StatelessWidget {
                   onPressed: () {
                     chatModel.hideChatWindowOverlay();
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.keyboard_arrow_down,
-                    color: Colors.white,
+                    color: onPrimary,
                   )),
               IconButton(
                   onPressed: () {
                     chatModel.hideChatWindowOverlay();
                     chatModel.hideChatIconOverlay();
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.close,
-                    color: Colors.white,
+                    color: onPrimary,
                   ))
             ],
           )
