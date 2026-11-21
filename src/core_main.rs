@@ -79,6 +79,11 @@ pub fn core_main() -> Option<Vec<String>> {
         }
         i += 1;
     }
+    #[cfg(windows)]
+    if crate::office_update::blocked() && (args.is_empty() || _is_flutter_invoke_new_connection
+        || args.first().map(|s| ["--install", "--silent-install", "--update", "--uninstall", "--tray", "--import-config"].contains(&s.as_str())).unwrap_or(false)) {
+        return None;
+    }
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if args.is_empty() {
         #[cfg(target_os = "linux")]
@@ -221,6 +226,8 @@ pub fn core_main() -> Option<Vec<String>> {
                     log::error!("Failed to uninstall: {}", err);
                 }
                 return None;
+            } else if let Some(code) = crate::office_update::command(&args) {
+                std::process::exit(code);
             } else if args[0] == "--update" {
                 if config::is_disable_installation() {
                     return None;

@@ -464,6 +464,8 @@ impl Connection {
         #[cfg(target_os = "android")]
         let control_permissions = None;
         let _raii_id = raii::ConnectionID::new(id);
+        #[cfg(windows)]
+        if crate::office_update::blocked() { return; }
         let _raii_control_permissions_id =
             raii::ControlPermissionsID::new(id, &control_permissions);
         let salt = Config::get_effective_permanent_password_salt();

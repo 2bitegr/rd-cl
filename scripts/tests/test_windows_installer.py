@@ -107,6 +107,66 @@ fn main() {
         self.assertIn('failed', marker.read_text())
 
 
+@unittest.skipUnless(RUSTC, 'Existing Rust compiler required for update ownership contract')
+class UpdateRestoreOwnership(unittest.TestCase):
+    def test_actual_update_commands_and_restore_capture_typecheck(self):
+        source = (ROOT / 'src/platform/windows.rs').read_text()
+        update = source[source.index('pub fn update_me('):source.index('\nfn get_reg_msi_key(')]
+        start = update.index('    let cmds = format!(')
+        end = update.index('    restore_session_guard.b = true;') + len('    restore_session_guard.b = true;')
+        commands = update[start:end]
+        common = (ROOT / 'src/common.rs').read_text()
+        guard = common[common.index('pub struct SimpleCallOnReturn {'):common.index('\npub fn global_init(')]
+        # Typecheck the actual command/callback region and guard with inert helper
+        # signatures. No installer, service, callback or command is executed.
+        fixture = r'''#![allow(dead_code, unused_variables)]
+extern crate self as log;
+#[macro_export]
+macro_rules! info { ($($message:tt)*) => {}; }
+macro_rules! allow_err { ($operation:expr) => { let _ = $operation; }; }
+mod common { PRODUCTION_GUARD }
+mod platform {
+    #[path = WINDOWS_INSTALL_MODULE]
+    mod windows_install;
+    mod windows {
+        fn is_root() -> bool { false }
+        fn run_exe_in_session(_: &str, _: Vec<&str>, _: u32, _: bool) -> Result<(), ()> { Ok(()) }
+        fn run_exe_direct(_: &str, _: Vec<&str>, _: bool) -> Result<(), ()> { Ok(()) }
+        fn copy_exe_cmd(_: &str, _: &str, _: &str) -> Result<String, ()> { Ok(String::new()) }
+        fn remove_meta_toml_cmd(_: bool, _: &str) -> String { String::new() }
+        fn run_cmds(_: String, _: bool, _: &str) -> Result<(), ()> { Ok(()) }
+        fn update_contract(debug: bool) -> Result<(), ()> {
+            let app_name = String::from("Synthetic Support");
+            let src_exe = String::from(r"C:\Synthetic Input\client.exe");
+            let path = String::from(r"D:\Custom Install\Synthetic Support");
+            let exe = format!(r"{}\Synthetic Support.exe", path);
+            let filter = String::new();
+            let reg_cmd = String::new();
+            let restore_service_cmd = String::new();
+            let uninstall_printer_cmd = String::new();
+            let install_printer_cmd = String::new();
+            let is_msi = Some(false);
+            let tray_sessions = vec![1_u32];
+            let main_window_sessions = vec![1_u32];
+            PRODUCTION_COMMANDS
+            Ok(())
+        }
+    }
+}
+fn main() {}
+'''
+        fixture = fixture.replace('PRODUCTION_GUARD', guard).replace('PRODUCTION_COMMANDS', commands)
+        fixture = fixture.replace('WINDOWS_INSTALL_MODULE', json.dumps(str(ROOT / 'src/platform/windows_install.rs')))
+        with tempfile.TemporaryDirectory(prefix='rdcl-update-ownership-') as folder:
+            folder = Path(folder)
+            harness, metadata = folder / 'ownership.rs', folder / 'ownership.rmeta'
+            harness.write_text(fixture)
+            result = subprocess.run([RUSTC, '--edition=2021', '--emit=metadata', str(harness),
+                                     '-o', str(metadata)], capture_output=True, text=True, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(metadata.is_file())
+
+
 class VersionAndCoreIdentity(unittest.TestCase):
     def test_product_versions_and_profile_input_hashes_agree(self):
         cargo = tomllib.loads((ROOT / 'Cargo.toml').read_text())
@@ -114,15 +174,15 @@ class VersionAndCoreIdentity(unittest.TestCase):
         lock = tomllib.loads((ROOT / 'Cargo.lock').read_text())
         profile = json.loads((ROOT / 'scripts/windows-native-profile.json').read_text())
         pins = json.loads((ROOT / 'scripts/windows-codec-bootstrap-inputs.json').read_text())
-        self.assertEqual(cargo['package']['version'], '3.0.0')
-        self.assertEqual(packer['package']['version'], '3.0.0')
-        self.assertEqual(profile['version'], '3.0.0')
+        self.assertEqual(cargo['package']['version'], '3.1.3')
+        self.assertEqual(packer['package']['version'], '3.1.3')
+        self.assertEqual(profile['version'], '3.1.3')
         self.assertEqual(pins['product_version'], profile['version'])
         self.assertIn('version: ' + profile['version'], (ROOT / 'flutter/pubspec.yaml').read_text())
         for name in ['rustdesk', 'rustdesk-portable-packer']:
-            self.assertEqual(next(p['version'] for p in lock['package'] if p['name'] == name), '3.0.0')
+            self.assertEqual(next(p['version'] for p in lock['package'] if p['name'] == name), '3.1.3')
         for key in ['ProductVersion', 'FileVersion']:
-            self.assertEqual(packer['package']['metadata']['winres'][key], '3.0.0.0')
+            self.assertEqual(packer['package']['metadata']['winres'][key], '3.1.3.0')
         for name, expected in profile['input_sha256'].items():
             self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), expected, name)
 

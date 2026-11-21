@@ -130,7 +130,56 @@ baseline/handoff/completion evidence to avoid duplicate prompts/builds. If rd-cl
 is unchanged, report NO_RDCL_BUILD_NEEDED. No automatic builds, Actions, product
 installation or deployment is implied. The former cloud build plan is superseded.
 
-Current completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
+Current completed S2 application/EXE and hosting baseline (user-forwarded
+receipt2026-11-16; native Windows logs/package not independently inspected by S1):
+`babdbfc0dad64f6725ba938222c7b70503ed2b31`, rd-cl `3.1.2`, Windows x64, NotSigned.
+Office handoff: `bc7f82801fd962200e86bc66aebcb77dd1bedd97` (1.12.59).
+Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\3.1.2\delivery-s2-babdbfc0`.
+EXE: `rd-cl-3.1.2-windows-x64-install.exe`, 24497152 bytes.
+SHA256: `7251af67957c5c064ce9c095ddd079aa6f74ec7a37972eeea6a38050645d02d5`.
+Runtime ZIP SHA256: `f32ca8b028bcf17ed58647c3b2d55107b289b2b2a9bebf99a4204e097de491c8`.
+Public URL: `https://office.exantas.eu/downloads/rd-cl/rd-cl-3.1.2-7251af67957c-windows-x64-install.exe`.
+S2 reports exact-source sync/snapshot, verified codec/toolchain/cache reuse without
+bootstrap, 89 executed guard PASS + 1 REUSED_VERIFIED + 1 Linux-only NOT_RUN,
+analyzer0errors/0warnings/4INFO,130 Dart PASS and one Build-to-EXE1060.234s PASS.
+EXE/ZIP/PE/icons/inventories, maintenance plan/apply/verify (zero removals) and
+hosting/HTTPS/retirement/staging cleanup PASS. Only the previous manifest-owned
+3.1.1 server EXE was retired; one current server EXE, rollback packages/caches
+retained on S2. These native/server details are user-reported, not S1 re-execution.
+S1 independently streamed both immutable Web and common API downloads: HTTP200,
+normal TLS, exact size/SHA256 and MZ header PASS; no binary saved or executed.
+Native installation/upgrade/customer acceptance remains NOT_RUN; no SQL, flags,
+activation or service deployment/restart in this delivery. The live customer
+mapping/ticket403 is not proven fixed by build/hosting. Detailed S2 commands,
+exits/timings/inputs are in BUILD-STATUS.md and stage-summary.json beside the EXE.
+Do not rebuild unchanged babdbfc0 source or reissue its completed S2 handoff.
+Previous3.1.0/earlier receipts stay historical. This receipt supplies no newer
+individual toolchain/codec hash or free-space measurement; discover actual state
+on S2 when required, without inventing it. Tracking-doc updates alone do not
+request another build. See docs/rdcl-3.1.2-delivery.md in Office.
+
+Previous completed S2 application/EXE and hosting baseline (user-forwarded
+receipt2026-11-13; native Windows package/report not independently inspected by S1):
+`1d76e7d176637bf74962a7061d77395def3082bc`, rd-cl `3.1.0`, Windows x64, NotSigned.
+Office handoff source: `d7330fc05cd197573cc522e4f50a822b0e2886d0` (1.12.52).
+Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\3.1.0\delivery-s2-1d76e7d1`.
+EXE: `rd-cl-3.1.0-windows-x64-install.exe`, 24499200 bytes.
+SHA256: `7be3409f23788d5422b02add17fbe966e738c1b451955a52591b9f9b1336d541`.
+Public installer: `https://office.exantas.eu/downloads/rd-cl/rd-cl-3.1.0-7be3409f2378-windows-x64-install.exe`.
+Build/EXE, maintenance and hosting PASS are user-reported; no repeated build for
+hosting. S1 independently streamed the public HTTPS bytes with normal TLS
+verification: exact size/SHA256 and MZ header PASS, without saving/executing EXE.
+Native installation/customer acceptance remains NOT_RUN. S2 retains previous
+3.0.0 and reusable caches. Detailed S2 checks/timings/commands/hosting receipts:
+`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Reports\2026-11-13\rd-cl-1d76e7d1\BUILD-STATUS.md`.
+No new exact test counts, free-space/compression results or server retirement
+receipts were supplied in this summary; do not invent those details. This
+supersedes the blocked 0cd3c648 teardown and 1d76e7d1 space-only attempts as the
+current delivery state. Preserve their historical evidence. Do not rebuild this
+unchanged completed source; installation, migrations/storage/flags, manual
+deployment and real customer acceptance remain separate, unproven by this receipt.
+
+Historical completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
 not independently inspected on Windows here):
 `680628f2b9e798ef63e6d29c73954807d9012e12`,rd-cl `2.0.2+74`,Windows x64,UNSIGNED.
 Directory:`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.2+74\delivery-s2-680628f2`.
@@ -315,8 +364,9 @@ results separate. Use the updated Office publisher and hosting/automatic-enrollm
 guides;all source/hash/PE/HTTPS/atomic-retention gates remain. No extra confirmation
 for the same reviewed scoped upload. No automatic Dokploy deploy/SQL/reboot or
 host/customer installation is granted to the S2 build job by this policy.
-Completed S2 baseline is now680628f2/2.0.2+74 per receipt above;
-its package and caches are retained. Hosting is still pending,not a new build.
+Current completed S2 baseline is babdbfc0/3.1.2 per the latest receipt above;
+hosting PASS is user-reported and public Web/API bytes/hash verified by S1.
+Preserve rollback packages/caches; no repeat build or hosting job for this source.
 
 ## Installer hosting after changed rd-cl — user policy2026-10-27
 

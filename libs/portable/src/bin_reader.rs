@@ -42,6 +42,24 @@ impl BinaryData {
         buf
     }
 
+    pub fn write_verified_new(&self, prefix: &Path) -> std::io::Result<()> {
+        use std::io::Write;
+        if !self.path.split('/').all(|p| !p.is_empty() && p != "." && p != ".." && p.bytes().all(|c| c.is_ascii_alphanumeric() || b"_. -".contains(&c))) {
+            return Err(std::io::ErrorKind::InvalidInput.into());
+        }
+        let target = prefix.join(&self.path);
+        if let Some(parent) = target.parent() { std::fs::create_dir_all(parent)?; }
+        let mut content = Vec::new();
+        brotli::Decompressor::new(Cursor::new(self.raw), BUF_SIZE).read_to_end(&mut content)?;
+        if format!("{:x}", md5::compute(&content)) != String::from_utf8_lossy(self.md5_code) {
+            return Err(std::io::ErrorKind::InvalidData.into());
+        }
+        let mut file = std::fs::OpenOptions::new().create_new(true).write(true).open(target)?;
+        file.write_all(&content)?;
+        file.sync_all()?;
+        Ok(())
+    }
+
     pub fn write_to_file(&self, prefix: &Path) {
         let p = prefix.join(&self.path);
         if let Some(parent) = p.parent() {

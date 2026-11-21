@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material show Dialog;
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/animated_rotation_widget.dart';
@@ -16,6 +17,11 @@ import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/desktop/widgets/update_progress.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/exantas_companion_model.dart';
+import 'package:flutter_hbb/models/exantas_device_display.dart';
+import 'package:flutter_hbb/desktop/widgets/exantas_customer_computer.dart';
+import 'package:flutter_hbb/models/exantas_customer_ticket.dart';
+import 'package:flutter_hbb/models/exantas_customer_ticket_runtime.dart';
+import 'package:flutter_hbb/desktop/pages/exantas_customer_support_page.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/exantas_report_outbox.dart';
 import 'package:flutter_hbb/models/exantas_lifecycle_outbox.dart';
@@ -56,8 +62,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Timer? _updateTimer;
   bool isCardClosed = false;
   final _exantasCompanion = ExantasCompanionService();
+  bool _customerSupportOpen = false;
   late final Future<String> _appVersion = bind.mainGetVersion();
   ExantasCompanionStatus? _exantasStatus;
+  ExantasDeviceDisplay? _exantasDeviceDisplay;
+  int _exantasDisplayGeneration = 0;
   Timer? _exantasHeartbeatTimer;
   Timer? _exantasPendingSessionsTimer;
   bool _checkingPendingSessions = false;
@@ -459,13 +468,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             style: TextStyle(
                 fontSize: 12, color: textColor?.withOpacity(0.7)),
           ),
-          if (enrolled && (status?.customerName ?? '').isNotEmpty)
-            Text(
-              status!.customerName,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 12, color: textColor?.withOpacity(0.6)),
-            ),
+          if (enrolled && !technicianLoggedIn)
+            ExantasCustomerComputer(display: _exantasDeviceDisplay, compact: true),
           if (technicianLoggedIn)
             Text(
               status?.supportRole == 'technician'
@@ -493,6 +497,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             spacing: 6,
             runSpacing: 6,
             children: [
+              if (Platform.isWindows && enrolled && !technicianLoggedIn && status?.enrollmentPending != true)
+                OutlinedButton.icon(
+                  onPressed: _openCustomerSupport,
+                  icon: const Icon(Icons.support_agent, size: 18),
+                  label: const Text('Αίτημα υποστήριξης'),
+                ),
               if (!Platform.isWindows) ...[
                 OutlinedButton(
                   onPressed: () => _showTechnicianLoginDialog(context),
@@ -529,22 +539,57 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
+  Future<void> _openCustomerSupport() async {
+    if (_customerSupportOpen) return;
+    _customerSupportOpen = true;
+    try {
+      final client = await createCustomerTicketClient();
+      if (!mounted) { await client.dispose(); return; }
+      final size = MediaQuery.sizeOf(context);
+      await showDialog<void>(context: context, barrierDismissible: false,
+        builder: (context) => material.Dialog(child: SizedBox(
+          width: size.width > 1200 ? 1120 : size.width * .94,
+          height: size.height * .9,
+          child: ExantasCustomerSupportPage(client: client,
+            identityChanges: ExantasCompanionService.accountChanges,
+            pickFiles: pickCustomerTicketFiles,
+            captureScreenshot: captureAndSaveCustomerScreenshot,
+            previewLocal: previewCustomerTicketFile,
+            openMedia: openCustomerTicketMedia),
+        )));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ticketFailureMessage(error))));
+      }
+    } finally { _customerSupportOpen = false; }
+  }
+
   Future<void> _refreshExantasStatus() async {
+    final generation = ++_exantasDisplayGeneration;
     try {
       final next = await _exantasCompanion.loadStatus();
-      if (!mounted) {
+      if (!mounted || generation != _exantasDisplayGeneration) {
         return;
       }
       final pairingChanged =
           _exantasStatus?.companionToken != next.companionToken;
       setState(() {
         _exantasStatus = next;
+        _exantasDeviceDisplay = null;
       });
       if (pairingChanged) {
         _resetPendingSessionTracking();
         if (next.technicianLoggedIn) {
           unawaited(_pollExantasPendingSessions());
         }
+      }
+      try {
+        final display = await _exantasCompanion.loadDeviceDisplay();
+        if (mounted && generation == _exantasDisplayGeneration) {
+          setState(() => _exantasDeviceDisplay = display);
+        }
+      } catch (_) {
+        // Display lookup cannot change credentials or authorize support.
       }
     } catch (e) {
       debugPrint('Exantas status refresh failed: $e');

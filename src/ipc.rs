@@ -457,6 +457,12 @@ pub enum Data {
     #[cfg(windows)]
     OfficeIdentityReset(crate::office_identity::Request),
     #[cfg(windows)]
+    OfficeUpdateRegister(crate::office_update::Registration),
+    #[cfg(windows)]
+    OfficeUpdateProbe,
+    #[cfg(windows)]
+    OfficeUpdateReply(serde_json::Value),
+    #[cfg(windows)]
     OfficeIdentityResetResult(crate::office_identity::Outcome),
     // Although the key is not necessary, it is used to avoid hardcoding the key.
     WaylandScreencastRestoreToken((String, String)),
@@ -826,6 +832,15 @@ async fn handle(data: Data, stream: &mut Connection) {
                 .count();
             allow_err!(stream.send(&Data::VideoConnCount(Some(n))).await);
         }
+        #[cfg(windows)]
+        Data::OfficeUpdateProbe => {
+            let mode = if crate::platform::is_msi_installed().unwrap_or(true) {"msi"} else {"exe"};
+            let reply = serde_json::json!({"idle":crate::updater::has_no_active_conns() && !crate::office_identity::reset_in_progress(),"version":crate::VERSION,
+                "peer_id":Config::get_id(),"install_mode":mode});
+            allow_err!(stream.send(&Data::OfficeUpdateReply(reply)).await);
+        }
+        #[cfg(windows)]
+        Data::OfficeUpdateRegister(_) | Data::OfficeUpdateReply(_) => {}
         #[cfg(windows)]
         Data::OfficeIdentityReset(request) => {
             let result = crate::office_identity::reset(request).await;

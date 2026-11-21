@@ -11,6 +11,8 @@ import 'package:flutter_hbb/models/exantas_native_source.dart';
 import 'package:flutter_hbb/models/exantas_office_response.dart';
 import 'package:flutter_hbb/models/exantas_identity.dart';
 import 'package:flutter_hbb/models/exantas_device_enrollment.dart';
+import 'package:flutter_hbb/models/exantas_device_display.dart';
+import 'package:flutter_hbb/models/exantas_update_registration.dart';
 import 'package:flutter_hbb/models/exantas_session_report.dart';
 import 'package:flutter_hbb/models/exantas_workflow_http_policy.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
@@ -548,6 +550,29 @@ class ExantasCompanionService implements ExantasIdentityActions {
     await bind.mainSetLocalOption(key: kExantasNativeConfirm, value: '');
   }
 
+  Future<ExantasDeviceDisplay?> loadDeviceDisplay() => readExantasDeviceDisplay(
+    readScope: () async {
+      final status = await loadStatus();
+      return ExantasDeviceDisplayScope(apiBase: status.apiBase,
+        deviceId: bind.mainGetLocalOption(key: kExantasDeviceId),
+        deviceToken: status.deviceToken, peerId: (await bind.mainGetMyId()).trim(),
+        enabled: status.enrolled && !status.technicianLoggedIn && !status.enrollmentPending);
+    },
+    readPolicy: (scope) async {
+      final response = await http.get(Uri.parse('${scope.apiBase}/rustdesk-devices/policy'),
+        headers: _headers(scope.deviceToken));
+      return _decodeResponse(response.statusCode, response.body);
+    },
+  );
+
+  Future<void> _bootstrapSilentUpdates(ExantasCompanionStatus status, String peerId) async {
+    if (!Platform.isWindows || isRunningInPortableMode() || status.technicianLoggedIn || status.enrollmentPending) return;
+    final id = bind.mainGetLocalOption(key: kExantasDeviceId);
+    if (id.isEmpty) return;
+    await registerRdclUpdater(eligible: true, executable: Platform.resolvedExecutable,
+      request: {'device_id': id, 'device_token': status.deviceToken, 'peer_id': peerId});
+  }
+
   Future<void> heartbeat() async {
     final status = await loadStatus();
     if (!status.enrolled) {
@@ -564,6 +589,8 @@ class ExantasCompanionService implements ExantasIdentityActions {
           'platform': 'windows',
         },
         bearerToken: status.deviceToken);
+    // Optional bootstrap is isolated from normal heartbeat and customer work.
+    try { await _bootstrapSilentUpdates(status, peerId); } catch (_) { debugPrint('Office updater registration pending'); }
   }
 
   Future<String> _androidStaffToken(ExantasCompanionStatus status) async {

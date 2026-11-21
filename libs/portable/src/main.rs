@@ -188,6 +188,26 @@ fn main() {
         }
         i += 1;
     }
+    if args.first().map(String::as_str) == Some("--office-update-extract") {
+        let outcome = (|| -> std::io::Result<()> {
+            if args.len() != 2 { return Err(std::io::ErrorKind::InvalidInput.into()); }
+            let target = PathBuf::from(&args[1]);
+            if !target.is_absolute() || target.exists() { return Err(std::io::ErrorKind::AlreadyExists.into()); }
+            let mut ancestor = target.parent();
+            while let Some(path) = ancestor {
+                let metadata = std::fs::symlink_metadata(path)?;
+                #[cfg(windows)] {
+                    use std::os::windows::fs::MetadataExt;
+                    if metadata.file_attributes() & 0x400 != 0 { return Err(std::io::ErrorKind::PermissionDenied.into()); }
+                }
+                ancestor = path.parent();
+            }
+            std::fs::create_dir(&target)?;
+            for file in BinaryReader::default().files { file.write_verified_new(&target)?; }
+            Ok(())
+        })();
+        std::process::exit(if outcome.is_ok() {0} else {1});
+    }
     let click_setup = args.is_empty() && (installer_bootstrap::enrollment_code(&arg_exe).is_some() || installer_bootstrap::is_installer_filename(&arg_exe));
     #[cfg(windows)]
     let quick_support = args.is_empty() && win::is_quick_support_exe(&arg_exe);

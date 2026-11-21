@@ -1,6 +1,168 @@
 # One complete rd-cl build prompt for S2
 
-## Caller Popup native readiness fix —candidate2.0.3+75 (2026-10-28)
+## Latest S2 attempt BLOCKED — 3.1.3/2e8babad, 2026-11-18
+
+User-forwarded native S2 receipt: source recovery and the 79 profile pins passed;
+guards 91 PASS/2 SKIP (Linux-only and synthetic symlink privilege), updater
+7 envelope cases/38 recovery checks, analyzer zero diagnostics, Dart137 PASS,
+and virtual-display compilation PASS. One Build-WithExe invocation stopped at
+Cargo101/E0382 in update_me: exe was moved into the restore callback before
+formatting the updater-enable command. Flutter release/ZIP/EXE were NOT_RUN;
+maintenance and hosting did not execute. Completed delivery remains3.1.2.
+
+S1 moves the pure command formatting before the move capture without cloning or
+changing the command, target path, checked execution or restore guard. The new
+metadata-only native regression compiles the actual command/callback region and
+actual guard with inert helper signatures: the original fails E0382, the fix
+passes with Rust1.75. No product, installer, callback or service is executed.
+The final handoff must supply the NEW published rd-cl SHA; do not replay2e8babad.
+
+S2 genuinely rebuilt codecs and produced compiled-cache-receipt.json under
+Builds/rd-cl/3.1.3/codec-bootstrap-s2-2e8babad, SHA256
+32cdda39d3b73e8c16988c4eb46e1df9571ea260171dfb2fb82ce7ba25e077a6.
+Its sibling toolchain-codecs-local.json selects the new receipt. Reverify its
+actual SDK10.0.22621/tool/triplet/424ABI-file/16-port evidence for reuse; this
+application-only correction does not require another codec bootstrap. Preserve
+all failed outputs, that receipt/root and C:\Build\rd-cl\a23ec301\target.
+An old hwcodec build-script output still references the old codec root; final
+link provenance was NOT established before failure. Inspect selected native
+search/link inputs; use a new isolated application target only if their provenance
+cannot be verified, without purging or modifying the existing cache/receipt.
+
+S2 retained the recovered3.1.2 installer with its known hash; original ZIP and
+BUILD-INFO remain historical MISSING. Use a new truthful maintenance config with
+the real recovered installer/new package/receipt and cleanup:[], not absent old
+required paths. Migration20261116000100 already has user-forwarded APPLIED /
+MIGRATION_GATE_PASS; no replay or new SQL audit. All S2 facts here are reported
+evidence, not independent S1 inspection of its filesystem or database.
+
+
+## Previous S2 attempt BLOCKED —3.1.3/da4256e5,2026-11-17
+
+Cargo exit101: incorrect WinAPI sddl import and4unsupported crypto error
+conversions. No EXE/ZIP/package, maintenance or hosting. Guards90PASS, updater38,
+Dart137PASS and analyzer0/0/0 are retained, not application acceptance. Preserve
+this failed snapshot/output/receipts and existing C:\Build\rd-cl\a23ec301\target.
+Last completed build/hosting remains3.1.2/babdbfc0; not a new3.1.3 delivery.
+
+S1 local fixes and real native regression probe are prepared. Wait for NEW full
+published Office/rd-cl SHAs; never replay da4256e5 as a corrected target. Use a
+new owned snapshot/output for the corrected SHA, compatible verified codec/cache
+reuse and one normal Build-to-EXE invocation. No new codec/dependency/SDK change.
+The optional native contract probe accepts RDCL_TEST_RUSTC and
+RDCL_TEST_NATIVE_DEPS pointing at real pinned Rust1.75/compiled release deps;
+it compiles actual production function bodies and executes disposable envelope
+cases only, never the product barrier. Full native application compile is still
+mandatory. Original S2 migration was0attempts/BLOCKED by sequence default UPDATE;
+its separate corrected published SQL/hash handoff must enforce fresh ledger checks.
+
+
+## Current source candidate —3.1.3 / Office1.12.60,2026-11-17
+
+The reviewed sequential silent-update implementation is ready for coordinated S1
+publication; the final user-forwarded prompt supplies both full published SHAs.
+This heading is not a completed build receipt. No new EXE exists yet. Preserve the
+completed3.1.2/babdbfc0 delivery below and its source/cache/rollback provenance.
+
+Build the changed3.1.3 source through one normal `Build -WithExe` invocation,
+including the new update-registration Dart case and Windows synthetic updater
+fixtures. Compatible verified codecs and warm application targets should be
+reused; application-only changes do not justify codec bootstrap. Full native
+compilation/package checks remain mandatory. Publish the common interactive EXE
+through the same reviewed Office publisher and volume/retention guard, with native
+acceptance honestly NOT_RUN. No signed silent-release envelope is supplied by
+this build job; never fabricate clean-install/upgrade PASS, request a private key
+or unlock a production key on S2. Native installation and pilot acceptance, live
+SQL/configuration, feature activation and Dokploy deployment stay separate.
+
+
+## Current completed delivery —3.1.2,2026-11-16
+
+Current completed S2 application/EXE and hosting baseline (user-forwarded
+receipt2026-11-16; native Windows logs/package not independently inspected by S1):
+`babdbfc0dad64f6725ba938222c7b70503ed2b31`, rd-cl `3.1.2`, Windows x64, NotSigned.
+Office handoff: `bc7f82801fd962200e86bc66aebcb77dd1bedd97` (1.12.59).
+Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\3.1.2\delivery-s2-babdbfc0`.
+EXE: `rd-cl-3.1.2-windows-x64-install.exe`, 24497152 bytes.
+SHA256: `7251af67957c5c064ce9c095ddd079aa6f74ec7a37972eeea6a38050645d02d5`.
+Runtime ZIP SHA256: `f32ca8b028bcf17ed58647c3b2d55107b289b2b2a9bebf99a4204e097de491c8`.
+Public URL: `https://office.exantas.eu/downloads/rd-cl/rd-cl-3.1.2-7251af67957c-windows-x64-install.exe`.
+S2 reports exact-source sync/snapshot, verified codec/toolchain/cache reuse without
+bootstrap, 89 executed guard PASS + 1 REUSED_VERIFIED + 1 Linux-only NOT_RUN,
+analyzer0errors/0warnings/4INFO,130 Dart PASS and one Build-to-EXE1060.234s PASS.
+EXE/ZIP/PE/icons/inventories, maintenance plan/apply/verify (zero removals) and
+hosting/HTTPS/retirement/staging cleanup PASS. Only the previous manifest-owned
+3.1.1 server EXE was retired; one current server EXE, rollback packages/caches
+retained on S2. These native/server details are user-reported, not S1 re-execution.
+S1 independently streamed both immutable Web and common API downloads: HTTP200,
+normal TLS, exact size/SHA256 and MZ header PASS; no binary saved or executed.
+Native installation/upgrade/customer acceptance remains NOT_RUN; no SQL, flags,
+activation or service deployment/restart in this delivery. The live customer
+mapping/ticket403 is not proven fixed by build/hosting. Detailed S2 commands,
+exits/timings/inputs are in BUILD-STATUS.md and stage-summary.json beside the EXE.
+Do not rebuild unchanged babdbfc0 source or reissue its completed S2 handoff.
+Previous3.1.0/earlier receipts stay historical. This receipt supplies no newer
+individual toolchain/codec hash or free-space measurement; discover actual state
+on S2 when required, without inventing it. Tracking-doc updates alone do not
+request another build. See docs/rdcl-3.1.2-delivery.md in Office.
+
+The requested3.1.2 section below is now historical: the user returned DELIVERY_PASS.
+Do not replay it or the old3.1.1 handoff. For unchanged runtime/build inputs,
+NO_RDCL_BUILD_NEEDED; installation/acceptance remains a separate manual step.
+
+## Historical requested target —3.1.2 publication2026-11-16
+
+Company/computer presentation and its tests are coordinated with Office1.12.59
+customer directory/group search. Source/runtime test bindings are retained;
+normal core/packer/Flutter/profile versions and exact input hashes are updated.
+No codec/dependency/SDK/ABI/icon change. Use the coordinator's newly published
+full Office/rd-cl SHAs, a separate owned3.1.2 snapshot/output, and compatible
+verified receipts/warm Cargo/Flutter caches. Preserve the outstanding3.1.1
+receipts/active resources; do not assume completion from an installed screenshot.
+Read actual S2 state before proceeding and do not run parallel release sessions.
+The known completed3.1.0 baseline below remains historical evidence. New build,
+maintenance and latest-only hosting must pass before delivery; installation and
+deploy are not authorized. The later dated3.1.1 source-preparation section is
+historical and is not an instruction to build that superseded source.
+
+
+2026-11-14 source preparation: clean3.1.1 reduces ticket video selection/help to
+50,000,000bytes, matching local Office1.12.53 and a forward DB constraint. The
+global Storage limit stays52,428,800bytes. Do not execute a replacement build
+from the previous SHAs. Use the coordinator's verified full published Office/rd-cl
+SHAs and one complete S2 prompt for this correction. Preserve
+the completed3.1.0 baseline below; use a new owned snapshot/output and compatible
+verified caches/codec receipt. Application-only limit/version changes do not
+require codec bootstrap. Hosting, migrations/storage, activation and real native
+installation/acceptance remain separate stages.
+
+## Previous completed delivery —3.1.0, build/EXE/maintenance/hosting PASS (2026-11-13)
+
+Current completed S2 application/EXE and hosting baseline (user-forwarded
+receipt2026-11-13; native Windows package/report not independently inspected by S1):
+`1d76e7d176637bf74962a7061d77395def3082bc`, rd-cl `3.1.0`, Windows x64, NotSigned.
+Office handoff source: `d7330fc05cd197573cc522e4f50a822b0e2886d0` (1.12.52).
+Directory: `C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\3.1.0\delivery-s2-1d76e7d1`.
+EXE: `rd-cl-3.1.0-windows-x64-install.exe`, 24499200 bytes.
+SHA256: `7be3409f23788d5422b02add17fbe966e738c1b451955a52591b9f9b1336d541`.
+Public installer: `https://office.exantas.eu/downloads/rd-cl/rd-cl-3.1.0-7be3409f2378-windows-x64-install.exe`.
+Build/EXE, maintenance and hosting PASS are user-reported; no repeated build for
+hosting. S1 independently streamed the public HTTPS bytes with normal TLS
+verification: exact size/SHA256 and MZ header PASS, without saving/executing EXE.
+Native installation/customer acceptance remains NOT_RUN. S2 retains previous
+3.0.0 and reusable caches. Detailed S2 checks/timings/commands/hosting receipts:
+`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Reports\2026-11-13\rd-cl-1d76e7d1\BUILD-STATUS.md`.
+No new exact test counts, free-space/compression results or server retirement
+receipts were supplied in this summary; do not invent those details. This
+supersedes the blocked 0cd3c648 teardown and 1d76e7d1 space-only attempts as the
+current delivery state. Preserve their historical evidence. Do not rebuild this
+unchanged completed source; installation, migrations/storage/flags, manual
+deployment and real customer acceptance remain separate, unproven by this receipt.
+
+The dated preparation and older baseline sections below are historical. They do
+not request a new build of the already completed current source.
+
+## Historical Caller Popup native readiness fix —candidate2.0.3+75 (2026-10-28)
 
 User reports:Office was already signed in and showing native readiness. The SAME
 peer connects from the main rd-cl screen,but Caller Popup launch receives server
@@ -31,9 +193,9 @@ acceptance remains NOT_RUN until real evidence. Manual main-window connection is
 the current working workaround;no customer re-enrollment or logout is required.
 
 
-## Current completed build —2.0.2+74;hosting pending (2026-10-28)
+## Historical completed build —2.0.2+74 (2026-10-28)
 
-Current completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
+Historical completed S2 application/EXE baseline (user-forwarded receipt2026-10-28;
 not independently inspected on Windows here):
 `680628f2b9e798ef63e6d29c73954807d9012e12`,rd-cl `2.0.2+74`,Windows x64,UNSIGNED.
 Directory:`C:\Users\Support-2\Desktop\Office-Workspace-Artifacts\Builds\rd-cl\2.0.2+74\delivery-s2-680628f2`.
