@@ -1,5 +1,29 @@
 # One complete rd-cl build prompt for S2
 
+## Current source candidate — 3.1.5
+
+S1 is preparing a correction for a pilot NAS running 3.1.4. Its inherited
+TrustedInstaller FullControl rule on the installation directory was rejected
+before the first updater poll. The corrected installation guard accepts the
+exact Windows TrustedInstaller service SID, with synthetic tests retaining
+rejection of Everyone, Users and unrelated service writers. Private updater-root
+ownership and permissions remain strict.
+
+Startup failures after verifying the private updater root now produce bounded,
+sanitized update.jsonl codes, including failures before the normal poll loop.
+Recovery setup preserves a sanitized underlying cause before its summary failure.
+The new native fixture covers 41 recovery/security scenarios. Full publication
+checks and the final published source SHA belong in the completed handoff.
+
+Last completed package and hosting are rd-cl 3.1.4,
+f66ed92801f5bea6f2de956c8e605b8c6217e422, EXE 24551424 bytes,
+SHA-256 1430fa8c57d95a410769c819e8f842c37980bce006700d4fb414ac3e6bd95dfa.
+User-forwarded S2 transfer/maintenance/hosting PASS was independently checked
+through public Web/API by S1 on 2026-11-21. Native clean-install/upgrade/enrollment
+remain NOT_RUN. Existing guest codec receipts and warm application caches need
+fresh compatibility verification before reuse for 3.1.5.
+No 3.1.5 EXE has been produced. S2's work ends at verified EXE transfer.
+
 ## S2 build station
 
 S2 coordinates from Ubuntu **Exantas-S2** and builds inside **Windows11-Development**

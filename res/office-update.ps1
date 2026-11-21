@@ -33,6 +33,19 @@ function Assert-PrivateUpdateDirectory([string]$Root) {
     }
 }
 
+function Write-UpdateDiagnostic([string]$Code) {
+    Assert-PrivateUpdateDirectory $script:root
+    $safeCode=if($Code -cmatch '^[a-z_]{1,64}$'){$Code}else{'update_startup_failed'}
+    $log=Join-Path $script:root 'update.jsonl'
+    if(Test-Path -LiteralPath $log){Assert-UpdatePath $log}
+    if ((Test-Path -LiteralPath $log) -and (Get-Item -LiteralPath $log).Length -gt 1048576) {
+        $previous="$log.previous"
+        if(Test-Path -LiteralPath $previous){Assert-UpdatePath $previous}
+        Move-Item -LiteralPath $log -Destination $previous -Force
+    }
+    [IO.File]::AppendAllText($log,(@{at=[DateTime]::UtcNow.ToString('o');code=$safeCode}|ConvertTo-Json -Compress)+[Environment]::NewLine)
+}
+
 function Test-SafeRuntimePath([string]$Path) {
     if (!$Path -or $Path.Length -gt 240 -or $Path.Contains('\')) { return $false }
     foreach ($part in $Path.Split('/')) {
@@ -115,12 +128,15 @@ public static class ExantasUpdateAtomicFile {
 }
 
 function Assert-ProtectedInstallation([string]$Path) {
+    # Windows servicing may retain TrustedInstaller write access on Program Files.
+    # Trust its exact service SID independently of localized account names.
     Assert-UpdatePath $Path
     $acl=Get-Acl -LiteralPath $Path
     foreach($rule in $acl.Access) {
         if($rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band 0xD0156) -ne 0 -and
           ($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and
-          $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin @('S-1-5-18','S-1-5-32-544')) {throw 'install_directory_not_protected'}
+          $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin @('S-1-5-18','S-1-5-32-544',
+            'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')) {throw 'install_directory_not_protected'}
     }
 }
 
@@ -651,6 +667,7 @@ if (!$LibraryOnly) {
     if ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -ne 'S-1-5-18') { throw 'system_service_required' }
     $script:root=Join-Path $env:ProgramData 'ExantasRdclUpdates'
     Assert-PrivateUpdateDirectory $script:root
+    try {
     if(Test-Path -LiteralPath (Join-Path $script:root 'stop-requested')){exit 0}
     $script:machine=Get-Content -Raw -LiteralPath (Join-Path $script:root 'machine.json') | ConvertFrom-Json
     if (!$script:machine.registered) { exit 0 }
@@ -672,6 +689,7 @@ if (!$LibraryOnly) {
         # Do not copy a partially replaced install tree over that trusted host.
         if(!$script:journal -or $script:journal.phase -in @('complete','rolled_back','cancelled','failed')) {
             try {Initialize-IndependentRecovery} catch {
+                try {Write-UpdateDiagnostic $_.Exception.Message} catch {}
                 try {Invoke-OfficeUpdate 'poll' @{report=@{protocol=2;platform='windows-x64';version='0.0.0';install_mode='unknown';service_running=$false;idle=$false;pending_reboot=$true;result_code='recovery_setup_failed'}} | Out-Null} catch {}
                 throw 'recovery_setup_failed'
             }
@@ -689,4 +707,8 @@ if (!$LibraryOnly) {
             for($wait=0;$wait -lt 60 -and !$script:restartWorker -and !(Test-Path -LiteralPath (Join-Path $script:root 'stop-requested'));$wait++){Start-Sleep -Seconds 1}
         }
     } finally { $lock.Dispose(); $script:barrier.Dispose(); $script:token=$null }
+    } catch {
+        try {Write-UpdateDiagnostic $_.Exception.Message} catch {}
+        throw
+    }
 }
