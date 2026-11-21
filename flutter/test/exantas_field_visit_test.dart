@@ -1,4 +1,5 @@
 import 'package:flutter_hbb/models/exantas_field_visit.dart';
+import 'package:flutter_hbb/models/exantas_office_response.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'exantas_field_visit_fakes.dart';
@@ -154,6 +155,23 @@ void main() {
       expect(c.jobType('a')!.checklist.single.label, 'Έλεγχος');
       expect([for (final p in c.phrasesFor('a')) p.id], ['p1']);
       expect(c.myDiscountLimitBps, 1500);
+    });
+  });
+
+  group('Office DTO quirks', () {
+    test('photo byte_size arrives as a decimal string (bigint ::text)', () {
+      final p = FvPhoto.fromJson({'id': 'p1', 'state': 'ready', 'caption': null, 'byte_size': '204800', 'media_type': 'image/png'});
+      expect(p.byteSize, 204800);
+    });
+    test('Office error body keeps status code, message and details', () {
+      try {
+        decodeExantasOfficeResponse(409, '{"status":"equipment_duplicate","message":"dup","details":{"existing_id":"e1"}}', androidSupport: true);
+        fail('must throw');
+      } on ExantasOfficeRejection catch (e) {
+        expect(e.code, 'equipment_duplicate');
+        expect(e.details, {'existing_id': 'e1'});
+        expect(e.definitive, isTrue);
+      }
     });
   });
 

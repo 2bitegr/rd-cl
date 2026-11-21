@@ -380,6 +380,60 @@ class FvStrings {
         return 'Ο εξοπλισμός υπάρχει ήδη στο μητρώο του πελάτη.';
       case 'field_visits_unavailable':
         return 'Η λειτουργία δελτίων δεν είναι ενεργή στο Office.';
+      case 'visit_not_found':
+        return 'Η επίσκεψη δεν βρέθηκε στο Office.';
+      case 'identity_immutable':
+        return 'Ο πελάτης και η εργασία της επίσκεψης δεν αλλάζουν.';
+      case 'validation_error':
+        return 'Κάποιο πεδίο δεν είναι έγκυρο. Έλεγξε τα στοιχεία και δοκίμασε ξανά.';
+      case 'invalid_job_type':
+        return 'Ο τύπος εργασίας δεν είναι διαθέσιμος. Διάλεξε άλλον.';
+      case 'invalid_customer':
+        return 'Ο πελάτης (ή το υποκατάστημα/επαφή) δεν είναι διαθέσιμος στο Office.';
+      case 'invalid_work_item':
+        return 'Η εργασία δεν είναι ανοιχτή ή δεν ανήκει στον πελάτη.';
+      case 'invalid_participant':
+        return 'Οι συμμετέχοντες πρέπει να είναι ενεργό προσωπικό του Office.';
+      case 'invalid_equipment':
+        return 'Ο εξοπλισμός δεν ανήκει σε αυτόν τον πελάτη.';
+      case 'invalid_device':
+        return 'Ο υπολογιστής πρέπει να ανήκει στον ίδιο πελάτη.';
+      case 'invalid_attendance':
+        return 'Η παρουσία δεν είναι έγκυρη. Έλεγξε άφιξη, παύσεις και αναχώρηση.';
+      case 'invalid_follow_up':
+        return 'Η ημερομηνία νέας επίσκεψης απαιτεί το αποτέλεσμα «Νέα επίσκεψη».';
+      case 'invalid_upload':
+        return 'Η φωτογραφία δεν είναι αποδεκτή (JPEG/PNG έως 10 MB).';
+      case 'photo_limit':
+        return 'Η επίσκεψη έχει ήδη το μέγιστο πλήθος φωτογραφιών.';
+      case 'photo_conflict':
+        return 'Αυτή η φωτογραφία έχει ήδη καταχωριστεί με άλλο περιεχόμενο.';
+      case 'photo_unverified':
+        return 'Η φωτογραφία δεν επιβεβαιώθηκε στο Office. Βγάλε την ξανά.';
+      case 'photo_not_found':
+        return 'Η φωτογραφία δεν βρέθηκε στο Office.';
+      case 'payment_conflict':
+        return 'Αυτή η είσπραξη έχει ήδη καταχωριστεί με άλλα στοιχεία.';
+      case 'draft_customer_conflict':
+        return 'Ο προσωρινός πελάτης έχει ήδη καταχωριστεί με άλλα στοιχεία.';
+      case 'visit_exists':
+        return 'Το ραντεβού υπάρχει ήδη στο Office.';
+      case 'stale_equipment':
+        return 'Ο εξοπλισμός άλλαξε στο Office. Φόρτωσέ τον ξανά.';
+      case 'lead_cannot_be_removed':
+        return 'Ο υπεύθυνος τεχνικός δεν αφαιρείται από την επίσκεψη.';
+      case 'participant_has_attendance':
+        return 'Τεχνικός με καταγεγραμμένη παρουσία δεν αφαιρείται.';
+      case 'staff_authority_changed':
+        return 'Η εξουσιοδότησή σου στο Office άλλαξε. Συνδέσου ξανά ή επικοινώνησε με διαχειριστή.';
+      case 'work_participant_required':
+        return 'Δεν συμμετέχεις σε αυτή την εργασία.';
+      case 'companion_revoked':
+      case 'paired_companion_required':
+        return 'Η σύνδεση αυτής της συσκευής με το Office ανακλήθηκε. Επικοινώνησε με διαχειριστή.';
+      case 'private_storage_required':
+      case 'upload_capability_unavailable':
+        return 'Η αποθήκευση φωτογραφιών δεν είναι διαθέσιμη αυτή τη στιγμή. Θα ξαναδοκιμάσει.';
     }
     return fallback;
   }

@@ -425,7 +425,8 @@ class FvPhoto {
       id: '${j['id']}',
       caption: '${j['caption'] ?? ''}',
       state: '${j['state'] ?? 'pending'}',
-      byteSize: (j['byte_size'] as num?)?.toInt() ?? 0,
+      // Office sends bigint columns as decimal strings (`byte_size::text`).
+      byteSize: int.tryParse('${j['byte_size'] ?? ''}') ?? 0,
       mediaType: '${j['media_type'] ?? 'image/jpeg'}',
       sha256: '${j['sha256'] ?? ''}');
 }

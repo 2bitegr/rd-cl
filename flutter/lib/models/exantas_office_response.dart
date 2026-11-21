@@ -5,10 +5,13 @@ import 'dart:convert';
 /// transaction back) from an unknown outcome such as a timeout. toString keeps
 /// the previous `Exception: message` form for display.
 class ExantasOfficeRejection implements Exception {
-  ExantasOfficeRejection(this.statusCode, this.code, this.message);
+  ExantasOfficeRejection(this.statusCode, this.code, this.message, {this.details});
   final int statusCode;
   final String? code;
   final String message;
+
+  /// Office `details` object (e.g. `{existing_id}` of `equipment_duplicate`).
+  final Map<String, dynamic>? details;
 
   /// 4xx ApiError raised inside the request transaction: nothing was stored, so
   /// the idempotency key was never consumed. Never true for 5xx/timeouts, and
@@ -70,7 +73,10 @@ Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
         code is String ? code : null,
         message is String && message.trim().isNotEmpty
             ? message.trim()
-            : 'Το Office δεν ολοκλήρωσε το αίτημα (HTTP $statusCode). Δοκιμάστε ξανά.');
+            : 'Το Office δεν ολοκλήρωσε το αίτημα (HTTP $statusCode). Δοκιμάστε ξανά.',
+        details: decoded?['details'] is Map
+            ? Map<String, dynamic>.from(decoded!['details'] as Map)
+            : null);
   }
   if (decoded == null) {
     throw Exception(

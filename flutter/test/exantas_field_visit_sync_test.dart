@@ -5,6 +5,7 @@ import 'package:flutter_hbb/models/exantas_field_visit.dart';
 import 'package:flutter_hbb/models/exantas_field_visit_api.dart';
 import 'package:flutter_hbb/models/exantas_field_visit_store.dart';
 import 'package:flutter_hbb/models/exantas_field_visit_sync.dart';
+import 'package:flutter_hbb/models/exantas_office_response.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'exantas_field_visit_fakes.dart';
@@ -391,6 +392,80 @@ void main() {
       expect(office.posts('/close').length, 1);
     });
 
+    test('restart after a POST that never answered: unknown, GET-only recovery, no re-POST', () async {
+      final (sync, v) = await ready();
+      office.onPost = (p, b) async => throw const SocketException('timeout');
+      await sync.closeVisit(v.id);
+      final key = sync.visit(v.id)!.closeOp!.key;
+      // App killed mid-flight: on disk the op is sent but still `queued`.
+      final onDisk = sync.visit(v.id)!;
+      onDisk.closeOp!.state = 'queued';
+      await store.save(onDisk);
+
+      final again = make();
+      await again.load();
+      expect(again.visit(v.id)!.closeOp!.state, 'unknown');
+      expect(again.visit(v.id)!.closeOp!.sent, isTrue);
+      office.calls.clear();
+      office.onGet = (p) async => {'status': 'ok', 'request': {'state': 'not_found'}};
+      await again.sync(force: true);
+      expect(office.posts('/close'), isEmpty);
+      expect(office.gets().any((c) => c.path == '/support-workflow/requests/$key'), isTrue);
+    });
+
+    test('the 2-minute abandon window starts at the first send, not when queued offline', () async {
+      final (sync, v) = await ready();
+      final queuedAt = clock;
+      currentScope = null; // signed out / no session: the close is queued but cannot be sent
+      await sync.closeVisit(v.id);
+      var op = sync.visit(v.id)!.closeOp!;
+      expect(op.sent, isFalse);
+      expect(op.reservedAt, queuedAt);
+      expect(office.posts('/close'), isEmpty);
+
+      clock = clock.add(const Duration(minutes: 30));
+      currentScope = fvScopeA;
+      office.onPost = (p, b) async => throw const SocketException('timeout');
+      await sync.sync(force: true);
+      op = sync.visit(v.id)!.closeOp!;
+      expect(op.sentAt, clock);
+      expect(op.reservedAt, clock); // follows the send, not the queueing
+      office.onGet = (p) async => {'status': 'ok', 'request': {'state': 'not_found'}};
+      await sync.recoverClose(v.id);
+      expect(sync.canAbandonClose(v.id), isFalse);
+      clock = clock.add(const Duration(minutes: 2, seconds: 1));
+      expect(sync.canAbandonClose(v.id), isTrue);
+    });
+
+    test('an Office-less 4xx (gateway) on the close is NOT a rollback proof', () async {
+      final (sync, v) = await ready();
+      office.onPost = (p, b) async => throw ExantasOfficeRejection(409, null, 'Bad gateway page');
+      await sync.closeVisit(v.id);
+      final got = sync.visit(v.id)!;
+      expect(got.closeOp, isNotNull);
+      expect(got.closeOp!.state, 'unknown');
+      expect(got.localStatus, FvLocalStatus.closing);
+      await sync.sync(force: true);
+      expect(office.posts('/close'), hasLength(1));
+    });
+
+    test('free text sent to Office is single-line (discount reason, signer, payment reference)', () async {
+      final (sync, v) = await ready();
+      await sync.updateLocal(v.id, (x) {
+        x.discountBps = 0;
+        x.discountReason = 'πρώτη\nδεύτερη';
+        x.noSignature = false;
+        x.signaturePngBase64 = base64Encode([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
+        x.signerName = ' Γιώργος\nΠ ';
+      });
+      echoOffice();
+      await sync.closeVisit(v.id);
+      final body = office.posts('/close').single.body!;
+      expect(body['discount_reason'], 'πρώτη δεύτερη');
+      expect(body['signature']['signer_name'], 'Γιώργος Π');
+      expect(body['signature']['png_base64'], isNotEmpty);
+    });
+
     test('blockers refuse to start a close (no op persisted)', () async {
       final (sync, v) = await started();
       await expectLater(sync.closeVisit(v.id), throwsStateError); // no outcome etc.
@@ -613,6 +688,38 @@ void main() {
       expect(got.equipment.single.id, 'existing');
       final save = office.posts('/save').last;
       expect((save.body!['equipment_lines'] as List).single['equipment_id'], 'existing');
+    });
+  });
+
+  group('photo upload edge cases', () {
+    test('Storage "Duplicate" on a replayed signed upload means the bytes are there', () {
+      expect(fvStorageSaysAlreadyUploaded(409, '{}'), isTrue);
+      expect(fvStorageSaysAlreadyUploaded(400, '{"statusCode":"409","error":"Duplicate","message":"The resource already exists"}'), isTrue);
+      expect(fvStorageSaysAlreadyUploaded(400, '{"message":"bad"}'), isFalse);
+      expect(fvStorageSaysAlreadyUploaded(200, ''), isFalse);
+      expect(fvStorageSaysAlreadyUploaded(403, 'expired'), isFalse);
+    });
+
+    test('equipment_duplicate uses details.existing_id even when only the serial clashed', () async {
+      final (sync, v) = await started(arrive: false);
+      await sync.saveEquipment(v.id, FvEquipment(id: 'mine', kind: 'Εκτυπωτής', barcode: 'NEW', serialNumber: 'S1'), action: 'installed');
+      office.onPost = (p, b) async {
+        if (p.endsWith('/equipment')) {
+          throw ExantasOfficeRejection(409, 'equipment_duplicate', 'dup', details: {'existing_id': 'other'});
+        }
+        if (p.endsWith('/save')) fvContentEcho[v.id] = Map<String, dynamic>.from(b);
+        return {'status': 'ok', 'applied': true, 'visit': visitDto(v.id)};
+      };
+      office.onGet = (p) async => {
+            'status': 'ok',
+            'items': [
+              {'id': 'unrelated', 'kind': 'Άλλο'},
+              {'id': 'other', 'kind': 'Εκτυπωτής', 'serial_number': 'S1'}
+            ]
+          };
+      await sync.sync(force: true);
+      expect(sync.visit(v.id)!.equipmentLines.single.equipmentId, 'other');
+      expect(office.gets().first.path.contains('barcode='), isFalse);
     });
   });
 

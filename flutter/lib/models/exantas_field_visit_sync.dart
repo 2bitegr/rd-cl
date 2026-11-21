@@ -34,9 +34,21 @@ Future<void> fvHttpPhotoUploader(
   final r = await http
       .put(Uri.parse(url), headers: {'content-type': mediaType, 'x-upsert': 'false'}, body: bytes)
       .timeout(const Duration(seconds: 60));
+  if (fvStorageSaysAlreadyUploaded(r.statusCode, r.body)) return;
   if (r.statusCode < 200 || r.statusCode >= 300) {
     throw StateError('Η αποστολή φωτογραφίας απέτυχε (HTTP ${r.statusCode}).');
   }
+}
+
+/// The signed upload URL is created with `upsert:false`, so replaying the
+/// request after a PUT that succeeded (lost answer / failed confirm) gets
+/// Storage's "Duplicate" (HTTP 409, or 400 with `statusCode:"409"`). The bytes
+/// are already there: go on to `photo/confirm`, which checks size and sha256.
+bool fvStorageSaysAlreadyUploaded(int status, String body) {
+  if (status == 409) return true;
+  if (status != 400) return false;
+  final b = body.toLowerCase();
+  return b.contains('duplicate') || b.contains('already exists') || b.contains('"409"');
 }
 
 class FvDraftCustomerInput {
@@ -137,7 +149,16 @@ class ExantasFieldVisitSync extends ChangeNotifier {
       return;
     }
     for (final v in all) {
-      if (fvBelongsToScope(v, s.owner, s.api)) _visits[v.id] = v;
+      if (!fvBelongsToScope(v, s.owner, s.api)) continue;
+      _visits[v.id] = v;
+      // A close whose POST was started but never answered (app killed mid
+      // flight) is an UNKNOWN outcome: GET-only recovery, never a re-POST.
+      final close = v.closeOp;
+      if (close != null && close.sent && close.state == 'queued') {
+        close.state = 'unknown';
+        close.nextRetryAt = null;
+        await _persist(v);
+      }
     }
     final cached = await store.readMeta('config');
     if (cached != null && cached['owner'] == s.owner && cached['api'] == s.api && cached['config'] is Map) {
@@ -203,6 +224,12 @@ class ExantasFieldVisitSync extends ChangeNotifier {
     final v = _visits[id];
     if (v == null) throw StateError('Η επίσκεψη δεν βρέθηκε.');
     return v;
+  }
+
+  /// Office's short-text rule: no control characters/newlines, bounded length.
+  static String _oneLine(String s, int max) {
+    final t = s.replaceAll(RegExp(r'[\x00-\x1f\x7f]+'), ' ').trim();
+    return t.length > max ? t.substring(0, max).trim() : t;
   }
 
   FvOp _newOp(FvOpKind kind, String path, Map<String, dynamic> body, {String? photoId, bool reserve = false}) {
@@ -526,7 +553,7 @@ class ExantasFieldVisitSync extends ChangeNotifier {
         'method': method,
         'amount_minor': '$amountMinor',
         'received_at': fvIso(p.receivedAt),
-        if (reference.isNotEmpty) 'reference': reference,
+        if (_oneLine(reference, 200).isNotEmpty) 'reference': _oneLine(reference, 200),
       }));
       await _commit(v);
       return p;
@@ -553,7 +580,7 @@ class ExantasFieldVisitSync extends ChangeNotifier {
             'media_type': mediaType,
             'byte_size': bytes.length,
             'sha256': photo.sha256,
-            if (caption.isNotEmpty) 'caption': caption,
+            if (_oneLine(caption, 200).isNotEmpty) 'caption': _oneLine(caption, 200),
           },
           photoId: photo.id));
       await _commit(v);
@@ -589,7 +616,9 @@ class ExantasFieldVisitSync extends ChangeNotifier {
         if (v.myAttendance.arrived && v.serverKnown && v.status != 'scheduled') {
           throw StateError('visit_not_cancellable');
         }
-        v.ops.add(_newOp(FvOpKind.cancel, ExantasFieldVisitApi.cancelPath(id), {'reason': reason}));
+        // Office requires a non-empty single-line reason (<= 500 chars).
+        final why = _oneLine(reason, 500);
+        v.ops.add(_newOp(FvOpKind.cancel, ExantasFieldVisitApi.cancelPath(id), {'reason': why.isEmpty ? 'Ακύρωση από τον τεχνικό' : why}));
         v.localStatus = FvLocalStatus.cancelled;
         await _commit(v);
       });
@@ -647,10 +676,10 @@ class ExantasFieldVisitSync extends ChangeNotifier {
         if (v.outcome == FvOutcome.newVisit && v.followUpStart != null) 'follow_up_start': fvIso(v.followUpStart!),
         'charge_source': v.chargeSource!.wire,
         'discount_bps': v.discountBps,
-        if (v.discountReason.trim().isNotEmpty) 'discount_reason': v.discountReason.trim(),
+        if (_oneLine(v.discountReason, 300).isNotEmpty) 'discount_reason': _oneLine(v.discountReason, 300),
         'show_prices': v.showPrices,
         'signature': sig != null && sig.isNotEmpty
-            ? {'signer_name': v.signerName.trim(), 'png_base64': sig}
+            ? {'signer_name': _oneLine(v.signerName, 200), 'png_base64': sig}
             : {'no_signature': true},
         if (v.autoDepartAt != null) 'auto_depart_at': fvIso(v.autoDepartAt!),
       };
@@ -833,7 +862,9 @@ class ExantasFieldVisitSync extends ChangeNotifier {
       if (!op.sent) {
         op.body['client_sent_at'] = fvIso(now());
         op.sentAt = now().toUtc();
-        op.reservedAt ??= op.financial ? now().toUtc() : null;
+        // The 2-minute abandon window runs from the moment the POST may have
+        // reached Office, not from when the close was queued offline.
+        if (op.financial) op.reservedAt = op.sentAt;
       }
       op.attempts += 1;
       await _persist(v);
@@ -853,7 +884,9 @@ class ExantasFieldVisitSync extends ChangeNotifier {
         }
       });
     } on ExantasOfficeRejection catch (e) {
-      if (e.definitive) {
+      // A close is only rolled back when Office itself said so: a gateway/proxy
+      // 4xx without an Office `status` code proves nothing about the key.
+      if (e.definitive && !(op.financial && e.code == null)) {
         await _lock(v.id, () => _reject(v, op, e));
         return true;
       }
@@ -895,12 +928,15 @@ class ExantasFieldVisitSync extends ChangeNotifier {
     final mine = v.equipment.where((x) => x.id == op.body['equipment_id']).firstOrNull;
     if (mine == null) return false;
     try {
+      final existingId = e.details?['existing_id'];
       final found = await api.equipmentList(
           customerId: v.customerId,
-          barcode: mine.barcode.isNotEmpty ? mine.barcode : null,
-          q: mine.barcode.isEmpty ? mine.serialNumber : null,
+          barcode: existingId is String ? null : (mine.barcode.isNotEmpty ? mine.barcode : null),
+          q: existingId is String ? null : (mine.barcode.isEmpty ? mine.serialNumber : null),
           scope: await scope());
-      final existing = found.where((x) => x.id != mine.id).firstOrNull;
+      final existing = found
+          .where((x) => x.id != mine.id && (existingId is! String || x.id == existingId))
+          .firstOrNull;
       if (existing == null) return false;
       v.ops.removeWhere((o) => identical(o, op));
       for (final l in v.equipmentLines) {
