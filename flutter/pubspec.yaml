@@ -112,6 +112,7 @@ dependencies:
   vector_math: ^2.1.4
   local_auth: 2.3.0
   local_auth_android: 1.0.47
+  geolocator: ^12.0.0
 
 dev_dependencies:
   icons_launcher: ^2.0.4
