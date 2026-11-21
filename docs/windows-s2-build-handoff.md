@@ -2,6 +2,26 @@
 
 ## Current source candidate — 3.1.5
 
+
+S2's attempt at 36beba2f1c34e79aae80cc840ae063d170dd4039 is BLOCKED:
+native guards reported 96 PASS, 1 ERROR, 1 SKIP. Defender blocked CreateProcess
+for the encoded PowerShell barrier fixture before any ACL assertion or product
+build. S2 verified the signed Windows PowerShell and fixture Git-blob hash.
+The 41 synthetic updater scenarios and 7 Rust envelope cases passed separately.
+Build -WithExe attempts were zero; EXE/ZIP remain NOT_PRODUCED. Existing
+toolchain/codec audits passed; later application stages remain NOT_RUN.
+
+The correction keeps the test harness as a readable owned temporary PS1 file
+and invokes the actual production verifier with plain -Command, as production
+does. It removes nested encoded commands and the hidden child launcher.
+Both protected-ACL acceptance and Everyone-write rejection remain required.
+The test also requires its two-case completion marker and empty stderr, so a
+blocked or unexpected failing command cannot count as the negative ACL case.
+No Defender exclusions, protection changes or product/runtime changes are made.
+A fresh native guest guard PASS is still required at the next published SHA;
+the previous S1 PASS does not certify the S2 Defender result.
+
+
 S1 is preparing a correction for a pilot NAS running 3.1.4. Its inherited
 TrustedInstaller FullControl rule on the installation directory was rejected
 before the first updater poll. The corrected installation guard accepts the

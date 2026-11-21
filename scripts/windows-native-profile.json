@@ -87,7 +87,7 @@
     "flutter/lib/models/exantas_update_registration.dart": "5eb02e9e10c7535f69f37559cf793144a3080c571f81021586d7abbbc7ccb92d",
     "flutter/test/exantas_update_registration_test.dart": "024f11ed0ee7be8e2ffd8e8f07a70885bf9ce0f780b32ebf1406d54f5748a31a",
     "scripts/tests/test-office-update.ps1": "ecf74f4fb9bd94d7ec54b6d8464897eca3c949b35360612c4a13af4be873cc93",
-    "scripts/tests/test_windows_office_updates.py": "f3a3a305c21891e121a9ae7938214bab02b28528f88e1e67b3243a1f38c4eb1b",
+    "scripts/tests/test_windows_office_updates.py": "8251beafc96602005a00896ef81ad355622f921f24fcb02a9944120c106f2de8",
     "scripts/tests/test_windows_office_update_contracts.py": "6629059b931a2546248f17e77eb37c2dd0c7e959ace0cd9e931bdb4c4ab297b0",
     "scripts/tests/fixtures/office_update_envelope_probe.rs": "ee70c76675639be4245c472945c357ba50f47e68432b3f88d21be675780ee09b"
   },

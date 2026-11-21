@@ -1,5 +1,4 @@
 """Windows synthetic recovery fixtures; never create product tasks or services."""
-import base64
 import hashlib
 import json
 import os
@@ -22,8 +21,9 @@ class OfficeSilentRecovery(unittest.TestCase):
         verifier = re.search(r'let check = r#"(.*?)"#;', source, re.S)
         self.assertIsNotNone(verifier)
         self.assertIn('OpenExisting(', verifier[1])
-        # Exercise the production verifier with a unique session-local event.
-        check = base64.b64encode(verifier[1].encode('utf-8')).decode('ascii')
+        # Keep the fixture readable. The child uses the same plain -Command
+        # invocation as production; only the isolated event/owner are substituted.
+        self.assertNotIn("\n'@", verifier[1])
         harness = r"""
 $ErrorActionPreference = 'Stop'
 $newName = 'Local\rdcl-barrier-test-' + [guid]::NewGuid().ToString('N')
@@ -35,31 +35,41 @@ $security.SetAccessRuleProtection($true, $false)
 $security.AddAccessRule([Security.AccessControl.EventWaitHandleAccessRule]::new($sid, $rights::FullControl, 'Allow'))
 $created = $false
 $event = [Threading.EventWaitHandle]::new($false, 'ManualReset', $newName, [ref]$created, $security)
+$checks = 0
 try {
     if (!$created) { throw 'Test event already existed' }
-    $source = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__VERIFIER__'))
+    $source = @'
+__VERIFIER__
+'@
     $source = $source.Replace('Global\ExantasRdclUpdateBarrier', $newName)
     $source = $source.Replace("-ne 'S-1-5-18'", ("-ne '" + $sid.Value + "'"))
     $source = $source.Replace("@('S-1-5-18','S-1-5-32-544')",
         ("@('S-1-5-18','S-1-5-32-544','" + $sid.Value + "')"))
-    $command = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($source))
     $ps = Join-Path $PSHOME 'powershell.exe'
-    $process = Start-Process -FilePath $ps -ArgumentList @('-NoProfile', '-NonInteractive', '-EncodedCommand', $command) -WindowStyle Hidden -Wait -PassThru
-    if ($process.ExitCode -ne 0) { throw 'Protected event ACL could not be read' }
+    & $ps -NoProfile -NonInteractive -Command $source
+    if ($LASTEXITCODE -ne 0) { throw 'Protected event ACL could not be read' }
+    $checks++
 
     $world = [Security.Principal.SecurityIdentifier]::new('S-1-1-0')
     $security.AddAccessRule([Security.AccessControl.EventWaitHandleAccessRule]::new($world, $rights::Modify, 'Allow'))
     $event.SetAccessControl($security)
-    $process = Start-Process -FilePath $ps -ArgumentList @('-NoProfile', '-NonInteractive', '-EncodedCommand', $command) -WindowStyle Hidden -Wait -PassThru
-    if ($process.ExitCode -ne 1) { throw 'Verifier accepted an event writable by everyone' }
+    & $ps -NoProfile -NonInteractive -Command $source
+    if ($LASTEXITCODE -ne 1) { throw 'Verifier accepted an event writable by everyone' }
+    $checks++
 } finally {
     $event.Dispose()
 }
-""".replace('__VERIFIER__', check)
-        command = base64.b64encode(harness.encode('utf-16-le')).decode('ascii')
-        result = subprocess.run([PWSH, '-NoProfile', '-NonInteractive', '-EncodedCommand',
-            command], capture_output=True, text=True, timeout=30)
+if ($checks -ne 2) { throw 'Barrier ACL checks incomplete' }
+[Console]::WriteLine('barrier_acl_cases=2')
+""".replace('__VERIFIER__', verifier[1])
+        with tempfile.TemporaryDirectory(prefix='rdcl-barrier-test-') as directory:
+            script = Path(directory) / 'barrier-fixture.ps1'
+            script.write_text(harness, encoding='utf-8')
+            result = subprocess.run([PWSH, '-NoProfile', '-NonInteractive', '-File',
+                str(script)], capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stderr.strip(), '', result.stderr)
+        self.assertIn('barrier_acl_cases=2', result.stdout)
 
     def test_atomic_replacement_recovery_and_lost_responses(self):
         with tempfile.TemporaryDirectory(prefix='rdcl-update-test-report-') as directory:
