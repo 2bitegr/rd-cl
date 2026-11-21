@@ -28,6 +28,7 @@ import '../widgets/exantas_support_home_sections.dart';
 import '../widgets/exantas_work_screens.dart';
 import '../../models/exantas_office_work.dart';
 import '../../models/exantas_field_visit_api.dart';
+import '../../models/exantas_field_visit_photo.dart';
 import '../../models/exantas_field_visit_store.dart';
 import '../../models/exantas_field_visit_sync.dart';
 import '../../models/exantas_secure_store.dart';
@@ -96,10 +97,14 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       locate: fvLocateOnce,
       scanBarcode: fvScanBarcode,
       pickPhoto: () async {
+        // The picker's own resize keeps decoding cheap; fvOptimizePhoto then
+        // strips EXIF (incl. GPS) and squeezes the JPEG to ~250 KB.
         final f = await ImagePicker().pickImage(
-            source: ImageSource.camera, maxWidth: 1800, imageQuality: 80);
+            source: ImageSource.camera, maxWidth: 1600, maxHeight: 1600, imageQuality: 85);
         if (f == null) return null;
-        return (bytes: await f.readAsBytes(), mediaType: 'image/jpeg');
+        final optimized = await fvOptimizePhotoInBackground(await f.readAsBytes());
+        if (optimized == null) return null;
+        return (bytes: optimized.bytes, mediaType: optimized.mediaType);
       });
   String? fvKey;
   bool fvBusy = false;
