@@ -352,7 +352,7 @@ class FvDefective {
   String? equipmentId;
   Map<String, dynamic> toJson() => {
         'id': id,
-        'description': description,
+        'description': description.replaceAll('\r\n', '\n'),
         'serial': serial,
         'barcode': barcode,
         'condition': condition,

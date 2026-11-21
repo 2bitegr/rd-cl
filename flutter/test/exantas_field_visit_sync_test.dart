@@ -723,6 +723,61 @@ void main() {
     });
   });
 
+  group('starting a scheduled visit', () {
+    const other = '00000000-0000-4000-8000-0000000000b2';
+    Future<(ExantasFieldVisitSync, String)> scheduled() async {
+      final id = '11111111-1111-4111-8111-111111111111';
+      final dto = visitDto(id, status: 'scheduled', extra: {
+        'lead_user_id': other,
+        'participants': [
+          {'user_id': other, 'display_name': 'Άλλος', 'role': 'lead', 'is_self': false, 'pauses': []},
+          {'user_id': fvOwner, 'display_name': 'Εσύ', 'role': 'member', 'is_self': true, 'pauses': []},
+        ],
+      });
+      await store.save(FieldVisit.fromServer(dto, owner: fvOwner, api: fvApi, selfUserId: fvOwner));
+      final sync = make();
+      await sync.load();
+      return (sync, id);
+    }
+
+    test('a non-lead participant sends save{start:true} before the arrival', () async {
+      final (sync, id) = await scheduled();
+      echoOffice();
+      await sync.arrive(id, fix: FvFix(37.9, 23.7, 8, clock));
+      await sync.sync(force: true);
+      final kinds = [for (final c in office.posts()) c.path.split('/').last];
+      expect(kinds.indexOf('save'), lessThan(kinds.indexOf('attendance')));
+      expect(office.posts('/save').first.body!['start'], isTrue);
+      expect(sync.visit(id)!.isLead, isTrue);
+      expect(sync.visit(id)!.status, 'in_progress');
+    });
+
+    test('403 lead_required (someone else started it) joins instead of failing', () async {
+      final (sync, id) = await scheduled();
+      office.onPost = (p, b) async {
+        if (p.endsWith('/save')) throw rejection(403, 'field_visit_lead_required');
+        return {'status': 'ok', 'applied': true, 'visit': visitDto(id, extra: {'lead_user_id': other}), 'warnings': []};
+      };
+      office.onGet = (p) async => p.endsWith(id)
+          ? {'status': 'ok', 'visit': visitDto(id, extra: {'lead_user_id': other})}
+          : {'status': 'ok', 'items': []};
+      await sync.arrive(id, fix: null);
+      await sync.sync(force: true);
+      final v = sync.visit(id)!;
+      expect(v.isLead, isFalse);
+      expect(v.ops.where((o) => o.kind == FvOpKind.save), isEmpty);
+      expect(v.ops.where((o) => o.state == 'rejected'), isEmpty);
+      expect(office.posts('/attendance'), isNotEmpty);
+    });
+
+    test('multi-line text keeps newlines (normalised to \\n)', () async {
+      final (sync, v) = await started();
+      await sync.editContent(v.id, (x) => x.workSummary = 'α\r\nβ');
+      final body = sync.visit(v.id)!.ops.firstWhere((o) => o.kind == FvOpKind.save).body;
+      expect(body['work_summary'], 'α\nβ');
+    });
+  });
+
   group('appointments and cancel', () {
     test('appointment is booked as an op and shows up locally as scheduled', () async {
       final sync = make();

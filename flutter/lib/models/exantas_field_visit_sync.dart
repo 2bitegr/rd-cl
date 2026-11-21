@@ -226,6 +226,9 @@ class ExantasFieldVisitSync extends ChangeNotifier {
     return v;
   }
 
+  /// Multi-line fields keep their newlines, normalised to \n.
+  static String _multiLine(String s) => s.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
   /// Office's short-text rule: no control characters/newlines, bounded length.
   static String _oneLine(String s, int max) {
     final t = s.replaceAll(RegExp(r'[\x00-\x1f\x7f]+'), ' ').trim();
@@ -276,19 +279,66 @@ class ExantasFieldVisitSync extends ChangeNotifier {
       if (create) 'start': true,
       'job_type_id': v.jobTypeId,
       ...v.contentBody(),
-    };
+    }..updateAll((k, val) => k == 'work_summary' || k == 'internal_note' ? _multiLine('$val') : val);
   }
 
   void _queueSave(FieldVisit v) {
     // Rebuilt from scratch each time; coalesces into an unsent save and keeps
     // `create` when that unsent save carried it.
     final keepsCreate = v.ops.any((o) => o.kind == FvOpKind.save && !o.sent && o.body.containsKey('create'));
+    final keepsStart = v.ops.any((o) => o.kind == FvOpKind.save && !o.sent && o.body['start'] == true);
     final body = _saveBody(v);
+    if (keepsStart) body['start'] = true;
     if (keepsCreate && !body.containsKey('create')) {
       body['create'] = v.createBody();
       body['start'] = true;
     }
     _coalesce(v, FvOpKind.save, ExantasFieldVisitApi.savePath(v.id), body);
+  }
+
+  /// Any active participant may start a scheduled visit: `save{start:true}`
+  /// makes them lead and moves it to in_progress (Office `fieldVisitSave`).
+  /// If someone else already started it Office answers 403
+  /// `field_visit_lead_required`; the visit is then joined (see
+  /// [_joinStartedVisit]).
+  Future<void> startScheduled(String id) => _lock(id, () async {
+        final v = _require(id);
+        if (v.status != 'scheduled' || v.isLead && v.localStatus != FvLocalStatus.draft) return;
+        if (v.self == null) throw StateError('Δεν συμμετέχεις σε αυτή την επίσκεψη.');
+        v.leadUserId = v.selfUserId;
+        v.participants = [
+          for (final p in v.participants)
+            FvParticipant(
+                userId: p.userId,
+                displayName: p.displayName,
+                role: p.userId == v.selfUserId ? 'lead' : 'member',
+                isSelf: p.isSelf,
+                color: p.color,
+                attendance: p.attendance,
+                serverWorkedMinutes: p.serverWorkedMinutes)
+        ];
+        v.status = 'in_progress';
+        v.contentClientRev += 1;
+        final body = _saveBody(v)..['start'] = true;
+        v.ops.removeWhere((o) => o.kind == FvOpKind.save && !o.sent && o.state == 'queued');
+        final op = _newOp(FvOpKind.save, ExantasFieldVisitApi.savePath(id), body);
+        _insertDependency(v, op);
+        await _commit(v);
+      });
+
+  /// Someone else started the visit first: drop our takeover and adopt the
+  /// server state (we stay a plain participant).
+  Future<bool> _joinStartedVisit(FieldVisit v, FvOp op) async {
+    try {
+      final dto = await api.getVisit(v.id, await scope());
+      v.ops.removeWhere((o) => identical(o, op));
+      v.applyServer(dto,
+          keepLocalContent: false, keepLocalAttendance: v.ops.any((o) => o.kind == FvOpKind.attendance));
+      await _commit(v);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void _queueAttendance(FieldVisit v) {
@@ -443,7 +493,7 @@ class ExantasFieldVisitSync extends ChangeNotifier {
       'job_type_id': jobType.id,
       'scheduled_start': fvIso(start),
       'scheduled_end': fvIso(end),
-      if (note.isNotEmpty) 'scheduled_note': note,
+      if (note.trim().isNotEmpty) 'scheduled_note': _multiLine(note),
       'participants': ids.toList(),
     }));
     _visits[id] = v;
@@ -514,7 +564,13 @@ class ExantasFieldVisitSync extends ChangeNotifier {
       });
 
   /// Arrival: one fix taken by the caller (null = GPS failed: still recorded).
-  Future<void> arrive(String id, {FvFix? fix}) => _attendanceChange(id, (a, t) {
+  Future<void> arrive(String id, {FvFix? fix}) async {
+    final v = _visits[id];
+    if (v != null && v.status == 'scheduled' && v.serverKnown) await startScheduled(id);
+    return _arrive(id, fix: fix);
+  }
+
+  Future<void> _arrive(String id, {FvFix? fix}) => _attendanceChange(id, (a, t) {
         if (a.arrived) throw StateError('already_arrived');
         a.arrivalAt = t;
         a.lat = fix?.lat;
@@ -667,12 +723,13 @@ class ExantasFieldVisitSync extends ChangeNotifier {
       final body = <String, dynamic>{
         'client_rev': v.contentClientRev,
         'content': {
-          ...v.contentBody(),
+          ...v.contentBody()
+            ..updateAll((k, val) => k == 'work_summary' || k == 'internal_note' ? _multiLine('$val') : val),
           if (!v.serverKnown) 'create': v.createBody(),
           if (!v.serverKnown) 'job_type_id': v.jobTypeId,
         },
         'outcome': v.outcome!.wire,
-        if (v.outcomeNote.trim().isNotEmpty) 'outcome_note': v.outcomeNote.trim(),
+        if (_multiLine(v.outcomeNote).trim().isNotEmpty) 'outcome_note': _multiLine(v.outcomeNote).trim(),
         if (v.outcome == FvOutcome.newVisit && v.followUpStart != null) 'follow_up_start': fvIso(v.followUpStart!),
         'charge_source': v.chargeSource!.wire,
         'discount_bps': v.discountBps,
@@ -924,6 +981,9 @@ class ExantasFieldVisitSync extends ChangeNotifier {
 
   /// equipment_duplicate: re-point lines to the existing register row.
   Future<bool> _handleSpecialRejection(FieldVisit v, FvOp op, ExantasOfficeRejection e) async {
+    if (op.kind == FvOpKind.save && op.body['start'] == true && e.code == 'field_visit_lead_required') {
+      return _joinStartedVisit(v, op);
+    }
     if (op.kind != FvOpKind.equipment || e.code != 'equipment_duplicate') return false;
     final mine = v.equipment.where((x) => x.id == op.body['equipment_id']).firstOrNull;
     if (mine == null) return false;
