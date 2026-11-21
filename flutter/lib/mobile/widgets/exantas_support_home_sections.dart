@@ -439,7 +439,7 @@ class ExantasErrorCard extends StatelessWidget {
   }
 }
 
-enum ExantasWorkSection { today, open, customers, pending }
+enum ExantasWorkSection { today, open, customers, pending, calendar }
 
 /// Work tab: Σήμερα | Ανοιχτές | Πελάτες | Εκκρεμή. Panels are supplied by the
 /// controller; this widget only lays out the segments.
@@ -456,8 +456,12 @@ class ExantasWorkView extends StatelessWidget {
       required this.onRefresh,
       this.todayPanel = const SizedBox.shrink(),
       this.openPanel = const SizedBox.shrink(),
+      this.calendarPanel,
       this.error});
   final Widget todayPanel, openPanel;
+
+  /// Δελτίο τεχνικού calendar. Null hides the segment (feature off).
+  final Widget? calendarPanel;
   final bool signedIn, busy;
   final ExantasWorkSection section;
   final ValueChanged<ExantasWorkSection> onSection;
@@ -490,6 +494,9 @@ class ExantasWorkView extends StatelessWidget {
                                 key: ValueKey('support-tab-today')),
                             const ExSegment(ExantasWorkSection.open, ExStrings.openWork,
                                 key: ValueKey('support-tab-open')),
+                            if (calendarPanel != null)
+                              const ExSegment(ExantasWorkSection.calendar, FvStrings.calendar,
+                                  key: ValueKey('support-tab-calendar')),
                             const ExSegment(ExantasWorkSection.customers,
                                 ExStrings.customers,
                                 key: ValueKey('support-tab-customers')),
@@ -511,6 +518,7 @@ class ExantasWorkView extends StatelessWidget {
                 if (section == ExantasWorkSection.open) openPanel,
                 if (section == ExantasWorkSection.customers) customerPanel,
                 if (section == ExantasWorkSection.pending) pendingPanel,
+                if (section == ExantasWorkSection.calendar && calendarPanel != null) calendarPanel!,
               ],
             ]));
   }

@@ -97,3 +97,27 @@ Map<String, dynamic> visitDto(String id, {String status = 'in_progress', String 
       'photos': [],
       ...extra,
     };
+
+/// In-memory store: completes in microtasks, so widget tests need no real IO.
+class MemoryStore extends ExantasFieldVisitStore {
+  MemoryStore()
+      : super(directory: () async => Directory.systemTemp, protect: fakeProtect, unprotect: fakeUnprotect);
+  final files = <String, String>{};
+  final binaries = <String, List<int>>{};
+  final meta = <String, Map<String, dynamic>>{};
+
+  @override
+  Future<List<FieldVisit>> loadAll() async => [for (final t in files.values) FieldVisit.decode(t)!];
+  @override
+  Future<void> save(FieldVisit v) async => files[v.id] = v.encode();
+  @override
+  Future<void> delete(String id) async => files.remove(id);
+  @override
+  Future<void> writeBinary(String visitId, String name, List<int> bytes) async => binaries['$visitId/$name'] = bytes;
+  @override
+  Future<List<int>?> readBinary(String visitId, String name) async => binaries['$visitId/$name'];
+  @override
+  Future<Map<String, dynamic>?> readMeta(String name) async => meta[name];
+  @override
+  Future<void> writeMeta(String name, Map<String, dynamic> value) async => meta[name] = value;
+}

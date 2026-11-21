@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import '../../common.dart' show gFFI;
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/exantas_android_support.dart';
@@ -19,10 +22,19 @@ import '../ui/ex_confirm_dialog.dart';
 import '../ui/ex_session_toolbar.dart';
 import '../ui/ex_sheet.dart';
 import '../ui/ex_list_row.dart';
+import '../ui/ex_section_header.dart';
 import '../ui/exantas_theme.dart';
 import '../widgets/exantas_support_home_sections.dart';
 import '../widgets/exantas_work_screens.dart';
 import '../../models/exantas_office_work.dart';
+import '../../models/exantas_field_visit_api.dart';
+import '../../models/exantas_field_visit_store.dart';
+import '../../models/exantas_field_visit_sync.dart';
+import '../../models/exantas_secure_store.dart';
+import '../widgets/exantas_field_visit_attendance.dart';
+import '../widgets/exantas_field_visit_equipment.dart';
+import '../widgets/exantas_field_visit_pending.dart';
+import '../widgets/exantas_field_visit_screens.dart';
 
 enum ExantasSupportView { home, work }
 
@@ -62,12 +74,44 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
   Set<String> favs = {};
   final connectFlight = ExantasSingleFlight();
 
+  // Δελτίο τεχνικού: offline-first store + sync, created once per page.
+  late final ExantasFieldVisitSync fvSync = ExantasFieldVisitSync(
+      store: ExantasFieldVisitStore(
+          directory: () async => Directory(
+              '${(await getApplicationSupportDirectory()).path}/office-field-visits'),
+          protect: (s) => const ExantasSecureStore().protectAsync(s),
+          unprotect: (s) => const ExantasSecureStore().unprotectAsync(s)),
+      api: ExantasFieldVisitApi(
+          get: (path, scope) => support.service.androidOfficeRequest(path,
+              expectedOwner: scope?.owner, expectedApi: scope?.api),
+          post: (path, body, scope) => support.service.androidOfficeRequest(path,
+              body: body, expectedOwner: scope?.owner, expectedApi: scope?.api)),
+      scope: () async {
+        final s = await support.service.loadStatus();
+        if (!s.technicianLoggedIn || s.officeUserId.isEmpty) return null;
+        return FvScope(s.officeUserId, s.apiBase);
+      });
+  late final FvEnv fvEnv = FvEnv(
+      sync: fvSync,
+      locate: fvLocateOnce,
+      scanBarcode: fvScanBarcode,
+      pickPhoto: () async {
+        final f = await ImagePicker().pickImage(
+            source: ImageSource.camera, maxWidth: 1800, imageQuality: 80);
+        if (f == null) return null;
+        return (bytes: await f.readAsBytes(), mediaType: 'image/jpeg');
+      });
+  String? fvKey;
+  bool fvBusy = false;
+  bool get fvOn => fvSync.enabled == true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     gFFI.recentPeersModel.addListener(recentChanged);
     office.addListener(recentChanged);
+    fvSync.addListener(recentChanged);
     unawaited(run(refresh));
     timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!busy && mounted && ModalRoute.of(context)?.isCurrent == true)
@@ -86,6 +130,8 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
   @override
   void dispose() {
     office.removeListener(recentChanged);
+    fvSync.removeListener(recentChanged);
+    fvSync.dispose();
     office.dispose();
     gFFI.recentPeersModel.removeListener(recentChanged);
     timer?.cancel();
@@ -145,8 +191,11 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     status = next;
     if (!next.technicianLoggedIn) {
       office.reset();
+      fvKey = null;
+      unawaited(fvSync.reset());
       return;
     }
+    unawaited(fvTick());
     try {
       await support.refresh();
     } finally {
@@ -161,6 +210,30 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     if (widget.view == ExantasSupportView.work) loadSection(workSection);
   }
 
+  /// Field visits: load local files for this Office session, detect the
+  /// feature once, refresh config and sync (never blocks the Office refresh).
+  Future<void> fvTick() async {
+    if (!Platform.isAndroid || fvBusy) return;
+    fvBusy = true;
+    try {
+      final key = '${status?.officeUserId}|${status?.apiBase}';
+      if (fvKey != key) {
+        fvKey = key;
+        await fvSync.reset();
+        await fvSync.load();
+      }
+      if (fvSync.enabled == null) await fvSync.detectFeature();
+      if (fvSync.enabled == true) {
+        await fvSync.refreshConfig();
+        await fvSync.sync();
+      }
+    } catch (_) {
+      // Surfaced through fvSync.lastError / the pending list; never fatal here.
+    } finally {
+      fvBusy = false;
+    }
+  }
+
   void loadSection(ExantasWorkSection section) {
     if (status?.technicianLoggedIn != true) return;
     switch (section) {
@@ -171,6 +244,7 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       case ExantasWorkSection.customers:
         unawaited(office.searchCustomers(search.text));
       case ExantasWorkSection.pending:
+      case ExantasWorkSection.calendar:
         break;
     }
   }
@@ -628,13 +702,22 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
     unawaited(office.searchCustomers(query));
   }
 
-  Widget todayPanel() => OfficeWorkFeedPanel(
-      feed: office.today,
-      pendingWorkIds: pendingWorkIds,
-      onOpen: openWorkDetail,
-      onRetry: () => unawaited(office.loadToday()),
-      emptyTitle: ExWork.noToday,
-      emptyMessage: ExWork.noTodayHint);
+  Widget todayPanel() {
+    final feed = OfficeWorkFeedPanel(
+        feed: office.today,
+        pendingWorkIds: pendingWorkIds,
+        onOpen: openWorkDetail,
+        onRetry: () => unawaited(office.loadToday()),
+        emptyTitle: ExWork.noToday,
+        emptyMessage: ExWork.noTodayHint);
+    if (!fvOn) return feed;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      FvTodayPanel(env: fvEnv),
+      const ExSectionHeader(ExWork.today),
+      const SizedBox(height: ExantasTokens.space2),
+      feed,
+    ]);
+  }
 
   Widget openPanel() => OfficeWorkFeedPanel(
       feed: office.open,
@@ -697,12 +780,19 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
       throw StateError('Το Office απάντησε για το αίτημα. Δεν ακυρώθηκε.');
   }
 
-  Widget pendingPanel() => ExantasPendingList(
-      items: pendingItems,
-      now: DateTime.now(),
-      busy: busy,
-      onAction: (i) => unawaited(run(() => pendingAction(i))),
-      onAbandon: (i) => unawaited(run(() => abandonPending(i))));
+  Widget pendingPanel() {
+    final list = ExantasPendingList(
+        items: pendingItems,
+        now: DateTime.now(),
+        busy: busy,
+        onAction: (i) => unawaited(run(() => pendingAction(i))),
+        onAbandon: (i) => unawaited(run(() => abandonPending(i))));
+    if (fvSync.unsyncedCount == 0) return list;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      FvUnsyncedList(env: fvEnv),
+      if (pendingItems.isNotEmpty) list,
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -740,7 +830,8 @@ class _ExantasSupportPageState extends State<ExantasSupportPage>
           openPanel: openPanel(),
           customerPanel: customerPanel(),
           pendingPanel: pendingPanel(),
-          pendingCount: pendingItems.length,
+          calendarPanel: fvOn ? FvCalendarPanel(env: fvEnv) : null,
+          pendingCount: pendingItems.length + fvSync.unsyncedCount,
           error: errorText.isEmpty ? null : errorText,
           onRefresh: () => run(refresh));
     }
