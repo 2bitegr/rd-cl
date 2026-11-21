@@ -155,38 +155,3 @@ class ExantasFieldVisitApi {
   Future<Map<String, dynamic>> recover(String key, FvScope? scope) =>
       get(recoverPath(key), scope);
 }
-
-/// Greek copy for an Office rejection code, or the server message.
-String fvRejectionMessage(String? code, String fallback, {int? limitBps}) {
-  switch (code) {
-    case 'discount_exceeds_limit':
-      return limitBps == null
-          ? 'Η έκπτωση ξεπερνά το όριό σου. Μείωσέ την και κλείσε ξανά.'
-          : 'Η έκπτωση ξεπερνά το όριό σου (${limitBps ~/ 100}%). Μείωσέ την και κλείσε ξανά.';
-    case 'close_requires_arrival':
-      return 'Δεν έχει καταγραφεί άφιξη. Πάτησε «Άφιξη» και κλείσε ξανά.';
-    case 'outcome_required':
-      return 'Διάλεξε αποτέλεσμα για να κλείσεις το δελτίο.';
-    case 'charge_source_required':
-      return 'Διάλεξε από πού γίνεται η χρέωση.';
-    case 'signature_invalid':
-      return 'Η υπογραφή δεν έγινε δεκτή. Υπόγραψε ξανά ή κλείσε χωρίς υπογραφή.';
-    case 'visit_closed':
-      return 'Το δελτίο έχει κλείσει. Επικοινώνησε με τον διαχειριστή.';
-    case 'field_visit_lead_required':
-      return 'Μόνο ο υπεύθυνος τεχνικός αλλάζει το περιεχόμενο του δελτίου.';
-    case 'field_visit_participant_required':
-      return 'Δεν συμμετέχεις σε αυτή την επίσκεψη.';
-    case 'visit_started':
-      return 'Η επίσκεψη έχει ήδη ξεκινήσει.';
-    case 'visit_not_cancellable':
-      return 'Η επίσκεψη δεν ακυρώνεται πια.';
-    case 'time_in_future':
-      return 'Η ώρα που καταγράφηκε είναι στο μέλλον. Έλεγξε την ώρα του κινητού.';
-    case 'equipment_duplicate':
-      return 'Ο εξοπλισμός υπάρχει ήδη στο μητρώο του πελάτη.';
-    case 'field_visits_unavailable':
-      return 'Η λειτουργία δελτίων δεν είναι ενεργή στο Office.';
-  }
-  return fallback;
-}

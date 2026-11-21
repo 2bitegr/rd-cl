@@ -436,6 +436,18 @@ class ExantasFieldVisitSync extends ChangeNotifier {
         await _commit(v);
       });
 
+  /// Close-sheet choices (outcome, charge source, discount, signature...). They
+  /// travel inside the close op, so nothing is queued here: persist only.
+  Future<void> updateLocal(String id, void Function(FieldVisit v) change) =>
+      _lock(id, () async {
+        final v = _require(id);
+        if (v.localStatus != FvLocalStatus.draft || !v.isLead) {
+          throw StateError('Το περιεχόμενο δεν αλλάζει πια.');
+        }
+        change(v);
+        await _commit(v);
+      });
+
   Future<void> changeJobType(String id, FvJobType type) => editContent(id, (v) {
         final checked = {for (final c in v.checklist) if (c.checked && c.itemId != null) c.itemId!: c};
         v.jobTypeId = type.id;
