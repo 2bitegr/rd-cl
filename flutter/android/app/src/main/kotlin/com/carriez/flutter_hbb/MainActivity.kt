@@ -173,14 +173,14 @@ class MainActivity : FlutterFragmentActivity() {
                 }
                 "check_permission" -> {
                     if (call.arguments is String) {
-                        result.success(XXPermissions.isGranted(context, call.arguments as String))
+                        result.success(XXPermissions.isGranted(this@MainActivity, call.arguments as String))
                     } else {
                         result.success(false)
                     }
                 }
                 "request_permission" -> {
                     if (call.arguments is String) {
-                        requestPermission(context, call.arguments as String)
+                        requestPermission(this@MainActivity, call.arguments as String)
                         result.success(true)
                     } else {
                         result.success(false)
@@ -188,7 +188,7 @@ class MainActivity : FlutterFragmentActivity() {
                 }
                 START_ACTION -> {
                     if (call.arguments is String) {
-                        startAction(context, call.arguments as String)
+                        startAction(this@MainActivity, call.arguments as String)
                         result.success(true)
                     } else {
                         result.success(false)
