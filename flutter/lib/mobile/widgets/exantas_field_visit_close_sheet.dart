@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/exantas_field_visit.dart';
 import '../../models/exantas_financial_ledger.dart' show exantasAbandonEligible;
@@ -173,9 +174,12 @@ class _FvSummaryPageState extends State<FvSummaryPage> {
   String? error;
   late final outcomeNote = TextEditingController(text: visit.outcomeNote);
   late final discountReason = TextEditingController(text: visit.discountReason);
+  late final afterHoursRate = TextEditingController(text: visit.afterHoursRateText);
+  bool rateTouched = false;
 
   @override
   void dispose() {
+    afterHoursRate.dispose();
     outcomeNote.dispose();
     discountReason.dispose();
     super.dispose();
@@ -210,7 +214,10 @@ class _FvSummaryPageState extends State<FvSummaryPage> {
       error = null;
     });
     try {
-      final r = await widget.env.sync.api.chargePreview(v.id, v.chargeSource!, v.discountBps, await widget.env.sync.scope());
+      final r = await widget.env.sync.api
+          .chargePreview(v.id, v.chargeSource!, v.discountBps, await widget.env.sync.scope(), afterHours: fvAfterHoursPayload(v));
+      final minutes = FvChargeAfterHours.fromCharge(r['charge'] is Map ? Map<String, dynamic>.from(r['charge'] as Map) : null)?.minutes;
+      if (minutes != null && minutes != v.afterHoursMinutes) await _set((x) => x.afterHoursMinutes = minutes);
       if (mounted) {
         setState(() {
           preview = r;
@@ -271,6 +278,10 @@ class _FvSummaryPageState extends State<FvSummaryPage> {
                           if (charge == null && !offline)
                             Text(v.serverKnown ? FvStrings.previewHint : FvStrings.previewNotSynced, style: text.bodySmall?.copyWith(color: t.textSecondary)),
                           if (charge != null) ...[
+                            if (FvChargeAfterHours.fromCharge(charge) case final ah? when ah.apply && ah.rateMinorPerHour != null && ah.minutes > 0)
+                              _line(context, FvStrings.afterHoursLine(ah.minutes, fvMoneyText(ah.rateMinorPerHour)), '', key: const ValueKey('fv-preview-after-hours')),
+                            if (FvChargeAfterHours.fromCharge(charge)?.surchargeMinor case final sur? when sur != 0)
+                              _line(context, FvStrings.afterHoursSurcharge, fvMoneyText(sur), key: const ValueKey('fv-preview-surcharge')),
                             _line(context, FvStrings.subtotal, fvMoneyText(charge['subtotal_minor'])),
                             if ('${charge['discount_minor']}' != '0') _line(context, FvStrings.discountLine('${((int.tryParse('${charge['discount_bps']}') ?? 0) ~/ 100)}'), '−${fvMoneyText(charge['discount_minor']).replaceFirst('−', '')}'),
                             const Divider(),
@@ -298,6 +309,7 @@ class _FvSummaryPageState extends State<FvSummaryPage> {
                     if (v.chargeSource == null) Text(FvStrings.pickChargeSource, style: text.bodySmall?.copyWith(color: t.warning)),
                     const SizedBox(height: ExantasTokens.space4),
                     _discount(context, v, limit),
+                    ..._afterHours(context, v, charge),
                     const SizedBox(height: ExantasTokens.space2),
                     SwitchListTile(
                         key: const ValueKey('fv-show-prices'),
@@ -372,6 +384,45 @@ class _FvSummaryPageState extends State<FvSummaryPage> {
           const SizedBox(width: ExantasTokens.space2),
           Text(value, key: key, style: style),
         ]));
+  }
+
+  /// «Χρέωση εκτός ωραρίου»: shown only when Office reported after-hours minutes
+  /// (or the technician already turned it on). Off by default.
+  List<Widget> _afterHours(BuildContext context, FieldVisit v, Map<String, dynamic>? charge) {
+    final minutes = FvChargeAfterHours.fromCharge(charge)?.minutes ?? FvChargeAfterHours.fromCharge(v.charge)?.minutes ?? v.afterHoursMinutes ?? 0;
+    if (minutes <= 0 && !v.afterHoursApply) return const [];
+    final issue = v.afterHoursApply && (rateTouched || v.afterHoursRateText.trim().isNotEmpty) ? fvAfterHoursRateIssue(v.afterHoursRateText) : null;
+    return [
+      const SizedBox(height: ExantasTokens.space2),
+      SwitchListTile(
+          key: const ValueKey('fv-after-hours'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text(FvStrings.afterHoursRow),
+          subtitle: minutes > 0 ? Text(FvStrings.afterHoursHint(minutes)) : null,
+          value: v.afterHoursApply,
+          onChanged: (on) async {
+            final prefill = widget.env.sync.config.defaultAfterHoursRateMinor;
+            final fill = on && v.afterHoursRateText.trim().isEmpty && prefill != null && fvParseAfterHoursRate(fvRateFieldText(prefill)) != null;
+            await _set((x) {
+              x.afterHoursApply = on;
+              if (fill) x.afterHoursRateText = fvRateFieldText(prefill);
+            });
+            if (fill) afterHoursRate.text = fvRateFieldText(prefill);
+            if (v.serverKnown && (!on || fvAfterHoursRateIssue(visit.afterHoursRateText) == null)) unawaited(_preview());
+          }),
+      if (v.afterHoursApply) ...[
+        TextField(
+            key: const ValueKey('fv-after-hours-rate'),
+            controller: afterHoursRate,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')), LengthLimitingTextInputFormatter(7)],
+            onChanged: (s) {
+              setState(() => rateTouched = true);
+              _set((x) => x.afterHoursRateText = s);
+            },
+            decoration: InputDecoration(labelText: FvStrings.afterHoursRate, suffixText: '€/ώρα', errorMaxLines: 3, errorText: issue == null ? null : FvStrings.errorFor(issue))),
+      ],
+    ];
   }
 
   Widget _discount(BuildContext context, FieldVisit v, int limit) {

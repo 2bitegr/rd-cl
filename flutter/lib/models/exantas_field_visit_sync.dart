@@ -735,6 +735,7 @@ class ExantasFieldVisitSync extends ChangeNotifier {
         'discount_bps': v.discountBps,
         if (_oneLine(v.discountReason, 300).isNotEmpty) 'discount_reason': _oneLine(v.discountReason, 300),
         'show_prices': v.showPrices,
+        'after_hours': fvAfterHoursPayload(v),
         'signature': sig != null && sig.isNotEmpty
             ? {'signer_name': _oneLine(v.signerName, 200), 'png_base64': sig}
             : {'no_signature': true},

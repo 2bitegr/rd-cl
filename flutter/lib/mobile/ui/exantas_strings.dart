@@ -259,6 +259,13 @@ class FvStrings {
   static const subtotal = 'Αξία πριν την έκπτωση';
   static String discountLine(String pct) => 'Έκπτωση $pct%';
   static const netValue = 'Καθαρή αξία';
+  static const afterHoursRow = 'Χρέωση εκτός ωραρίου';
+  static String afterHoursHint(int minutes) => 'Η επίσκεψη έχει $minutes λεπτά εκτός ωραρίου. Αν δεν το ενεργοποιήσεις, χρεώνονται με την κανονική τιμή.';
+  static const afterHoursRate = 'Τιμή ανά ώρα (€)';
+  static String afterHoursLine(int minutes, String rate) => 'Εκτός ωραρίου: $minutes λεπτά × $rate/ώρα';
+  static const afterHoursSurcharge = 'Διαφορά εκτός ωραρίου';
+  static const afterHoursRateRequired = 'Γράψε την τιμή ανά ώρα για τη χρέωση εκτός ωραρίου.';
+  static const afterHoursRateInvalid = 'Γράψε τιμή μεγαλύτερη από 0 έως 1.000,00 €, π.χ. 60,00.';
   static const chargeFrom = 'Χρέωση από';
   static const sourcePrepaid = 'Υπόλοιπο';
   static const sourceInvoice = 'Τιμολόγηση';
@@ -362,6 +369,10 @@ class FvStrings {
         return 'Διάλεξε αποτέλεσμα για να κλείσεις το δελτίο.';
       case 'charge_source_required':
         return 'Διάλεξε από πού γίνεται η χρέωση.';
+      case 'after_hours_rate_required':
+        return afterHoursRateRequired;
+      case 'invalid_after_hours_rate':
+        return afterHoursRateInvalid;
       case 'signature_invalid':
         return 'Η υπογραφή δεν έγινε δεκτή. Υπόγραψε ξανά ή κλείσε χωρίς υπογραφή.';
       case 'visit_closed':

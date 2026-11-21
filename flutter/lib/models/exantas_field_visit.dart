@@ -578,6 +578,9 @@ class FieldVisit {
     this.discountBps = 0,
     this.discountReason = '',
     this.showPrices = false,
+    this.afterHoursApply = false,
+    this.afterHoursRateText = '',
+    this.afterHoursMinutes,
     this.signerName = '',
     this.noSignature = false,
     this.signaturePngBase64,
@@ -627,6 +630,15 @@ class FieldVisit {
   int discountBps;
   String discountReason;
   bool showPrices, noSignature;
+
+  /// Per-visit after-hours pricing input (technician-owned, persisted offline).
+  /// [afterHoursRateText] is the raw comma-decimal text of «Τιμή ανά ώρα (€)».
+  bool afterHoursApply;
+  String afterHoursRateText;
+
+  /// Last after-hours minute count Office reported (preview/charge). Display
+  /// gate only; the app never classifies minutes itself.
+  int? afterHoursMinutes;
   String signerName;
   String? signaturePngBase64;
   List<FvPayment> payments;
@@ -721,6 +733,9 @@ class FieldVisit {
           'discount_bps': discountBps,
           'discount_reason': discountReason,
           'show_prices': showPrices,
+          'after_hours_apply': afterHoursApply,
+          'after_hours_rate_text': afterHoursRateText,
+          'after_hours_minutes': afterHoursMinutes,
           'signer_name': signerName,
           'no_signature': noSignature,
           'signature_png_base64': signaturePngBase64,
@@ -803,6 +818,9 @@ class FieldVisit {
       discountBps: (l['discount_bps'] as num?)?.toInt() ?? 0,
       discountReason: '${l['discount_reason'] ?? ''}',
       showPrices: l['show_prices'] == true,
+      afterHoursApply: l['after_hours_apply'] == true,
+      afterHoursRateText: '${l['after_hours_rate_text'] ?? ''}',
+      afterHoursMinutes: (l['after_hours_minutes'] as num?)?.toInt(),
       signerName: '${l['signer_name'] ?? ''}',
       noSignature: l['no_signature'] == true,
       signaturePngBase64: _s(l['signature_png_base64']),
@@ -984,11 +1002,16 @@ class FvConfig {
       this.phrases = const [],
       this.staff = const [],
       this.myDiscountLimitBps = 0,
+      this.defaultAfterHoursRateMinor,
       this.revision = ''});
   final List<FvJobType> jobTypes;
   final List<FvPhrase> phrases;
   final List<FvStaff> staff;
   final int myDiscountLimitBps;
+
+  /// Admin's `default_after_hours_rate_minor_per_hour` (null = no suggestion).
+  /// Only ever a prefill; never applied automatically.
+  final int? defaultAfterHoursRateMinor;
   final String revision;
 
   FvJobType? jobType(String id) {
@@ -1014,6 +1037,8 @@ class FvConfig {
         'phrases': [for (final p in phrases) {'id': p.id, 'text_el': p.text, 'job_type_id': p.jobTypeId}],
         'eligible_staff': [for (final s in staff) {'id': s.id, 'display_name': s.name, 'color': s.color}],
         'my_discount_limit_bps': myDiscountLimitBps,
+        'default_after_hours_rate_minor_per_hour':
+            defaultAfterHoursRateMinor == null ? null : '$defaultAfterHoursRateMinor',
         'config_revision': revision,
       };
 
@@ -1031,6 +1056,8 @@ class FvConfig {
         for (final x in _maps(j['eligible_staff'])) FvStaff('${x['id']}', '${x['display_name'] ?? ''}', _s(x['color']))
       ],
       myDiscountLimitBps: (j['my_discount_limit_bps'] as num?)?.toInt() ?? 0,
+      defaultAfterHoursRateMinor: fvParseMinorString(j['default_after_hours_rate_minor_per_hour'] ??
+          (j['settings'] is Map ? (j['settings'] as Map)['default_after_hours_rate_minor_per_hour'] : null)),
       revision: '${j['config_revision'] ?? ''}');
 }
 
@@ -1042,6 +1069,10 @@ List<String> fvCloseBlockers(FieldVisit v, {required int discountLimitBps}) {
   if (!v.myAttendance.arrived) out.add('close_requires_arrival');
   if (v.outcome == null) out.add('outcome_required');
   if (v.chargeSource == null) out.add('charge_source_required');
+  if (v.afterHoursApply) {
+    final issue = fvAfterHoursRateIssue(v.afterHoursRateText);
+    if (issue != null) out.add(issue);
+  }
   if (v.discountBps < 0 || v.discountBps > discountLimitBps) out.add('discount_exceeds_limit');
   final hasSig = v.signaturePngBase64 != null && v.signaturePngBase64!.isNotEmpty;
   if (!hasSig && !v.noSignature) out.add('signature_required');
@@ -1073,4 +1104,60 @@ int? fvParseEuroToMinor(String text) {
   final whole = int.parse(m.group(1)!);
   final frac = (m.group(2) ?? '').padRight(2, '0');
   return whole * 100 + int.parse(frac.isEmpty ? '00' : frac);
+}
+
+/// Maximum accepted after-hours hourly rate: 1.000,00 €/ώρα in minor units.
+const int fvAfterHoursRateMaxMinor = 100000;
+
+/// Parses a typed after-hours rate. Comma decimal only ("60", "60,5",
+/// "1000,00"); returns integer minor units, or null when empty, malformed or
+/// outside 0 < x <= 1000,00.
+int? fvParseAfterHoursRate(String text) {
+  final m = RegExp(r'^(\d{1,4})(?:,(\d{1,2}))?$').firstMatch(text.trim());
+  if (m == null) return null;
+  final minor = int.parse(m.group(1)!) * 100 + int.parse((m.group(2) ?? '0').padRight(2, '0'));
+  return minor > 0 && minor <= fvAfterHoursRateMaxMinor ? minor : null;
+}
+
+/// null = valid; otherwise a stable blocker id (Greek copy in FvStrings).
+String? fvAfterHoursRateIssue(String text) {
+  if (text.trim().isEmpty) return 'after_hours_rate_required';
+  return fvParseAfterHoursRate(text) == null ? 'invalid_after_hours_rate' : null;
+}
+
+/// Minor units -> comma-decimal field text ("6000" -> "60,00").
+String fvRateFieldText(int minor) => '${minor ~/ 100},${(minor % 100).toString().padLeft(2, '0')}';
+
+/// Integer minor value from an Office string/number (digits only), else null.
+int? fvParseMinorString(dynamic v) {
+  if (v is num) return v == v.truncate() ? v.toInt() : null;
+  if (v is String && RegExp(r'^\d{1,18}$').hasMatch(v)) return int.parse(v);
+  return null;
+}
+
+/// The `after_hours` input of the close/preview payload.
+Map<String, dynamic> fvAfterHoursPayload(FieldVisit v) {
+  final rate = v.afterHoursApply ? fvParseAfterHoursRate(v.afterHoursRateText) : null;
+  return rate == null ? {'apply': false} : {'apply': true, 'rate_minor_per_hour': '$rate'};
+}
+
+/// Read-only view of the ChargeDto after-hours fields Office returns
+/// (`after_hours_minutes`, `after_hours_apply`, `after_hours_rate_minor_per_hour`,
+/// `surcharge_minor`). The legacy `surcharge_bps` is intentionally ignored.
+class FvChargeAfterHours {
+  const FvChargeAfterHours(this.minutes, this.apply, this.rateMinorPerHour, this.surchargeMinor);
+  final int minutes;
+  final bool apply;
+  final int? rateMinorPerHour;
+  final int? surchargeMinor;
+
+  static FvChargeAfterHours? fromCharge(Map<String, dynamic>? c) {
+    if (c == null) return null;
+    final sur = c['surcharge_minor'];
+    return FvChargeAfterHours(
+        fvParseMinorString(c['after_hours_minutes']) ?? 0,
+        c['after_hours_apply'] == true,
+        fvParseMinorString(c['after_hours_rate_minor_per_hour']),
+        sur is num ? sur.toInt() : (sur is String ? int.tryParse(sur) : null));
+  }
 }

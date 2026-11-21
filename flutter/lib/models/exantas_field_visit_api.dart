@@ -148,8 +148,10 @@ class ExantasFieldVisitApi {
 
   /// Read-only server estimate; never a close gate (the close is offline).
   Future<Map<String, dynamic>> chargePreview(
-          String id, FvChargeSource source, int discountBps, FvScope? scope) =>
-      post(previewPath(id), {'charge_source': source.wire, 'discount_bps': discountBps}, scope);
+          String id, FvChargeSource source, int discountBps, FvScope? scope,
+          {Map<String, dynamic>? afterHours}) =>
+      post(previewPath(id),
+          {'charge_source': source.wire, 'discount_bps': discountBps, if (afterHours != null) 'after_hours': afterHours}, scope);
 
   /// GET-only recovery of a financial request (`supportV2Recover`).
   Future<Map<String, dynamic>> recover(String key, FvScope? scope) =>
