@@ -1104,13 +1104,13 @@ pub fn get_ipv6_punch_enabled() -> bool {
 }
 
 pub fn native_access_token() -> String {
-    #[cfg(any(windows, target_os = "android"))] { crate::office_native_auth::access_token() }
-    #[cfg(not(any(windows, target_os = "android")))] { LocalConfig::get_option("access_token") }
+    #[cfg(any(windows, target_os = "android", target_os = "linux"))] { crate::office_native_auth::access_token() }
+    #[cfg(not(any(windows, target_os = "android", target_os = "linux")))] { LocalConfig::get_option("access_token") }
 }
 
 pub fn get_local_option(key: &str) -> String {
     if key == "exantas.office.native_access_token" { return native_access_token(); }
-    #[cfg(any(windows, target_os = "android"))]
+    #[cfg(any(windows, target_os = "android", target_os = "linux"))]
     if key == crate::office_native_auth::READY_KEY {
         return if crate::office_native_auth::access_token().is_empty() { String::new() } else { "Y".to_owned() };
     }

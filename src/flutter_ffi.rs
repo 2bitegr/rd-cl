@@ -1212,6 +1212,67 @@ pub fn main_get_local_option(key: String) -> SyncReturn<String> {
     SyncReturn(get_local_option(key))
 }
 
+/// Linux keyring protection for Office secrets; empty on failure or elsewhere.
+pub fn main_office_secure_protect(value: String) -> SyncReturn<String> {
+    #[cfg(target_os = "linux")]
+    {
+        return SyncReturn(crate::office_secret_linux::protect(&value).unwrap_or_else(|err| {
+            log::error!("Office secure protect failed: {}", err);
+            String::new()
+        }));
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = value;
+        SyncReturn(String::new())
+    }
+}
+
+pub fn main_office_secure_unprotect(value: String) -> SyncReturn<String> {
+    #[cfg(target_os = "linux")]
+    {
+        return SyncReturn(crate::office_secret_linux::unprotect(&value).unwrap_or_else(|err| {
+            log::error!("Office secure unprotect failed: {}", err);
+            String::new()
+        }));
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = value;
+        SyncReturn(String::new())
+    }
+}
+
+/// Office Call Popup launch ticket from the Linux keyring; empty when unavailable.
+pub fn main_office_read_launch_ticket(ticket: String) -> SyncReturn<String> {
+    #[cfg(target_os = "linux")]
+    {
+        return SyncReturn(crate::office_secret_linux::read_launch_ticket(&ticket).unwrap_or_else(|err| {
+            log::error!("Office launch ticket unavailable: {}", err);
+            String::new()
+        }));
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = ticket;
+        SyncReturn(String::new())
+    }
+}
+
+pub fn main_office_delete_launch_ticket(ticket: String) -> SyncReturn<bool> {
+    #[cfg(target_os = "linux")]
+    {
+        return SyncReturn(crate::office_secret_linux::delete_launch_ticket(&ticket).map_err(|err| {
+            log::error!("Office launch ticket cleanup failed: {}", err);
+        }).is_ok());
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = ticket;
+        SyncReturn(false)
+    }
+}
+
 pub fn main_get_use_texture_render() -> SyncReturn<bool> {
     SyncReturn(use_texture_render())
 }
