@@ -120,3 +120,64 @@ without executing installer commands, callbacks, services or the product. Full
 native application/link/package and installation acceptance remain separate.
 Preserve/reverify S2's new genuine codec receipt rather than recompiling codecs
 for this source-only correction; see the latest S2 handoff checkpoint.
+
+
+## Local native-helper invocation correction - 2026-11-22
+
+The NAS 3.1.5 installation/service/identity and user-reported remote connection
+passed, but updater heartbeat remains unaccepted: its live worker repeatedly
+logs update_cycle_failed without a request-sequence file. The worker matches
+the published source. These observations do not establish the exact exception.
+
+The native --office-update-probe rejects non-SYSTEM callers before IPC. A
+current-user probe failure is expected, not evidence that the installed IPC
+server failed. Do not disable that guard, start a SYSTEM task/process or repeat
+a one-shot diagnostic approval. A probe initializes its application log, so it
+is not a strict zero-file-write diagnostic even though it queries status only.
+
+Invoke-UpdateCore now creates its own hidden native process without a shell,
+quotes Windows argv, drains stdout/stderr concurrently with fixed bounds,
+waits for that exact process and reads its ExitCode. It never relies on ambient
+LASTEXITCODE. Timeout cleanup targets only its own helper. Failures return fixed
+codes without stderr, credentials or arguments; nonzero exits, stderr and invalid
+or multiple JSON replies fail closed. SYSTEM/installed-core, IPC, package-signature,
+identity, admission and rollout checks are unchanged.
+
+Focused verification uses the existing native x64 pythonw.exe as an inert GUI
+child with public Python fixture code. It compiles nothing and invokes neither
+the product nor its IPC/services/network. The fixture covers absent/stale exit
+state, actual exit codes, delayed completion, exact Windows/Unicode argv,
+invalid/multiple/empty JSON, stderr redaction, simultaneous large streams,
+output bounds, failed process start, NUL rejection and owned-child timeout.
+Run only OfficeSilentRecovery.test_native_gui_core_process_contract in
+scripts/tests/test_windows_office_updates.py on the authorized S2 Windows guest.
+Provide RDCL_TEST_PWSH and RDCL_TEST_GUI_PYTHON from the verified existing tools.
+
+### 3.1.6 source publication candidate
+
+S2 reported one native unittest PASS (exit 0, no skip, 36.765 seconds) and all
+13 inert GUI-helper cases PASS for overlay SHA-256
+`466a3ddacee841ad61781e620a6947b1536dcb9e0ef6aef5552f2f01f231750e`,
+based on published 3.1.5 source `f47ac7de46b23ae9e6fbeadb6fe1919ffaeba7f9`.
+The tested worker SHA-256 is
+`b754af7d09efd031852c0a0338f34408c7c2d2f0e563f659d22f812b49b666a3`.
+S2 used native Windows PowerShell 5.1.26100.9818 x64 and Python 3.11.9 x64
+pythonw.exe (GUI subsystem 2) on DESKTOP-5OTBBT7. The actual Python-launched
+PowerShell child used process-scoped RemoteSigned; Defender real-time protection
+remained enabled with no new correlated event reported.
+
+The 3.1.6 candidate preserves the tested worker and all three core fixture files
+byte for byte. Only product version declarations, installer version assertions,
+the corresponding five profile input hashes and this documentation change after
+that overlay. The profile retains all 81 inputs; SDK, compiler, dependency,
+codec ABI, hbb_common, branding and admission pins remain unchanged. The codec
+bootstrap product label follows 3.1.6 without authorizing a bootstrap or accepting
+an old receipt without the existing compatibility checks.
+
+This authorizes source publication only. PRODUCT_BUILD=NOT_RUN,
+REGRESSION_BROWSER=PAUSED, NAS_UPDATER_ACCEPTANCE=NOT_VERIFIED.
+The 13-case result belongs to the stated worker/fixtures, not to a new product
+build or a full candidate regression. SYSTEM probe, product IPC and live NAS
+heartbeat remain unverified. A later build, package, installation, publication
+of binaries or activation requires separate approval. Preserve the published
+3.1.5 installer; do not replace its bytes with a 3.1.6 payload.

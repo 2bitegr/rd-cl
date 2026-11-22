@@ -140,12 +140,92 @@ function Assert-ProtectedInstallation([string]$Path) {
     }
 }
 
+function ConvertTo-UpdateCoreArgument([string]$Value) {
+    if ($Value.IndexOf([char]0) -ge 0) { throw 'core_argument_invalid' }
+    # Quote argv for CreateProcess, never for a shell. Double backslashes before
+    # a quote and before the closing quote (including empty/trailing-slash args).
+    $quoted = [regex]::Replace($Value, '(\\*)"', '$1$1\"')
+    $quoted = [regex]::Replace($quoted, '(\\+)$', '$1$1')
+    return '"' + $quoted + '"'
+}
+
 function Invoke-UpdateCore([string]$Operation, [string[]]$Arguments = @()) {
-    $result = & $script:CorePath $Operation @Arguments
-    if ($LASTEXITCODE -ne 0) { throw 'core_check_failed' }
-    $json = @($result | Where-Object { $_ -match '^\{.*\}$' })
-    if ($json.Count -ne 1) { throw 'core_response_invalid' }
-    return ($json[0] | ConvertFrom-Json)
+    # This core is a Windows GUI executable. Bind output and exit status to the
+    # process we create, not PowerShell's ambient/possibly absent LASTEXITCODE.
+    $process = [Diagnostics.Process]::new()
+    $started = $false
+    $failureCode = 'core_start_failed'
+    $knownCodes = @('core_argument_invalid','core_start_failed','core_capture_failed',
+      'core_timeout','core_output_invalid','core_check_failed','core_stderr_invalid','core_response_invalid')
+    try {
+        $start = [Diagnostics.ProcessStartInfo]::new()
+        $start.FileName = $script:CorePath
+        $start.WorkingDirectory = Split-Path -Parent $script:CorePath
+        $start.Arguments = (@(@($Operation) + @($Arguments) | ForEach-Object {
+            ConvertTo-UpdateCoreArgument ([string]$_)
+        }) -join ' ')
+        $start.UseShellExecute = $false
+        $start.CreateNoWindow = $true
+        $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+        $start.RedirectStandardInput = $true
+        $start.RedirectStandardOutput = $true
+        $start.RedirectStandardError = $true
+        $start.StandardOutputEncoding = [Text.UTF8Encoding]::new($false, $true)
+        $start.StandardErrorEncoding = [Text.UTF8Encoding]::new($false, $true)
+        $process.StartInfo = $start
+        if (!$process.Start()) { throw 'core_start_failed' }
+        $started = $true
+        $failureCode = 'core_capture_failed'
+        $process.StandardInput.Close()
+        # Drain both pipes concurrently, with bounded buffers and a shared
+        # deadline. A noisy helper must not deadlock or grow memory unboundedly.
+        $streams = @(
+            @{reader=$process.StandardOutput;buffer=[char[]]::new(4096);text=[Text.StringBuilder]::new();done=$false;pending=$null},
+            @{reader=$process.StandardError;buffer=[char[]]::new(4096);text=[Text.StringBuilder]::new();done=$false;pending=$null}
+        )
+        foreach ($stream in $streams) {
+            $stream.pending = $stream.reader.ReadAsync($stream.buffer, 0, $stream.buffer.Length)
+        }
+        $timer = [Diagnostics.Stopwatch]::StartNew()
+        while ($true) {
+            $progress = $false
+            foreach ($stream in $streams) {
+                if (!$stream.done -and $stream.pending.IsCompleted) {
+                    $count = $stream.pending.GetAwaiter().GetResult()
+                    if ($count -eq 0) { $stream.done = $true }
+                    else {
+                        if ($stream.text.Length + $count -gt 1048576) { throw 'core_output_invalid' }
+                        $null = $stream.text.Append($stream.buffer, 0, $count)
+                        $stream.pending = $stream.reader.ReadAsync($stream.buffer, 0, $stream.buffer.Length)
+                    }
+                    $progress = $true
+                }
+            }
+            if ($process.WaitForExit(0) -and $streams[0].done -and $streams[1].done) { break }
+            if ($timer.ElapsedMilliseconds -ge 30000) { throw 'core_timeout' }
+            if (!$progress) { [Threading.Thread]::Sleep(10) }
+        }
+        if ($process.ExitCode -ne 0) { throw 'core_check_failed' }
+        if ($streams[1].text.Length -ne 0) { throw 'core_stderr_invalid' }
+        $failureCode = 'core_response_invalid'
+        $json = @($streams[0].text.ToString() -split '\r?\n' | Where-Object { $_ -match '^\{.*\}$' })
+        if ($json.Count -ne 1) { throw 'core_response_invalid' }
+        return ($json[0] | ConvertFrom-Json)
+    } catch {
+        # Only fixed codes leave this boundary, never raw stderr/arguments.
+        if ($_.Exception.Message -cin $knownCodes) { throw $_.Exception.Message }
+        throw $failureCode
+    } finally {
+        try {
+            # Terminate only the helper created above, never an existing service
+            # or unrelated process. Keep normal completion and timeout distinct.
+            if ($started -and !$process.HasExited) {
+                $process.Kill()
+                if (!$process.WaitForExit(5000)) { throw 'core_cleanup_failed' }
+            }
+        } catch { throw 'core_cleanup_failed' }
+        finally { $process.Dispose() }
+    }
 }
 
 function Assert-OfficeUpdatePackage([string]$Installer, $Release) {

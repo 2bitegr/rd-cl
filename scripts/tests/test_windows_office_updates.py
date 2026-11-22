@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -16,6 +17,30 @@ PWSH = os.environ.get('RDCL_TEST_PWSH') or shutil.which('powershell.exe')
 
 @unittest.skipUnless(os.name == 'nt' and PWSH, 'Native Windows PowerShell fixture required')
 class OfficeSilentRecovery(unittest.TestCase):
+    def test_native_gui_core_process_contract(self):
+        base_python = Path(getattr(sys, '_base_executable', sys.executable))
+        gui_python = Path(os.environ.get('RDCL_TEST_GUI_PYTHON') or
+                          base_python.with_name('pythonw.exe'))
+        self.assertTrue(gui_python.is_file(), 'Existing native pythonw.exe is required')
+        with tempfile.TemporaryDirectory(prefix='rdcl-core-process-report-') as directory:
+            output = Path(directory) / 'result.json'
+            result = subprocess.run([PWSH, '-NoProfile', '-NonInteractive', '-File',
+                str(SCRIPTS / 'tests' / 'test-office-update-core.ps1'),
+                '-Source', str(SOURCE), '-GuiPython', str(gui_python),
+                '-Output', str(output)], capture_output=True, text=True, timeout=150)
+            report = json.loads(output.read_text(encoding='utf-8-sig')) if output.is_file() else None
+            evidence = result.stdout + result.stderr + json.dumps({'native_core_process_fixture': report})
+            self.assertEqual(result.returncode, 0, evidence)
+            self.assertIsNotNone(report, evidence)
+            self.assertEqual(report['status'], 'PASS')
+            self.assertEqual(report['tests'], 13)
+            self.assertEqual(report['source_sha256'], hashlib.sha256(SOURCE.read_bytes()).hexdigest())
+            self.assertEqual(report['gui_subsystem'], 2)
+            for field in ['product_installation', 'service_changes', 'network']:
+                self.assertEqual(report[field], 'NOT_RUN')
+            self.assertEqual(report['nas'], 'NOT_TOUCHED')
+            print(json.dumps({'native_core_process_fixture': report}, sort_keys=True))
+
     def test_production_barrier_check_reads_protected_acl(self):
         source = (SCRIPTS.parent / 'src' / 'office_update.rs').read_text()
         verifier = re.search(r'let check = r#"(.*?)"#;', source, re.S)
