@@ -1,60 +1,44 @@
 # One complete rd-cl build prompt for S2
 
-## Current operating requirement (2026-11-22)
-
-Read Office docs/rdcl-s2-build-operations.md before executing a handoff.
-Latest user-reported dceb10c6869e171c5c9caa7b7936d60b507e9908 attempt:
-effective Restricted blocked the readable fixture before ACL checks; zero build
-attempts and EXE/ZIP NOT_PRODUCED. MachinePolicy/UserPolicy and all other scopes
-were Undefined. This is a station launch configuration blocker, not a demonstrated
-ACL failure. Use the documented reviewed process-only RemoteSigned entry and
-verify the real child context before tests. Defender acceptance is still unproven.
-S1 tests stay paused. Earlier delivery sections below are historical.
+## Current completed build - 3.1.5,2026-11-22
 
 
-## Current source candidate — 3.1.5
+Station details have now been received: read Office
+docs/s2-verified-build-environment.md for the integrity-verified launcher bundle,
+real backing paths and caches. Keep the completed job unchanged; it pins its SHA,
+handoff hash and no-overwrite receipts. Prepare a new reviewed job for a new source.
+This evidence review did not execute runners or rehash the actual EXE/ZIP on S1.
 
+S2 reports build/package/maintenance/UbuntuTransfer PASS for
+f47ac7de46b23ae9e6fbeadb6fe1919ffaeba7f9,Office build operations
+a48d82155f010a851bd1622ac3d5b359bbe43dbd. Read the full provenance,package
+hashes,paths and gate counts in Office docs/rdcl-3.1.5-build-delivery.md and the
+repeat-run procedure docs/rdcl-s2-build-operations.md.
 
-S2's attempt at 36beba2f1c34e79aae80cc840ae063d170dd4039 is BLOCKED:
-native guards reported 96 PASS, 1 ERROR, 1 SKIP. Defender blocked CreateProcess
-for the encoded PowerShell barrier fixture before any ACL assertion or product
-build. S2 verified the signed Windows PowerShell and fixture Git-blob hash.
-The 41 synthetic updater scenarios and 7 Rust envelope cases passed separately.
-Build -WithExe attempts were zero; EXE/ZIP remain NOT_PRODUCED. Existing
-toolchain/codec audits passed; later application stages remain NOT_RUN.
+Native barrier PASS(both ACL cases);native guards97PASS/1 symlink privilege SKIP;
+updater41/41, Rust envelope7/7, Dart177/177. Pinned Dart 3.5.4 whole-flutter analyzer
+exit 0, 0 errors / 0 warnings / 263 infos. SDK22621 and genuine424-file codec receipt reused.
+One Build-WithExe exit0 in 1243.60 s. Defender remained active with no new correlated
+block. All results are user-forwarded S2 evidence,not independent S1 log inspection.
 
-The correction keeps the test harness as a readable owned temporary PS1 file
-and invokes the actual production verifier with plain -Command, as production
-does. It removes nested encoded commands and the hidden child launcher.
-Both protected-ACL acceptance and Everyone-write rejection remain required.
-The test also requires its two-case completion marker and empty stderr, so a
-blocked or unexpected failing command cannot count as the negative ACL case.
-No Defender exclusions, protection changes or product/runtime changes are made.
-A fresh native guest guard PASS is still required at the next published SHA;
-the previous S1 PASS does not certify the S2 Defender result.
+EXE 24550400 bytes,SHA256
+e74b227d6467789e6f186115c89abd13d5abcedcccfdbd079fac96753b93c36e,NotSigned.
+Runtime ZIP 32509115 bytes,SHA256
+4bdf5118eed7d1404a6763dc7f292c54ddb006bb6412da5477cfc3fddc8d168b.
+93-file runtime inventory matched installer payload;maintenance zero removals;
+24 transferred files independently hashed by S2 on Ubuntu. Preserve real receipts.
 
+Use this completed SHA as baseline. Do not rebuild unchanged source merely for
+reports,transfer or hosting. For changed source create an exact matching snapshot
+and separate output root,reuse only proven compatible tools/caches/phase evidence.
+Run the analyzer early with deterministic generated inputs before expensive compile.
+The readable fixture,process-only RemoteSigned real-child verification and all
+protection/ACL guards remain mandatory. No suppression or fatality-flag changes.
 
-S1 is preparing a correction for a pilot NAS running 3.1.4. Its inherited
-TrustedInstaller FullControl rule on the installation directory was rejected
-before the first updater poll. The corrected installation guard accepts the
-exact Windows TrustedInstaller service SID, with synthetic tests retaining
-rejection of Everyone, Users and unrelated service writers. Private updater-root
-ownership and permissions remain strict.
-
-Startup failures after verifying the private updater root now produce bounded,
-sanitized update.jsonl codes, including failures before the normal poll loop.
-Recovery setup preserves a sanitized underlying cause before its summary failure.
-The new native fixture covers 41 recovery/security scenarios. Full publication
-checks and the final published source SHA belong in the completed handoff.
-
-Last completed package and hosting are rd-cl 3.1.4,
-f66ed92801f5bea6f2de956c8e605b8c6217e422, EXE 24551424 bytes,
-SHA-256 1430fa8c57d95a410769c819e8f842c37980bce006700d4fb414ac3e6bd95dfa.
-User-forwarded S2 transfer/maintenance/hosting PASS was independently checked
-through public Web/API by S1 on 2026-11-21. Native clean-install/upgrade/enrollment
-remain NOT_RUN. Existing guest codec receipts and warm application caches need
-fresh compatibility verification before reuse for 3.1.5.
-No 3.1.5 EXE has been produced. S2's work ends at verified EXE transfer.
+NAS acceptance NOT_RUN. SILENT_UPDATE_RELEASE_NOT_PREPARED. Last reported hosting
+remains3.1.4. No DB/migration,hosting,deploy/restart or install ran in this build.
+S1 full regression/browser remain paused;past publication exceptions are consumed.
+The old36beba2/dceb10c6 blocked attempts are historical,not current build state.
 
 ## S2 build station
 
@@ -92,7 +76,7 @@ verified package and reusable caches for the next delivery. Production hosting,
 Office migrations, Dokploy and install/upgrade acceptance belong to separately
 authorized work outside S2. This scope supersedes historical S2 assignments below.
 
-## Latest S2 attempt BLOCKED — 3.1.3/2e8babad, 2026-11-18
+## Historical S2 attempt BLOCKED — 3.1.3/2e8babad, 2026-11-18
 
 User-forwarded native S2 receipt: source recovery and the 79 profile pins passed;
 guards 91 PASS/2 SKIP (Linux-only and synthetic symlink privilege), updater

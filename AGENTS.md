@@ -134,7 +134,7 @@ baseline/handoff/completion evidence to avoid duplicate prompts/builds. If rd-cl
 is unchanged, report NO_RDCL_BUILD_NEEDED. No automatic builds, Actions, product
 installation or deployment is implied. The former cloud build plan is superseded.
 
-Current completed S2 application/EXE and hosting baseline (user-forwarded
+Historical completed S2 application/EXE and hosting baseline (user-forwarded
 receipt2026-11-16; native Windows logs/package not independently inspected by S1):
 `babdbfc0dad64f6725ba938222c7b70503ed2b31`, rd-cl `3.1.2`, Windows x64, NotSigned.
 Office handoff: `bc7f82801fd962200e86bc66aebcb77dd1bedd97` (1.12.59).
@@ -370,7 +370,7 @@ guides;all source/hash/PE/HTTPS/atomic-retention gates remain. No extra confirma
 for the same reviewed scoped upload. No automatic Dokploy deploy/SQL/reboot or
 host/customer installation is granted to the S2 build job. The user assigns any
 hosting work to a separately authorized release operator.
-Current completed S2 baseline is babdbfc0/3.1.2 per the latest receipt above;
+Historical completed S2 baseline was babdbfc0/3.1.2; see the current3.1.5 build record;
 hosting PASS is user-reported and public Web/API bytes/hash verified by S1.
 Preserve rollback packages/caches; no repeat build or hosting job for this source.
 
@@ -490,6 +490,34 @@ Dart lifecycle tests plus native close/retry/multi-window tests are required;
 syntax checks alone are not behavioral/native acceptance. Preserve codec receipt
 and warm application caches: these Dart/API changes do not alter codec inputs.
 
+
+### Received S2 station evidence
+
+Office docs/s2-verified-build-environment.md indexes the successful launcher,
+actual NTFS/tool/cache roots, genuine codec receipt, phase order and attachment
+hashes. S1 verified the TXT/JSON/runner-ZIP bytes, 40 bundle payload hashes and 15
+job input hashes; received published scripts match their exact Git blobs.
+No runner was executed. The job is SHA/handoff-specific: retain it unchanged and
+prepare a new reviewed owned job for changed source, preserving compatible caches.
+Do not treat selected config documentation as runnable originals. NuGet cache and
+current production access/target stay UNKNOWN. Migration rehearsal/backup archive
+readability do not establish production apply or a fresh full restore result.
+
+### Current S2 completed build baseline and repeat-run evidence
+
+The latest completed S2 build/package/maintenance/transfer is rd-cl 3.1.5 Windows
+x64, f47ac7de46b23ae9e6fbeadb6fe1919ffaeba7f9,using Office operations
+a48d82155f010a851bd1622ac3d5b359bbe43dbd (user-forwarded S2 evidence).
+Read Office docs/rdcl-3.1.5-build-delivery.md and docs/rdcl-s2-build-operations.md
+before the next handoff. Compare against this completed SHA, not an older blocked
+attempt. Reuse verified station configuration and compatible caches; no repeat
+build for unchanged source/transfer/hosting-only work. Old 3.1.2/3.1.4 build sections
+below are historical. Last reported hosting stays 3.1.4; 3.1.5 NAS acceptance is
+NOT_RUN and silent release NOT_PREPARED. Full S1 regression/browser stay paused
+until the user resumes; previous one-push exceptions are consumed.
+For separately authorized SQL use Office docs/office-migration-operations.md and
+the existing lightweight migration handoff; current DB state needs target proof.
+Build success never establishes a migration apply or standing S2 production role.
 
 ### Reliable S2 rd-cl build entry and separate migration workflow
 

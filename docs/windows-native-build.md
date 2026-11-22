@@ -1,4 +1,5 @@
 > Current integrity requirements (2026-10-22): read
+
 > [S2 build integrity](windows-s2-build-integrity.md). Exact submodule/payload
 > inventories, complete recorded tools/SDK identity and a locked release session
 > are required. The historical S2 codec receipt lacks SDK identity; preserve it
@@ -7,6 +8,25 @@
 > [installer correction](windows-installer-2.0.0.md) describes the package design.
 
 # Pinned native Windows x64 build
+
+## Successful current station baseline - 2026-11-22
+
+
+Station details have now been received: read Office
+docs/s2-verified-build-environment.md for the integrity-verified launcher bundle,
+real backing paths and caches. Keep the completed job unchanged; it pins its SHA,
+handoff hash and no-overwrite receipts. Prepare a new reviewed job for a new source.
+This evidence review did not execute runners or rehash the actual EXE/ZIP on S1.
+
+The completed 3.1.5 build is f47ac7de46b23ae9e6fbeadb6fe1919ffaeba7f9 on
+DESKTOP-5OTBBT7,Windows11-Development UUID8c15378e-e71b-4c78-bf41-e77ba3915205,
+coordinated by Ubuntu Exantas-S2. S2 reports one Build-WithExe exit0 in 1243.60 s,
+verified reused codec receipt, 424 ABI files,SDK 22621, 177 Dart PASS,analyzer 0/0/263.
+Read Office docs/rdcl-3.1.5-build-delivery.md for exact packages and provenance.
+Keep real NTFS/tool/cache/config paths in the sanitized station record;W: in old
+logs is a temporary alias. Use the successful process-scoped launcher and actual
+child-policy verification,early whole-flutter analyzer and compatible cache reuse.
+This is completed build evidence,not NAS/silent update or hosting acceptance.
 
 After Office publication, prepare the [single S2 build handoff](windows-s2-build-handoff.md)
 when published rd-cl changes are pending. It covers the complete workflow below,
