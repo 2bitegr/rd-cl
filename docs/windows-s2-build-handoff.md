@@ -1,5 +1,17 @@
 # One complete rd-cl build prompt for S2
 
+## Current operating requirement (2026-11-22)
+
+Read Office docs/rdcl-s2-build-operations.md before executing a handoff.
+Latest user-reported dceb10c6869e171c5c9caa7b7936d60b507e9908 attempt:
+effective Restricted blocked the readable fixture before ACL checks; zero build
+attempts and EXE/ZIP NOT_PRODUCED. MachinePolicy/UserPolicy and all other scopes
+were Undefined. This is a station launch configuration blocker, not a demonstrated
+ACL failure. Use the documented reviewed process-only RemoteSigned entry and
+verify the real child context before tests. Defender acceptance is still unproven.
+S1 tests stay paused. Earlier delivery sections below are historical.
+
+
 ## Current source candidate — 3.1.5
 
 

@@ -489,3 +489,15 @@ This requires the new Office1.12.9 receiver before S2 runtime acceptance. Pure
 Dart lifecycle tests plus native close/retry/multi-window tests are required;
 syntax checks alone are not behavioral/native acceptance. Preserve codec receipt
 and warm application caches: these Dart/API changes do not alter codec inputs.
+
+
+### Reliable S2 rd-cl build entry and separate migration workflow
+
+Follow docs/rdcl-s2-build-operations.md in the Office repository for the durable
+station inventory, process-scoped RemoteSigned launcher, actual child-policy
+verification, early native barrier/Defender gate, compatible warm-cache reuse and
+resumable phase receipts. No permanent execution-policy change, protection
+exception or skipped failed gate is an acceptable build fix.
+S2 remains the EXE builder. Migrations require a separately authorized exact
+production-operator handoff; never run SQL as a build prerequisite or startup task.
+Record actual build/transfer results independently from migration and deployment.
