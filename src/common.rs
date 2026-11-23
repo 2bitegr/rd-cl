@@ -2169,10 +2169,8 @@ fn apply_exantas_custom_client() {
         "N".to_owned(),
     );
     builtin.insert(keys::OPTION_HIDE_POWERED_BY_ME.to_owned(), "Y".to_owned());
-    builtin.insert(
-        keys::OPTION_DISABLE_CHANGE_PERMANENT_PASSWORD.to_owned(),
-        "Y".to_owned(),
-    );
+    // Permanent passwords stay per-device: the installer ships none, but a
+    // technician can set one locally and Office enrollment writes its own.
     builtin.insert(keys::OPTION_DISABLE_CHANGE_ID.to_owned(), "Y".to_owned());
     builtin.insert(keys::OPTION_HIDE_STOP_SERVICE.to_owned(), "Y".to_owned());
 }

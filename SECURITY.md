@@ -49,3 +49,5 @@ Without Office enrollment, Exantas Support runs in attended basic support mode.
 The basic mode one-time password is numeric-only so a final customer can read it
 over the phone. Managed unattended access is enabled only after Office
 enrollment creates or rotates per-device credentials under Office policy.
+A technician may also set a per-device permanent password locally from
+Settings > Security for unattended access; it is never shared across devices.
