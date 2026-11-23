@@ -1,6 +1,7 @@
 param([string]$CorePath, [string]$ServiceName, [switch]$LibraryOnly)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:reportedAcceptedPoll = $false
 
 function Write-UpdateState($Path, $Value) {
     $temporary = "$Path.new"
@@ -566,6 +567,11 @@ function Invoke-UpdateCycle {
     $pending=$null
     if($script:journal -and ($script:journal.pending_action -or $script:journal.phase -notin @('complete','rolled_back','cancelled','failed'))) {$pending=$script:journal.job.id}
     $poll = Invoke-OfficeUpdate 'poll' @{report=(Get-UpdateReport);pending_job_id=$pending}
+    if (!$script:reportedAcceptedPoll) {
+        $script:reportedAcceptedPoll = $true
+        try { Write-UpdateDiagnostic 'office_poll_accepted' }
+        catch { Write-Verbose 'Could not log the first accepted Office update poll.' }
+    }
     if (!$poll.PSObject.Properties['job'] -or !$poll.job) {
         if (!$pending) {$script:barrier.Reset() | Out-Null}
         return
