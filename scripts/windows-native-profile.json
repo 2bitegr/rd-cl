@@ -13,8 +13,8 @@
   "input_sha256": {
     "Cargo.toml": "a85a64b6ebb50d8c654366af743771224ee3c791f090528892e650a9891a19e5",
     "Cargo.lock": "b2c42d5031e3c2112ae9f0aadb068cbd47cb65ff9dcc96739fd1da7586774dd4",
-    "flutter/pubspec.yaml": "58506970fd9eab6ef9548d9c573dd49c4799ef5fa2b57b3c02d2a164594b1e3b",
-    "flutter/pubspec.lock": "0a050e67d282a31b45aca812b16d7cfb571dc0a47bd211ee5f20b43bed6cc9ef",
+    "flutter/pubspec.yaml": "8bda754671677ff6686e534d05f5e55490486d0777fa2c14369e6624ea935ce2",
+    "flutter/pubspec.lock": "024b3301f51a62ff18eeab124015d72a4d5430ae5fd76fa0aa58d913ab9a2758",
     "vcpkg.json": "64507a425be8d92cbb28d180d33986d8c419238cd6cae960e6a365d7691bbea0",
     ".github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff": "7663824d8d728990a49e7a43e081fd1269f536a10987b576ba8f0bb766d2c759",
     "patches/hbb_common-exantas-config.patch": "bf99166930c5e39d5916a3ff2a7323093fd0c57dacf5e14ad603d4503af3618e",

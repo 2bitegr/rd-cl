@@ -112,7 +112,9 @@ dependencies:
   vector_math: ^2.1.4
   local_auth: 2.3.0
   local_auth_android: 1.0.40
-  geolocator: ^12.0.0
+  # Android-only location for field visits; no desktop location plugin.
+  geolocator_android: 4.3.1
+  geolocator_platform_interface: 4.4.1
 
 dev_dependencies:
   icons_launcher: ^2.0.4
