@@ -33,7 +33,7 @@ class OfficeSilentRecovery(unittest.TestCase):
             self.assertEqual(result.returncode, 0, evidence)
             self.assertIsNotNone(report, evidence)
             self.assertEqual(report['status'], 'PASS')
-            self.assertEqual(report['tests'], 13)
+            self.assertEqual(report['tests'], 14)
             self.assertEqual(report['source_sha256'], hashlib.sha256(SOURCE.read_bytes()).hexdigest())
             self.assertEqual(report['gui_subsystem'], 2)
             for field in ['product_installation', 'service_changes', 'network']:
@@ -110,6 +110,20 @@ if ($checks -ne 2) { throw 'Barrier ACL checks incomplete' }
             for field in ['product_installation', 'service_changes', 'network']:
                 self.assertEqual(report[field], 'NOT_RUN')
             print(json.dumps({'native_fixture': report}, sort_keys=True))
+
+
+class OfficeUpdateWorkerStaticContracts(unittest.TestCase):
+    """Runs everywhere: the GUI host must never be invoked with PowerShell '&'."""
+
+    def test_release_verify_uses_bound_helper_process(self):
+        source = SOURCE.read_text(encoding='utf-8')
+        # '&' on a GUI-subsystem executable neither waits nor captures stdout
+        # when the worker has no console, so no Office release ever verified.
+        self.assertNotRegex(source, r'&\s*\$script:machine\.host_path')
+        self.assertNotRegex(source, r'&\s*\$script:CorePath')
+        self.assertIn("Invoke-UpdateCore '--office-update-verify' @($manifestPath) $script:machine.host_path", source)
+        self.assertIn('[string]$Executable = $script:CorePath', source)
+        self.assertIn('$start.FileName = $Executable', source)
 
 
 if __name__ == '__main__':

@@ -91,6 +91,13 @@ try {
         try {Expect-Code 'core_start_failed' {Invoke-UpdateCore $probe @('ok')}}
         finally {$script:CorePath=(Get-Item -LiteralPath $GuiPython).FullName}
     }
+    Check 'Explicit trusted host executable is used instead of the install core' {
+        $script:CorePath=Join-Path $scratch 'SYNTHETIC_PRIVATE_TEXT-missing.exe'
+        try {
+            $reply=Invoke-UpdateCore $probe @('ok') (Get-Item -LiteralPath $GuiPython).FullName
+            Assert ($reply.ok -eq $true) 'explicit_executable_not_used'
+        } finally {$script:CorePath=(Get-Item -LiteralPath $GuiPython).FullName}
+    }
     Check 'NUL argv is rejected before starting a child' {Expect-Code 'core_argument_invalid' {Invoke-UpdateCore $probe @('ok',([string][char]0))}}
     Check 'Deadline terminates only its own helper and leaves a sentinel alive' {
         $sentinelMarker=Join-Path $scratch 'sentinel.pid'

@@ -150,7 +150,7 @@ function ConvertTo-UpdateCoreArgument([string]$Value) {
     return '"' + $quoted + '"'
 }
 
-function Invoke-UpdateCore([string]$Operation, [string[]]$Arguments = @()) {
+function Invoke-UpdateCore([string]$Operation, [string[]]$Arguments = @(), [string]$Executable = $script:CorePath) {
     # This core is a Windows GUI executable. Bind output and exit status to the
     # process we create, not PowerShell's ambient/possibly absent LASTEXITCODE.
     $process = [Diagnostics.Process]::new()
@@ -160,8 +160,8 @@ function Invoke-UpdateCore([string]$Operation, [string[]]$Arguments = @()) {
       'core_timeout','core_output_invalid','core_check_failed','core_stderr_invalid','core_response_invalid')
     try {
         $start = [Diagnostics.ProcessStartInfo]::new()
-        $start.FileName = $script:CorePath
-        $start.WorkingDirectory = Split-Path -Parent $script:CorePath
+        $start.FileName = $Executable
+        $start.WorkingDirectory = Split-Path -Parent $Executable
         $start.Arguments = (@(@($Operation) + @($Arguments) | ForEach-Object {
             ConvertTo-UpdateCoreArgument ([string]$_)
         }) -join ' ')
@@ -661,11 +661,14 @@ function Invoke-UpdateCycle {
     }
     $manifestPath = Join-Path $attempt 'envelope.json'
     Write-UpdateState $manifestPath $poll.envelope
-    $releaseText = & $script:machine.host_path '--office-update-verify' $manifestPath
-    if($LASTEXITCODE -ne 0){throw 'release_signature_invalid'}
-    $releaseLines=@($releaseText | Where-Object {$_ -match '^\{.*\}$'})
-    if($releaseLines.Count -ne 1){throw 'release_response_invalid'}
-    $release=$releaseLines[0] | ConvertFrom-Json
+    # The trusted host is a Windows GUI executable: '&' neither waits for it nor
+    # captures its stdout, so verify through the bound helper process.
+    try { $release = Invoke-UpdateCore '--office-update-verify' @($manifestPath) $script:machine.host_path }
+    catch {
+        if ($_.Exception.Message -ceq 'core_check_failed') { throw 'release_signature_invalid' }
+        if ($_.Exception.Message -cin @('core_response_invalid','core_output_invalid','core_stderr_invalid')) { throw 'release_response_invalid' }
+        throw
+    }
     $script:journal.release=$release
     if ($poll.PSObject.Properties['paused'] -and $poll.paused -eq $true) { Send-UpdateAction 'defer' (Get-UpdateReport) 'rollout_paused' | Out-Null; return }
     if ($job.state -eq 'offered') { Send-UpdateAction 'download' (Get-UpdateReport) | Out-Null }
