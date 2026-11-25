@@ -42,6 +42,12 @@ parent enrollment invalidates authority instead of silently rebinding it. Root
 signing keys are pinned at bootstrap; use an already trusted key for subsequent
 releases. Root key rotation requires its own reviewed trust rollout.
 
+The idle check tolerates the service, server, tray and a main window started
+without arguments (it only hides on close). The protected IPC probe must still
+report no incoming or outgoing session; connection, CM and install windows block.
+The hidden main window is stopped with the other core processes and is not
+reopened afterwards; the tray is restored as before.
+
 Manual install/update/service-removal/uninstall batches first stop only the owned
 worker and recovery task through the existing elevated path. A physical operation
 already underway prevents that action. Reinstall clears only the owned stop marker.
