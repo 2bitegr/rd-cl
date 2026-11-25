@@ -12,6 +12,7 @@ import sys
 import tarfile
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 from native_guard_fixture import sdk_fixture
 from unittest.mock import Mock, patch
@@ -21,6 +22,65 @@ spec = importlib.util.spec_from_file_location('codec_bootstrap',
     Path(__file__).resolve().parents[1] / 'windows-codec-bootstrap.py')
 codec = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(codec)
+HOST_ERROR = 'Run on an approved native Windows codec host'
+
+
+class BootstrapHost(unittest.TestCase):
+    def test_direct_runner_checks_native_identity_before_starting_bootstrap(self):
+        for os_name, machine, wine, accepted in [
+            ('nt', 's2', False, 'S2'),
+            ('nt', 'DESKTOP-5OTBBT7', False, 'DESKTOP-5OTBBT7'),
+            ('nt', 'DESKTOP-IQ8ORD5', False, None),
+            ('nt', 'OTHER-PC', False, None),
+            ('nt', 'S2', True, None),
+            ('posix', 'S2', False, None),
+        ]:
+            with self.subTest(os_name=os_name, machine=machine, wine=wine):
+                def get_computer_name(buffer, _size):
+                    buffer.value = machine
+                    return True
+
+                ntdll = SimpleNamespace(wine_get_version=True) if wine else SimpleNamespace()
+                kernel = SimpleNamespace(GetComputerNameW=Mock(side_effect=get_computer_name))
+                with patch.object(codec, 'os', SimpleNamespace(name=os_name)), \
+                        patch.object(codec.ctypes, 'WinDLL', create=True, side_effect=[ntdll, kernel]) as load, \
+                        patch.dict(os.environ, {'COMPUTERNAME': 'S2', 'OS': 'Windows_NT'}), \
+                        patch.object(sys, 'argv', [str(codec.SCRIPT), *self.python_arguments()]), \
+                        patch.object(codec, 'Bootstrap') as bootstrap, \
+                        patch.object(codec.native, 'save'), patch('sys.stderr', new_callable=io.StringIO) as stderr:
+                    if accepted:
+                        bootstrap.return_value.logs = Path('unused')
+                        self.assertEqual(codec.main(), 0)
+                        self.assertEqual(bootstrap.call_args.args[0].machine, accepted)
+                        bootstrap.return_value.codec_preflight.assert_called_once()
+                    else:
+                        with self.assertRaises(SystemExit) as stopped:
+                            codec.main()
+                        self.assertEqual(stopped.exception.code, 2)
+                        self.assertIn(HOST_ERROR, stderr.getvalue())
+                        bootstrap.assert_not_called()
+                    if os_name != 'nt':
+                        load.assert_not_called()
+
+    @staticmethod
+    def python_arguments():
+        return ['--mode', 'Preflight', '--toolchain', 'missing-codec-toolchain.json',
+                '--source-commit', 'a' * 40, '--output-root', 'unused-output',
+                '--codec-root', 'unused-codec', '--existing-triplet', 'unused-triplet']
+
+    def test_actual_direct_runner_ignores_environment_hostname(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([sys.executable, '-B', str(codec.SCRIPT), *self.python_arguments()],
+                cwd=directory, env={**os.environ, 'COMPUTERNAME': 'S2', 'OS': 'Windows_NT'},
+                capture_output=True, text=True, timeout=20)
+            self.assertNotEqual(result.returncode, 0)
+            if codec.approved_windows_host():
+                self.assertIn('FileNotFoundError', result.stderr)
+                self.assertIn('missing-codec-toolchain.json', result.stderr)
+            else:
+                self.assertEqual(result.returncode, 2)
+                self.assertIn(HOST_ERROR, result.stderr)
+            self.assertEqual(list(Path(directory).iterdir()), [])
 
 
 class BootstrapGuards(unittest.TestCase):
@@ -280,7 +340,7 @@ endfunction()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             runner = object.__new__(codec.Bootstrap)
-            runner.args = argparse.Namespace(source_commit='a' * 40)
+            runner.args = argparse.Namespace(source_commit='a' * 40, machine='S2')
             runner.codec_preflight = Mock(return_value=(root, root / 'Triplets'))
             runner.run = Mock(side_effect=RuntimeError('codec-compile: exit 1'))
             with self.assertRaisesRegex(RuntimeError, 'codec-compile: exit 1'):
@@ -301,7 +361,7 @@ endfunction()
             codec.native.save(marker, {'source_commit': 'a' * 40, 'machine': 'S2', 'schema': 1, 'phase': 'PREPARED'})
             runner = object.__new__(codec.Bootstrap)
             runner.drive_created = False
-            runner.args = argparse.Namespace(source_commit='a' * 40, codec_root=str(root))
+            runner.args = argparse.Namespace(source_commit='a' * 40, codec_root=str(root), machine='S2')
             runner.cfg = {'artifact_root': str(base)}
             runner.source = base / 'Scratch/source'
             runner.tools = {'vcpkg': base / 'existing-vcpkg'}
@@ -310,6 +370,11 @@ endfunction()
             runner.codec_preflight = Mock(return_value=(root, runner.output / 'Triplets'))
             runner.run = Mock(side_effect=RuntimeError('fixture codec compiler entered'))
             try:
+                runner.args.machine = 'DESKTOP-5OTBBT7'
+                with self.assertRaisesRegex(RuntimeError, 'CodecRoot ownership/source mismatch'):
+                    runner.prepare_root()
+                runner.close()
+                runner.args.machine = 'S2'
                 self.assertEqual(runner.prepare_root(), root)
                 runner.git.assert_not_called()  # Reuse prepared root, never re-clone.
                 with self.assertRaisesRegex(RuntimeError, 'fixture codec compiler entered'):
@@ -363,7 +428,7 @@ endfunction()
             codec.native.save(marker, state)
             runner = object.__new__(codec.Bootstrap)
             runner.drive_created = False
-            runner.args = argparse.Namespace(source_commit='a' * 40, codec_root=str(root))
+            runner.args = argparse.Namespace(source_commit='a' * 40, codec_root=str(root), machine='S2')
             runner.cfg = {'artifact_root': str(base)}
             runner.source = base / 'Scratch/source'
             runner.tools = {'vcpkg': base / 'existing-vcpkg'}
@@ -456,7 +521,8 @@ endfunction()
             toolchain = base / 'original-toolchain.json'
             codec.native.save(toolchain, runner.cfg)
             original_json_hash = codec.native.digest(toolchain)
-            runner.args = argparse.Namespace(source_commit='a' * 40, toolchain=str(toolchain))
+            runner.args = argparse.Namespace(source_commit='a' * 40, toolchain=str(toolchain),
+                                             machine='DESKTOP-5OTBBT7')
             runner.codec_preflight = Mock(return_value=(root, triplets))
             runner.initial_sdk_identity = sdk_fixture(runner, base)
             runner.cmake_version = 'synthetic CMake version'
@@ -475,6 +541,9 @@ endfunction()
             published = json.loads((runner.output / 'compiled-cache-receipt.json').read_text())
             derived = json.loads((runner.output / 'toolchain-codecs-local.json').read_text())
             self.assertEqual(published['status'], 'PASS')
+            self.assertEqual(published['machine'], 'DESKTOP-5OTBBT7')
+            marker = json.loads((root / '.rd-cl-codec-bootstrap.json').read_text())
+            self.assertEqual(marker['machine'], published['machine'])
             self.assertIn('codecs-only', published['scope'])
             self.assertNotIn('rust_version', published)
             self.assertEqual(derived['paths']['vcpkg'], str(root))
@@ -482,17 +551,6 @@ endfunction()
             self.assertEqual(codec.native.digest(toolchain), original_json_hash)
             self.assertEqual(codec.inventory(original / 'installed'), runner.original_installed)
             self.assertEqual(json.loads((runner.logs / 'verified-codecs.json').read_text())['status'], 'PASS')
-
-    def test_linux_coordinator_is_rejected_before_toolchain_or_output_access(self):
-        if os.name == 'nt':
-            self.skipTest('Linux entrypoint guard is exercised on Linux only')
-        result = subprocess.run([sys.executable, str(codec.SCRIPT), '--mode', 'Compile',
-            '--toolchain', 'does-not-exist.json', '--source-commit', 'a' * 40,
-            '--output-root', 'unused', '--codec-root', 'unused', '--existing-triplet', 'unused'],
-            capture_output=True, text=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('Execute only on native Windows S2', result.stderr)
-
 
 if __name__ == '__main__':
     unittest.main()

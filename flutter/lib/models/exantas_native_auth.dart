@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -89,16 +90,35 @@ Map<String, dynamic> validateNativeLease(Map<String, dynamic> value,
 /// Serializes login, refresh and logout across companion service instances.
 /// Late exchange responses must recheck identity before any credential write.
 class ExantasNativeAuthFence {
-  bool _busy = false;
+  Future<void>? _current;
   Future<T> run<T>(Future<T> Function() action) async {
-    if (_busy) {
+    if (_current != null) {
       throw StateError('Μια αλλαγή σύνδεσης Office είναι ήδη σε εξέλιξη.');
     }
-    _busy = true;
+    return await _start(action);
+  }
+
+  /// Readiness checks wait for an in-flight change and then check again
+  /// instead of failing: a Caller Popup link can arrive while the periodic
+  /// native refresh is running. Login/logout keep failing fast via [run].
+  Future<T> runWhenIdle<T>(Future<T> Function() action) async {
+    while (_current != null) {
+      try {
+        await _current;
+      } catch (_) {}
+    }
+    return await _start(action);
+  }
+
+  // Claimed synchronously after the idle check, so callers never overlap.
+  Future<T> _start<T>(Future<T> Function() action) async {
+    final done = Completer<void>();
+    _current = done.future;
     try {
       return await action();
     } finally {
-      _busy = false;
+      _current = null;
+      done.complete();
     }
   }
 

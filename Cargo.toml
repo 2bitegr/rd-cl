@@ -1,6 +1,6 @@
 [package]
 name = "rustdesk"
-version = "3.2.0"
+version = "3.2.1"
 authors = ["Exantas Support"]
 edition = "2021"
 build= "build.rs"
@@ -182,6 +182,7 @@ rust-pulsectl = { git = "https://github.com/rustdesk-org/pulsectl" }
 async-process = "1.7"
 evdev = { git="https://github.com/rustdesk-org/evdev" }
 dbus = "0.9"
+libloading = "0.8"
 dbus-crossroads = "0.5"
 pam = { git="https://github.com/rustdesk-org/pam" }
 x11-clipboard = {git="https://github.com/clslaid/x11-clipboard", branch = "feat/store-batch", optional = true}

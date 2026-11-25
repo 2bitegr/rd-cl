@@ -1,17 +1,18 @@
-"""Offline S2 codec compilation, separate from every existing vcpkg installation.
+"""Offline codec compilation on approved Windows hosts, in a separate vcpkg root.
 
 Preflight validates local inputs; Compile repeats it and publishes codec evidence
 only after fresh native objects, installed ABIs and the hardened tool/SDK verifier pass.
 This does not compile/package/run rd-cl or import any S1 compiled-cache receipt.
 """
 import argparse
+import ctypes
+from ctypes import wintypes
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
 import json
 import os
 from pathlib import Path
-import platform
 import re
 import shutil
 import stat
@@ -28,6 +29,23 @@ native = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(native)
 PINS = json.loads(SCRIPT.with_name('windows-codec-bootstrap-inputs.json').read_text(encoding='utf-8'))
 TRIPLET = native.native_triplet({'windows_sdk_version': PINS['windows_sdk_version']})
+APPROVED_HOSTS = {'S2', 'DESKTOP-5OTBBT7'}
+
+
+def approved_windows_host():
+    if os.name != 'nt':
+        return None
+    ntdll = ctypes.WinDLL('ntdll.dll')
+    if hasattr(ntdll, 'wine_get_version'):
+        return None
+    get_computer_name = ctypes.WinDLL('kernel32.dll', use_last_error=True).GetComputerNameW
+    get_computer_name.argtypes = [wintypes.LPWSTR, wintypes.LPDWORD]
+    get_computer_name.restype = wintypes.BOOL
+    name = ctypes.create_unicode_buffer(16)  # MAX_COMPUTERNAME_LENGTH plus NUL.
+    size = wintypes.DWORD(len(name))
+    if get_computer_name(name, ctypes.byref(size)) and name.value.upper() in APPROVED_HOSTS:
+        return name.value.upper()
+    return None
 
 
 def regular_tree(root, recursive=True):
@@ -241,7 +259,8 @@ class Bootstrap(native.Build):
         if root.exists():
             regular_tree(root)
             marker = json.loads((root / '.rd-cl-codec-bootstrap.json').read_text(encoding='utf-8'))
-            if marker != {'source_commit': self.args.source_commit, 'machine': 'S2', 'schema': 1, 'phase': 'PREPARED'}:
+            if marker != {'source_commit': self.args.source_commit, 'machine': self.args.machine,
+                          'schema': 1, 'phase': 'PREPARED'}:
                 raise RuntimeError('CodecRoot ownership/source mismatch; preserve it')
             require_uncompiled_outputs(root)
             return root
@@ -251,7 +270,8 @@ class Bootstrap(native.Build):
         self.git('local-vcpkg-checkout', 'checkout', '--detach', self.profile['vcpkg_commit'], cwd=root)
         shutil.copy2(self.tools['vcpkg'] / 'vcpkg.exe', root / 'vcpkg.exe')
         native.save(root / '.rd-cl-codec-bootstrap.json',
-                    {'source_commit': self.args.source_commit, 'machine': 'S2', 'schema': 1, 'phase': 'PREPARED'})
+                    {'source_commit': self.args.source_commit, 'machine': self.args.machine,
+                     'schema': 1, 'phase': 'PREPARED'})
         shutil.copytree(Path(self.env['VCPKG_DOWNLOADS']), root / 'downloads')
         return root
 
@@ -352,7 +372,7 @@ class Bootstrap(native.Build):
             raise RuntimeError('Incomplete helper input audit')
         _, plan = self.run('codec-empty-plan', [*self.command(root, triplets), '--dry-run'])
         require_empty_plan(plan)
-        self.prepared = {'status': 'PREFLIGHT_PASS_NOT_COMPILED', 'machine': 'S2',
+        self.prepared = {'status': 'PREFLIGHT_PASS_NOT_COMPILED', 'machine': self.args.machine,
                          'source_commit': self.args.source_commit, 'base_source_commit': PINS['base_source_commit'],
                          'archives_sha256': archives, 'triplet_sha256': native.digest(triplet),
                          'previous_triplet_sha256': native.digest(previous), 'tools_sha256': self.initial_tools,
@@ -365,7 +385,8 @@ class Bootstrap(native.Build):
         root, triplets = self.codec_preflight()  # Never trust an earlier audit.
         require_uncompiled_outputs(root)
         marker = root / '.rd-cl-codec-bootstrap.json'
-        native.save(marker, {'source_commit': self.args.source_commit, 'machine': 'S2', 'schema': 1, 'phase': 'COMPILING'})
+        native.save(marker, {'source_commit': self.args.source_commit, 'machine': self.args.machine,
+                             'schema': 1, 'phase': 'COMPILING'})
         started_ns = time.time_ns()
         _, compile_text = self.run('codec-compile', self.command(root, triplets))
         compilers = re.findall(r'^Compiler found:\s*(.+?)\s*$', compile_text, re.MULTILINE)
@@ -397,7 +418,7 @@ class Bootstrap(native.Build):
         tool_hashes = self.tool_hashes()
         candidate = self.logs / 'codec-receipt.candidate.json'
         receipt = {'status': 'PASS', 'scope': 'codecs-only; NOT an application warm-cache receipt',
-                   'machine': platform.node(), 'compiled_at': datetime.now(timezone.utc).isoformat(),
+                   'machine': self.args.machine, 'compiled_at': datetime.now(timezone.utc).isoformat(),
                    'source_commit': self.args.source_commit, 'base_source_commit': PINS['base_source_commit'],
                    'inputs': self.profile['input_sha256'], 'source_sha256': self.overlays,
                    'tool_sha256': tool_hashes, 'sdk_identity': self.initial_sdk_identity,
@@ -426,7 +447,8 @@ class Bootstrap(native.Build):
         cfg['environment']['VCPKG_DOWNLOADS'] = str(root / 'downloads')
         cfg['compiled_cache_receipt'] = str(receipt_path)
         native.save(toolchain_path, cfg)
-        native.save(marker, {'source_commit': self.args.source_commit, 'machine': 'S2', 'schema': 1, 'phase': 'COMPILED'})
+        native.save(marker, {'source_commit': self.args.source_commit, 'machine': self.args.machine,
+                             'schema': 1, 'phase': 'COMPILED'})
         print('VERIFIED_CODEC_RECEIPT=' + str(receipt_path))
         print('TOOLCHAIN_FOR_EXISTING_BUILD=' + str(toolchain_path))
 
@@ -440,8 +462,9 @@ def main():
     parser.add_argument('--codec-root', required=True)
     parser.add_argument('--existing-triplet', required=True)
     args = parser.parse_args()
-    if os.name != 'nt' or platform.node().upper() != 'S2':
-        parser.error('Execute only on native Windows S2, not S1, Wine or the Linux coordinator')
+    args.machine = approved_windows_host()
+    if args.machine is None:
+        parser.error('Run on an approved native Windows codec host (S2 or DESKTOP-5OTBBT7)')
     runner = Bootstrap(args)
     try:
         if args.mode == 'Compile':

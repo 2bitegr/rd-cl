@@ -1,10 +1,10 @@
-# Offline S2 codec bootstrap for rd-cl2.0.0+72
+# Offline Windows codec bootstrap for rd-cl
 
 Historical ancestry baseline (not the current application source): `1be7642b56af58d3fb27c400e52a78200505e39b`.
 Use the exact published **bootstrap tooling commit** from the handoff, which is
 a descendant of that baseline containing the reviewed build tooling, SDK-selection CMake, tests and docs.
-Current application manifests/profile select2.0.0+72 after the user-authorized
-installer correction; dependency versions remain unchanged. Read
+The original workflow was introduced for 2.0.0+72 after the user-authorized
+installer correction. Use the product version pinned by the selected source. Read
 [the installer correction](windows-installer-2.0.0.md).
 The 2026-10-22 integrity update hardens source/tool/SDK verification; read
 [the receipt migration and locked build requirements](windows-s2-build-integrity.md). This is a user-requested S2 prerequisite workflow, separate from cloud
@@ -12,7 +12,12 @@ or GitHub Actions builds. It never executes the product or contacts production.
 
 ## What is checked and preserved
 
-Run on native Windows **S2**, with its existing owned NTFS snapshot/toolchain JSON.
+Run on native Windows **S2** or on the approved VirtualBox guest
+**Windows11-Development** with Windows hostname **DESKTOP-5OTBBT7**. Use an
+owned local NTFS snapshot and a toolchain JSON verified on that Windows host.
+Both entry points read the Windows hostname directly and reject Wine and other
+hosts before opening the toolchain. Ownership markers and new receipts record
+the verified hostname. Use a separate codec root for the VM.
 Synchronize only published source through the existing source handoff first;
 the snapshot HEAD and `.rd-cl-native-snapshot.json` source_commit must match the
 full tooling SHA. Do not fabricate a marker for different source or discard dirty
@@ -84,7 +89,7 @@ Unknown package entries, any contents inside the package probe directory, and
 links/reparse points are rejected. This does not accept a previous codec build
 or a COMPILING/COMPILED ownership marker.
 
-## Execute on S2
+## Execute on the approved Windows build host
 
 Fill only the three machine-local paths and the full published tooling SHA below.
 Use native PowerShell, normal user privileges, and the **same reviewed drive alias**
@@ -93,13 +98,15 @@ installed codec CMake. Existing Brotli remains a later EXE packaging prerequisit
 this codec workflow neither reinstalls nor modifies it.
 
 ```powershell
-$toolchain = '<existing S2 toolchain-local.json>'
-$existingTriplet = '<existing S2 x64-windows-static.cmake>'
-$snapshot = '<owned S2 snapshot at published tooling commit>'
+$toolchain = '<existing Windows toolchain-local.json>'
+$existingTriplet = '<existing local x64-windows-static.cmake>'
+$snapshot = '<owned Windows snapshot at published tooling commit>'
 $published = '<full published tooling SHA from handoff>'
 $cfg = Get-Content -LiteralPath $toolchain -Raw | ConvertFrom-Json
-$codecRoot = Join-Path $cfg.artifact_root 'Tools\codec-bootstrap\2.0.0-72-s2'
-$output = Join-Path $cfg.artifact_root 'Builds\rd-cl\2.0.0+72\codec-bootstrap-s2'
+$version = (Get-Content -LiteralPath (Join-Path $snapshot 'scripts\windows-native-profile.json') -Raw | ConvertFrom-Json).version
+$run = [Environment]::MachineName + '-' + $published.Substring(0, 8)
+$codecRoot = Join-Path $cfg.artifact_root "Tools\codec-bootstrap\$run"
+$output = Join-Path $cfg.artifact_root "Builds\rd-cl\$version\codec-bootstrap-$run"
 $bootstrap = Join-Path $snapshot 'scripts\windows-codec-bootstrap.ps1'
 
 # Confirm snapshot HEAD/profile/marker using the existing source handoff first.
@@ -121,7 +128,7 @@ path/hash and BLOCKED result. No download, cache purge, ABI edit, alternative
 compiler/dependency version or fallback build is authorized by this workflow.
 
 Compile executes a fresh `vcpkg install --no-downloads --no-binarycaching`, one
-job, on S2. For aom, ffmpeg, libjpeg-turbo, libvpx, libyuv, mfx-dispatch and opus,
+job, on the approved Windows host. For aom, ffmpeg, libjpeg-turbo, libvpx, libyuv, mfx-dispatch and opus,
 receipt generation requires fresh object files, static libraries and ABI records.
 Compiler paths and compiler/linker/CMake executable hashes must match the checked
 local tools. A successful process exit or copied .lib alone is insufficient.
@@ -131,7 +138,7 @@ and requires the existing installed-only dry-run plan guard to pass.
 
 Only then does it publish `compiled-cache-receipt.json` plus a separate
 `toolchain-codecs-local.json`. The latter selects the new codec root/CMake and
-receipt; the original JSON is not edited. The receipt contains S2 object/library,
+receipt; the original JSON is not edited. The receipt contains local object/library,
 installed-tree/ABI, overlay and local tool hashes, compile log/step provenance and
 the source commit. It is explicitly **codec-only**: it cannot enable the smaller
 warm-application space reserve or claim a completed rd-cl/EXE build. No S1 receipt
@@ -139,11 +146,11 @@ is read, copied, rehashed or accepted as compilation proof.
 
 ## Resume the existing release workflow
 
-After Compile PASS, use the generated local JSON for the existing S2 build:
+After Compile PASS, use the generated local JSON for the native release build:
 
 ```powershell
 $codecToolchain = Join-Path $output 'toolchain-codecs-local.json'
-$delivery = Join-Path $cfg.artifact_root 'Builds\rd-cl\2.0.0+72\delivery-s2'
+$delivery = Join-Path $cfg.artifact_root "Builds\rd-cl\$version\delivery-$run"
 & (Join-Path $snapshot 'scripts\windows-native-release.ps1') `
   -Mode Build -WithExe -Toolchain $codecToolchain `
   -SourceCommit $published -OutputRoot $delivery

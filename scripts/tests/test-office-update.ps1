@@ -11,6 +11,62 @@ function Assert($Value,[string]$Message){if(!$Value){throw $Message}}
 function Check([string]$Name,[scriptblock]$Body){& $Body;$passed.Add($Name)}
 function Reject([scriptblock]$Body){$failed=$false;try{& $Body}catch{$failed=$true};Assert $failed 'Expected rejection'}
 try {
+  Check 'Installation ACL trusts exact Windows servicing SID and blocks other writers' {
+    $fixture=Join-Path $scratch 'acl-installation'
+    New-Item -ItemType Directory -Path $fixture | Out-Null
+    function Get-Acl {param([string]$LiteralPath) return [pscustomobject]@{Access=$script:fixtureRules}}
+    $trusted='S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+    $cases=@(
+      @{sid='S-1-5-18';rights='FullControl';inherited=$false;accept=$true},
+      @{sid='S-1-5-32-544';rights='FullControl';inherited=$false;accept=$true},
+      @{sid=$trusted;rights='FullControl';inherited=$true;accept=$true},
+      @{sid=$trusted;rights='FullControl';inherited=$false;accept=$true},
+      @{sid='S-1-1-0';rights='ReadAndExecute';inherited=$true;accept=$true},
+      @{sid='S-1-1-0';rights='Modify';inherited=$true;accept=$false},
+      @{sid='S-1-5-32-545';rights='Write';inherited=$false;accept=$false},
+      @{sid='S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478465';rights='FullControl';inherited=$true;accept=$false}
+    )
+    foreach($case in $cases) {
+      $script:fixtureRules=@([pscustomobject]@{
+        IdentityReference=[Security.Principal.SecurityIdentifier]::new($case.sid)
+        FileSystemRights=[Security.AccessControl.FileSystemRights]$case.rights
+        AccessControlType=[Security.AccessControl.AccessControlType]::Allow
+        PropagationFlags=[Security.AccessControl.PropagationFlags]::None
+        IsInherited=$case.inherited
+      })
+      if($case.accept){Assert-ProtectedInstallation $fixture}else{Reject {Assert-ProtectedInstallation $fixture}}
+    }
+    # A trusted servicing rule must never hide a second untrusted writer.
+    $script:fixtureRules+= [pscustomobject]@{
+      IdentityReference=[Security.Principal.SecurityIdentifier]::new($trusted)
+      FileSystemRights=[Security.AccessControl.FileSystemRights]::FullControl
+      AccessControlType=[Security.AccessControl.AccessControlType]::Allow
+      PropagationFlags=[Security.AccessControl.PropagationFlags]::None
+      IsInherited=$true
+    }
+    Reject {Assert-ProtectedInstallation $fixture}
+  }
+  Check 'Startup diagnostics reject untrusted root before writing' {
+    $script:root=Join-Path $scratch 'untrusted-diagnostic'
+    New-Item -ItemType Directory -Path $script:root | Out-Null
+    Reject {Write-UpdateDiagnostic 'install_directory_not_protected'}
+    Assert (!(Test-Path (Join-Path $script:root 'update.jsonl'))) 'Untrusted root received diagnostics'
+  }
+  Check 'Startup diagnostics retain only bounded codes and rotate logs' {
+    $script:root=Join-Path $scratch 'diagnostic'
+    New-Item -ItemType Directory -Path $script:root | Out-Null
+    function Assert-PrivateUpdateDirectory {param([string]$Root) Assert ($Root -eq $script:root) 'Wrong fixture root'}
+    Write-UpdateDiagnostic 'install_directory_not_protected'
+    Write-UpdateDiagnostic 'https://private.invalid/?token=synthetic-secret'
+    $log=Join-Path $script:root 'update.jsonl'
+    $rows=@(Get-Content -LiteralPath $log | ForEach-Object {$_|ConvertFrom-Json})
+    Assert ($rows.Count -eq 2 -and $rows[0].code -ceq 'install_directory_not_protected' -and $rows[1].code -ceq 'update_startup_failed') 'Startup code sanitization failed'
+    Assert ((Get-Content -Raw -LiteralPath $log) -notmatch 'synthetic-secret') 'Diagnostic leaked raw exception'
+    [IO.File]::WriteAllText($log,('x'*1048577))
+    Write-UpdateDiagnostic 'recovery_setup_failed'
+    Assert ((Get-Item -LiteralPath "$log.previous").Length -eq 1048577) 'Diagnostic rotation failed'
+    Assert ((Get-Content -Raw -LiteralPath $log | ConvertFrom-Json).code -ceq 'recovery_setup_failed') 'Rotated diagnostic missing'
+  }
   Check 'Atomic journal replacement preserves readable current state' {
     $path=Join-Path $scratch 'state.json';Write-UpdateState $path @{phase='offered'};Write-UpdateState $path @{phase='replacing'}
     Assert ((Get-Content -Raw $path | ConvertFrom-Json).phase -eq 'replacing') 'Journal replacement failed'
@@ -245,6 +301,14 @@ try {
     function Start-Process {return @{ExitCode=-1073740760}}
     $code='';try{Expand-OfficeUpdatePayload $script:fixtureInstaller (Join-Path $scratch 'blocked-exit-output') $release}catch{$code=$_.Exception.Message}
     Assert ($code -ceq 'windows_policy_blocked') 'Blocked exit became success'
+  }
+  Check 'Hidden main window and helpers are tolerated; session windows still block' {
+    foreach($line in @('"C:\Program Files\rd-cl\rd-cl.exe"','"C:\Program Files\rd-cl\rd-cl.exe" ','C:\rd-cl\rd-cl.exe','"C:\Program Files\rd-cl\rd-cl.exe" --tray','"C:\Program Files\rd-cl\rd-cl.exe" --server')) {
+      Assert (Test-UpdateTolerableCoreProcess $line) "Tolerable process blocked: $line"
+    }
+    foreach($line in @('"C:\Program Files\rd-cl\rd-cl.exe" --cm','"C:\Program Files\rd-cl\rd-cl.exe" --connect 123456789','"C:\Program Files\rd-cl\rd-cl.exe" --install','"C:\Program Files\rd-cl\rd-cl.exe" rustdesk://connection/new/1','"C:\Program Files\rd-cl\rd-cl.exe" --cm-no-ui')) {
+      Assert (!(Test-UpdateTolerableCoreProcess $line)) "Session window accepted: $line"
+    }
   }
   Check 'Native source has no UAC bypass, upstream-update enable or arbitrary execution endpoint' {
     $text=Get-Content -Raw -LiteralPath $Source

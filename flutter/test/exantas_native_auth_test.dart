@@ -116,6 +116,42 @@ void main() {
     }), throwsStateError);
     expect(await fence.run(() async => true), isTrue);
   });
+  test('a readiness check waits for an in-flight refresh instead of failing',
+      () async {
+    final fence = ExantasNativeAuthFence();
+    final events = <String>[];
+    final pending = Completer<void>();
+    final refresh = fence.run(() async {
+      events.add('refresh-start');
+      await pending.future;
+      events.add('refresh-end');
+    });
+    final first = fence.runWhenIdle(() async {
+      events.add('link-check');
+      return 1;
+    });
+    final second = fence.runWhenIdle(() async {
+      events.add('timer-check');
+      return 2;
+    });
+    await Future<void>.delayed(Duration.zero);
+    expect(events, ['refresh-start']);
+    // Login/logout still fail fast while a change is in flight.
+    await expectLater(fence.run(() async {}), throwsStateError);
+    pending.complete();
+    await refresh;
+    expect(await first, 1);
+    expect(await second, 2);
+    expect(events, ['refresh-start', 'refresh-end', 'link-check', 'timer-check']);
+    // A failed in-flight change still lets the waiting check run.
+    final failing = fence.run(() async {
+      await Future<void>.delayed(Duration.zero);
+      throw StateError('synthetic');
+    });
+    final after = fence.runWhenIdle(() async => true);
+    await expectLater(failing, throwsStateError);
+    expect(await after, isTrue);
+  });
   test('unconfirmed request is attempted once and writes nothing', () async {
     int calls = 0, writes = 0;
     await expectLater(

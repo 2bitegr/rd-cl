@@ -1,6 +1,7 @@
 param([string]$CorePath, [string]$ServiceName, [switch]$LibraryOnly)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:reportedAcceptedPoll = $false
 
 function Write-UpdateState($Path, $Value) {
     $temporary = "$Path.new"
@@ -31,6 +32,19 @@ function Assert-PrivateUpdateDirectory([string]$Root) {
         $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
         if ($rule.AccessControlType -eq 'Allow' -and $sid -notin @('S-1-5-18','S-1-5-32-544')) { throw 'untrusted_update_acl' }
     }
+}
+
+function Write-UpdateDiagnostic([string]$Code) {
+    Assert-PrivateUpdateDirectory $script:root
+    $safeCode=if($Code -cmatch '^[a-z_]{1,64}$'){$Code}else{'update_startup_failed'}
+    $log=Join-Path $script:root 'update.jsonl'
+    if(Test-Path -LiteralPath $log){Assert-UpdatePath $log}
+    if ((Test-Path -LiteralPath $log) -and (Get-Item -LiteralPath $log).Length -gt 1048576) {
+        $previous="$log.previous"
+        if(Test-Path -LiteralPath $previous){Assert-UpdatePath $previous}
+        Move-Item -LiteralPath $log -Destination $previous -Force
+    }
+    [IO.File]::AppendAllText($log,(@{at=[DateTime]::UtcNow.ToString('o');code=$safeCode}|ConvertTo-Json -Compress)+[Environment]::NewLine)
 }
 
 function Test-SafeRuntimePath([string]$Path) {
@@ -115,21 +129,104 @@ public static class ExantasUpdateAtomicFile {
 }
 
 function Assert-ProtectedInstallation([string]$Path) {
+    # Windows servicing may retain TrustedInstaller write access on Program Files.
+    # Trust its exact service SID independently of localized account names.
     Assert-UpdatePath $Path
     $acl=Get-Acl -LiteralPath $Path
     foreach($rule in $acl.Access) {
         if($rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band 0xD0156) -ne 0 -and
           ($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and
-          $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin @('S-1-5-18','S-1-5-32-544')) {throw 'install_directory_not_protected'}
+          $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin @('S-1-5-18','S-1-5-32-544',
+            'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')) {throw 'install_directory_not_protected'}
     }
 }
 
+function ConvertTo-UpdateCoreArgument([string]$Value) {
+    if ($Value.IndexOf([char]0) -ge 0) { throw 'core_argument_invalid' }
+    # Quote argv for CreateProcess, never for a shell. Double backslashes before
+    # a quote and before the closing quote (including empty/trailing-slash args).
+    $quoted = [regex]::Replace($Value, '(\\*)"', '$1$1\"')
+    $quoted = [regex]::Replace($quoted, '(\\+)$', '$1$1')
+    return '"' + $quoted + '"'
+}
+
 function Invoke-UpdateCore([string]$Operation, [string[]]$Arguments = @()) {
-    $result = & $script:CorePath $Operation @Arguments
-    if ($LASTEXITCODE -ne 0) { throw 'core_check_failed' }
-    $json = @($result | Where-Object { $_ -match '^\{.*\}$' })
-    if ($json.Count -ne 1) { throw 'core_response_invalid' }
-    return ($json[0] | ConvertFrom-Json)
+    # This core is a Windows GUI executable. Bind output and exit status to the
+    # process we create, not PowerShell's ambient/possibly absent LASTEXITCODE.
+    $process = [Diagnostics.Process]::new()
+    $started = $false
+    $failureCode = 'core_start_failed'
+    $knownCodes = @('core_argument_invalid','core_start_failed','core_capture_failed',
+      'core_timeout','core_output_invalid','core_check_failed','core_stderr_invalid','core_response_invalid')
+    try {
+        $start = [Diagnostics.ProcessStartInfo]::new()
+        $start.FileName = $script:CorePath
+        $start.WorkingDirectory = Split-Path -Parent $script:CorePath
+        $start.Arguments = (@(@($Operation) + @($Arguments) | ForEach-Object {
+            ConvertTo-UpdateCoreArgument ([string]$_)
+        }) -join ' ')
+        $start.UseShellExecute = $false
+        $start.CreateNoWindow = $true
+        $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+        $start.RedirectStandardInput = $true
+        $start.RedirectStandardOutput = $true
+        $start.RedirectStandardError = $true
+        $start.StandardOutputEncoding = [Text.UTF8Encoding]::new($false, $true)
+        $start.StandardErrorEncoding = [Text.UTF8Encoding]::new($false, $true)
+        $process.StartInfo = $start
+        if (!$process.Start()) { throw 'core_start_failed' }
+        $started = $true
+        $failureCode = 'core_capture_failed'
+        $process.StandardInput.Close()
+        # Drain both pipes concurrently, with bounded buffers and a shared
+        # deadline. A noisy helper must not deadlock or grow memory unboundedly.
+        $streams = @(
+            @{reader=$process.StandardOutput;buffer=[char[]]::new(4096);text=[Text.StringBuilder]::new();done=$false;pending=$null},
+            @{reader=$process.StandardError;buffer=[char[]]::new(4096);text=[Text.StringBuilder]::new();done=$false;pending=$null}
+        )
+        foreach ($stream in $streams) {
+            $stream.pending = $stream.reader.ReadAsync($stream.buffer, 0, $stream.buffer.Length)
+        }
+        $timer = [Diagnostics.Stopwatch]::StartNew()
+        while ($true) {
+            $progress = $false
+            foreach ($stream in $streams) {
+                if (!$stream.done -and $stream.pending.IsCompleted) {
+                    $count = $stream.pending.GetAwaiter().GetResult()
+                    if ($count -eq 0) { $stream.done = $true }
+                    else {
+                        if ($stream.text.Length + $count -gt 1048576) { throw 'core_output_invalid' }
+                        $null = $stream.text.Append($stream.buffer, 0, $count)
+                        $stream.pending = $stream.reader.ReadAsync($stream.buffer, 0, $stream.buffer.Length)
+                    }
+                    $progress = $true
+                }
+            }
+            if ($process.WaitForExit(0) -and $streams[0].done -and $streams[1].done) { break }
+            if ($timer.ElapsedMilliseconds -ge 30000) { throw 'core_timeout' }
+            if (!$progress) { [Threading.Thread]::Sleep(10) }
+        }
+        if ($process.ExitCode -ne 0) { throw 'core_check_failed' }
+        if ($streams[1].text.Length -ne 0) { throw 'core_stderr_invalid' }
+        $failureCode = 'core_response_invalid'
+        $json = @($streams[0].text.ToString() -split '\r?\n' | Where-Object { $_ -match '^\{.*\}$' })
+        if ($json.Count -ne 1) { throw 'core_response_invalid' }
+        return ($json[0] | ConvertFrom-Json)
+    } catch {
+        # Only fixed codes leave this boundary, never raw stderr/arguments.
+        if ($_.Exception.Message -cin $knownCodes) { throw $_.Exception.Message }
+        throw $failureCode
+    } finally {
+        try {
+            # Terminate only the helper created above, never an existing service
+            # or unrelated process. Keep normal completion and timeout distinct.
+            if ($started -and !$process.HasExited) {
+                $process.Kill()
+                if (!$process.WaitForExit(5000)) { throw 'core_cleanup_failed' }
+            }
+        } catch { throw 'core_cleanup_failed' }
+        finally { $process.Dispose() }
+    }
 }
 
 function Assert-OfficeUpdatePackage([string]$Installer, $Release) {
@@ -159,6 +256,15 @@ function Expand-OfficeUpdatePayload([string]$Installer, [string]$Payload, $Relea
     if($exit -ne 0){throw 'payload_extraction_failed'}
 }
 
+function Test-UpdateTolerableCoreProcess([string]$CommandLine) {
+    # Background helpers never block an update.
+    if ($CommandLine -match '\s--(?:service|server|tray|office-update-probe)(?:\s|$)') { return $true }
+    # The main window started without arguments only hides on close and keeps
+    # running until logoff. While the protected IPC probe reports no session it
+    # is replaced like the tray. Connection, CM and install windows still block.
+    return $CommandLine -match '^\s*(?:"[^"]+"|[^\s"]+)\s*$'
+}
+
 function Get-UpdateReport {
     $health = Invoke-UpdateCore '--office-update-probe'
     # Fail closed on GUI/connection-manager processes or hidden process metadata.
@@ -168,7 +274,7 @@ function Get-UpdateReport {
     $reason=if($idle){'none'}else{'active_sessions'}
     foreach ($process in $processes) {
         if (!$process.ExecutablePath -or !$process.CommandLine) { $idle = $false; $reason='process_visibility_incomplete'; continue }
-        if ($process.ExecutablePath -ieq $script:CorePath -and $process.CommandLine -notmatch '\s--(?:service|server|tray|office-update-probe)(?:\s|$)') { $idle = $false; $reason='rdcl_window_open' }
+        if ($process.ExecutablePath -ieq $script:CorePath -and !(Test-UpdateTolerableCoreProcess $process.CommandLine)) { $idle = $false; $reason='rdcl_window_open' }
     }
     $reboot = (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
         (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') -or
@@ -470,6 +576,11 @@ function Invoke-UpdateCycle {
     $pending=$null
     if($script:journal -and ($script:journal.pending_action -or $script:journal.phase -notin @('complete','rolled_back','cancelled','failed'))) {$pending=$script:journal.job.id}
     $poll = Invoke-OfficeUpdate 'poll' @{report=(Get-UpdateReport);pending_job_id=$pending}
+    if (!$script:reportedAcceptedPoll) {
+        $script:reportedAcceptedPoll = $true
+        try { Write-UpdateDiagnostic 'office_poll_accepted' }
+        catch { Write-Verbose 'Could not log the first accepted Office update poll.' }
+    }
     if (!$poll.PSObject.Properties['job'] -or !$poll.job) {
         if (!$pending) {$script:barrier.Reset() | Out-Null}
         return
@@ -651,6 +762,7 @@ if (!$LibraryOnly) {
     if ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -ne 'S-1-5-18') { throw 'system_service_required' }
     $script:root=Join-Path $env:ProgramData 'ExantasRdclUpdates'
     Assert-PrivateUpdateDirectory $script:root
+    try {
     if(Test-Path -LiteralPath (Join-Path $script:root 'stop-requested')){exit 0}
     $script:machine=Get-Content -Raw -LiteralPath (Join-Path $script:root 'machine.json') | ConvertFrom-Json
     if (!$script:machine.registered) { exit 0 }
@@ -672,6 +784,7 @@ if (!$LibraryOnly) {
         # Do not copy a partially replaced install tree over that trusted host.
         if(!$script:journal -or $script:journal.phase -in @('complete','rolled_back','cancelled','failed')) {
             try {Initialize-IndependentRecovery} catch {
+                try {Write-UpdateDiagnostic $_.Exception.Message} catch {}
                 try {Invoke-OfficeUpdate 'poll' @{report=@{protocol=2;platform='windows-x64';version='0.0.0';install_mode='unknown';service_running=$false;idle=$false;pending_reboot=$true;result_code='recovery_setup_failed'}} | Out-Null} catch {}
                 throw 'recovery_setup_failed'
             }
@@ -689,4 +802,8 @@ if (!$LibraryOnly) {
             for($wait=0;$wait -lt 60 -and !$script:restartWorker -and !(Test-Path -LiteralPath (Join-Path $script:root 'stop-requested'));$wait++){Start-Sleep -Seconds 1}
         }
     } finally { $lock.Dispose(); $script:barrier.Dispose(); $script:token=$null }
+    } catch {
+        try {Write-UpdateDiagnostic $_.Exception.Message} catch {}
+        throw
+    }
 }

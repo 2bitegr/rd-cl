@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 
 import '../../models/exantas_field_visit.dart';
 import '../../models/exantas_field_visit_sync.dart';
@@ -30,20 +30,25 @@ class FvEnv {
 }
 
 /// Location is requested only here, at arrival. Any failure returns null.
+/// Uses the Android implementation directly (geolocator_android registers
+/// itself as the platform instance), so desktop builds carry no location
+/// plugin: geolocator_windows downloads NuGet/CppWinRT at configure time.
 Future<FvFix?> fvLocateOnce() async {
   try {
-    if (!await Geolocator.isLocationServiceEnabled()) return null;
-    var permission = await Geolocator.checkPermission();
+    final geo = GeolocatorPlatform.instance;
+    if (!await geo.isLocationServiceEnabled()) return null;
+    var permission = await geo.checkPermission();
     if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      permission = await geo.requestPermission();
     }
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       return null;
     }
-    final p = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15));
+    final p = await geo.getCurrentPosition(
+        locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 15)));
     return FvFix(p.latitude, p.longitude, p.accuracy, p.timestamp);
   } catch (_) {
     return null;

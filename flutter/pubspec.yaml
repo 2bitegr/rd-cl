@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # 1.1.9-1 works for android, but for ios it becomes 1.1.91, need to set it to 1.1.9-a.1 for iOS, will get 1.1.9.1, but iOS store not allow 4 numbers
-version: 3.2.0
+version: 3.2.1
 
 environment:
   sdk: '^3.1.0'
@@ -110,9 +110,12 @@ dependencies:
   sqflite: 2.2.0
   google_fonts: ^6.2.1
   vector_math: ^2.1.4
-  local_auth: 2.3.0
+  # Android-only app lock; no desktop local_auth plugin.
   local_auth_android: 1.0.40
-  geolocator: ^12.0.0
+  local_auth_platform_interface: 1.0.10
+  # Android-only location for field visits; no desktop location plugin.
+  geolocator_android: 4.3.1
+  geolocator_platform_interface: 4.4.1
 
 dev_dependencies:
   icons_launcher: ^2.0.4

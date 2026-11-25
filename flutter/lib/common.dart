@@ -2324,7 +2324,7 @@ bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
   if (cmdArgs != null && cmdArgs.isNotEmpty) {
     args = cmdArgs;
     // rustdesk <uri link>
-    if (args[0].startsWith(bind.mainUriPrefixSync())) {
+    if (isAppUriLink(args[0])) {
       final uri = Uri.tryParse(args[0]);
       if (uri != null) {
         args = urlLinkToCmdArgs(uri);
@@ -2470,6 +2470,12 @@ bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
 
   return false;
 }
+
+/// The app URI prefix, plus rustdesk:// on Linux: the spaced Exantas product
+/// name gives no valid scheme, and Office Call Popup launches rustdesk:// links.
+bool isAppUriLink(String value) =>
+    value.startsWith(bind.mainUriPrefixSync()) ||
+    (isLinux && value.startsWith('rustdesk://'));
 
 List<String>? urlLinkToCmdArgs(Uri uri) {
   String? command;
@@ -2632,6 +2638,9 @@ connectMainDesktop(String id,
       }
     }
   } catch (_) {
+    // A Caller Popup/deep link keeps the main window hidden; show it so the
+    // technician sees why no remote window opened.
+    await windowOnTop(null);
     showToast('Δεν επιβεβαιώθηκε η σύνδεση Office–RustDesk. Ελέγξτε τη σύνδεση τεχνικού στην αρχική οθόνη.');
     return;
   }

@@ -1,6 +1,9 @@
 import 'package:flutter/services.dart';
-import 'package:local_auth/local_auth.dart';
+// Android implementation used directly (it registers itself as the platform
+// instance): desktop builds then carry no local_auth_windows plugin, which
+// downloads NuGet/CppWinRT at CMake configure time.
 import 'package:local_auth_android/local_auth_android.dart';
+import 'package:local_auth_platform_interface/local_auth_platform_interface.dart';
 
 import '../mobile/ui/ex_app_lock.dart';
 import '../mobile/ui/exantas_strings.dart';
@@ -16,7 +19,7 @@ bool exantasBiometricEnabled() =>
 Future<void> exantasSetBiometricEnabled(bool on) => bind.mainSetLocalOption(
     key: kExantasBiometricUnlock, value: on ? 'Y' : '');
 
-final LocalAuthentication _auth = LocalAuthentication();
+LocalAuthPlatform get _auth => LocalAuthPlatform.instance;
 
 Future<bool> exantasBiometricSupported() async {
   try {

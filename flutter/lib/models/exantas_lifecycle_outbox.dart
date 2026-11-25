@@ -126,10 +126,12 @@ class ExantasLifecycleOutbox {
         if (ticket.isEmpty) continue;
         try {
           if (row['launch'] == null) {
-            final launch = readExantasLaunchTicket(ticket, status.apiBase, row['peer_id'] as String);
+            final launch = readExantasLaunchTicket(ticket, status.apiBase, row['peer_id'] as String,
+                linuxRead: (t) => bind.mainOfficeReadLaunchTicket(ticket: t));
             await queue.capture({...row, 'launch': launch});
           }
-          deleteExantasLaunchTicket(ticket);
+          deleteExantasLaunchTicket(ticket,
+              linuxDelete: (t) => bind.mainOfficeDeleteLaunchTicket(ticket: t));
         } catch (_) { ticketError = true; }
       }
       await queue.sync(status.officeUserId, status.apiBase, from);
