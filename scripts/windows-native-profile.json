@@ -89,7 +89,9 @@
     "scripts/tests/test-office-update.ps1": "4f89152ed08a0f4543f977d66350cd0870a6e08bc740618d8c9827107a10ced0",
     "scripts/tests/test_windows_office_updates.py": "0a1d0b7a75894b2d042559dfe4644ae99f3ba53bb7413d0a6bd9308bc8841f1e",
     "scripts/tests/test_windows_office_update_contracts.py": "6629059b931a2546248f17e77eb37c2dd0c7e959ace0cd9e931bdb4c4ab297b0",
-    "scripts/tests/fixtures/office_update_envelope_probe.rs": "ee70c76675639be4245c472945c357ba50f47e68432b3f88d21be675780ee09b"
+    "scripts/tests/fixtures/office_update_envelope_probe.rs": "ee70c76675639be4245c472945c357ba50f47e68432b3f88d21be675780ee09b",
+    "scripts/tests/test-office-update-core.ps1": "6cf122f772f076449242018167d0d6f8bc80663dc185fcb88d89a76c33a9f93d",
+    "scripts/tests/fixtures/office_update_core_probe.py": "784d21869da489f99c660135a3f5f60162b2e7f41ff588d3dd34a3212501f413"
   },
   "vcpkg_override_trees": {
     "amd-amf": "47db5211b49a66cf05a86858cddd41d2c4b5d8a9",
