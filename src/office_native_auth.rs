@@ -1,4 +1,4 @@
-//! Windows DPAPI / Android Keystore reader for the Office native lease. The existing native
+//! Windows DPAPI / Android Keystore / Linux keyring reader for the Office native lease. The existing native
 //! access_token option and native account UI remain independent.
 use hbb_common::config::{Config, LocalConfig};
 use serde_derive::Deserialize;
@@ -41,6 +41,11 @@ fn unprotect(stored: &str) -> Option<String> {
 fn unprotect(stored: &str) -> Option<String> {
     if !stored.starts_with("keystore:v1:") || stored.len() > 32768 { return None; }
     scrap::android::office_unprotect(stored)
+}
+
+#[cfg(target_os = "linux")]
+fn unprotect(stored: &str) -> Option<String> {
+    crate::office_secret_linux::unprotect(stored).ok()
 }
 
 // Remote Flutter windows are separate processes: reload the encrypted lease

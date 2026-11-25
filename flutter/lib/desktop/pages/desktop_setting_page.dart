@@ -2091,11 +2091,12 @@ class _Account extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!Platform.isWindows) return const _LegacyAccount();
+    if (!exantasNativeDesktop) return const _LegacyAccount();
     final service = ExantasCompanionService();
     return ListView(
       children: [
-        _Card(title: 'Υποστήριξη πελάτη', children: [
+        // Customer enrollment, tickets and silent updates remain Windows-only.
+        if (Platform.isWindows) _Card(title: 'Υποστήριξη πελάτη', children: [
           Padding(padding: const EdgeInsets.all(18), child: ExantasDeviceEnrollment(
             loadStatus: () async {
               final status = await service.loadStatus();
@@ -2112,7 +2113,7 @@ class _Account extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(18),
             child: ExantasAccountSettings(
-              nativeRequired: Platform.isWindows,
+              nativeRequired: exantasNativeDesktop,
               loadStatus: () async {
                 final status = await service.loadStatus();
                 return ExantasAccountStatus(

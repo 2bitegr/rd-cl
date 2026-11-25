@@ -7295,6 +7295,7 @@ dependencies = [
  "kcp-sys",
  "keepawake",
  "lazy_static",
+ "libloading 0.8.4",
  "libpulse-binding",
  "libpulse-simple-binding",
  "libxdo-sys",

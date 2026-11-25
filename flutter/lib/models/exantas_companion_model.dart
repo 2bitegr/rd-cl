@@ -29,6 +29,10 @@ const String kExantasTechnicianName = 'exantas.office.technician_name';
 const String kExantasOfficeUserId = 'exantas.office.user_id';
 const String kExantasSupportRole = 'exantas.office.support_role';
 const String kExantasNativeLease = 'exantas.office.native_lease';
+
+/// Desktop platforms with the protected Office native lease (installation
+/// contract 2): Windows DPAPI and the Linux desktop keyring.
+bool get exantasNativeDesktop => Platform.isWindows || Platform.isLinux;
 const String kExantasNativeReady = 'exantas.office.native_ready';
 const String kExantasNativeExpiry = 'exantas.office.native_expiry';
 const String kExantasAndroidStaffLease = 'exantas.office.android_staff_lease';
@@ -371,7 +375,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
     if (bind.mainGetLocalOption(key: kExantasEnrollmentPending).isNotEmpty) {
       throw StateError('Ολοκληρώστε πρώτα την εκκρεμή εγκατάσταση πελάτη.');
     }
-    if ((Platform.isWindows || Platform.isAndroid) && bind.mainGetLocalOption(key: 'access_token').isNotEmpty) {
+    if ((exantasNativeDesktop || Platform.isAndroid) && bind.mainGetLocalOption(key: 'access_token').isNotEmpty) {
       throw StateError('Αποσυνδεθείτε πρώτα από τον ξεχωριστό λογαριασμό RustDesk.');
     }
     if (Platform.isAndroid) await _secureStore.protectAsync('office-storage-check');
@@ -424,7 +428,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
     await bind.mainSetLocalOption(
         key: kExantasSupportRole, value: _string(pair['support_role']));
     if (Platform.isAndroid) await _setSecretLocalOption(kExantasAndroidStaffLease, '');
-    if (Platform.isWindows || Platform.isAndroid) await _ensureNativeReady(force: true);
+    if (exantasNativeDesktop || Platform.isAndroid) await _ensureNativeReady(force: true);
     return loadStatus();
   }
 
@@ -438,7 +442,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
       final hasLease = bind.mainGetLocalOption(key: kExantasNativeLease).isNotEmpty ||
           bind.mainGetLocalOption(key: kExantasNativeConfirm).isNotEmpty;
       await _post(hasLease ? '/rustdesk-companion/native-logout' : '/rustdesk-companion/logout',
-          hasLease && Platform.isWindows ? {'contract_version': 2} : {},
+          hasLease && exantasNativeDesktop ? {'contract_version': 2} : {},
           bearerToken: status.companionToken).timeout(const Duration(seconds: 12));
     }
     if (Platform.isAndroid) await _setSecretLocalOption(kExantasAndroidStaffLease, '');
@@ -461,7 +465,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
   /// Explicit recovery only: native approval must already have been revoked by
   /// an administrator. Preserve the active key until a new request is confirmed.
   Future<void> renewInstallationApproval() => _nativeFence.run(() async {
-    if (!Platform.isWindows) throw UnsupportedError('Windows installation approval required');
+    if (!exantasNativeDesktop) throw UnsupportedError('Desktop installation approval required');
     final before = await _nativeIdentity();
     if (before.actor.isEmpty || before.companion.isEmpty) throw StateError('Απαιτείται σύνδεση Office.');
     const candidateKey = 'exantas.office.installation_candidate';
@@ -487,7 +491,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
 
   Future<void> _ensureNativeReady({bool force = false}) async {
     final before = await _nativeIdentity();
-    if ((!Platform.isWindows && !Platform.isAndroid) || before.companion.isEmpty) return;
+    if ((!exantasNativeDesktop && !Platform.isAndroid) || before.companion.isEmpty) return;
     if (before.actor.isEmpty) throw StateError('Απαιτείται νέα είσοδος στο Office.');
     if (!force && bind.mainGetLocalOption(key: kExantasNativeConfirm).isNotEmpty) {
       throw StateError('Ελέγξτε τη σύνδεση και πατήστε Επιβεβαίωση RustDesk. Δεν έγινε αυτόματη επανάληψη.');
@@ -507,7 +511,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
           .timeout(const Duration(seconds: 12)));
     }
     String? installationKey;
-    if (Platform.isWindows) {
+    if (exantasNativeDesktop) {
       installationKey = await officeInstallationKey(
         load: () => _getSecretLocalOption(kExantasInstallationKey),
         save: (key) => _setSecretLocalOption(kExantasInstallationKey, key),
@@ -533,11 +537,11 @@ class ExantasCompanionService implements ExantasIdentityActions {
     await bind.mainSetLocalOption(key: kExantasNativeConfirm, value: 'Y');
     await _nativeFence.exchange(
       before: before, current: _nativeIdentity, nativeApi: nativeApi,
-      contractVersion: Platform.isWindows ? 2 : 1,
+      contractVersion: exantasNativeDesktop ? 2 : 1,
       now: () => DateTime.now().millisecondsSinceEpoch ~/ 1000,
       request: () async => await _post('/rustdesk-companion/native-session',
         {'device_uuid': androidSourceUuid ?? await bind.mainGetUuid(),
-          if (Platform.isWindows) ...{'contract_version': 2, 'installation_key': installationKey}}, bearerToken: before.companion)
+          if (exantasNativeDesktop) ...{'contract_version': 2, 'installation_key': installationKey}}, bearerToken: before.companion)
           .timeout(const Duration(seconds: 12)),
       store: (lease) async {
         await _setSecretLocalOption(kExantasNativeLease, jsonEncode(lease));

@@ -488,7 +488,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               style: TextStyle(
                   fontSize: 12, color: textColor?.withOpacity(0.6)),
             ),
-          if (technicianLoggedIn && Platform.isWindows)
+          if (technicianLoggedIn && exantasNativeDesktop)
             Text(status?.nativeReady == true ? 'RustDesk: έτοιμο για σύνδεση' : 'RustDesk: απαιτείται επιβεβαίωση σύνδεσης'),
           if (technicianLoggedIn && (status?.officeUserId ?? '').isEmpty)
             const Text('Κάνε νέα είσοδο στο Office για να ενεργοποιήσεις το τοπικό ιστορικό αναφορών.'),
@@ -503,7 +503,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                   icon: const Icon(Icons.support_agent, size: 18),
                   label: const Text('Αίτημα υποστήριξης'),
                 ),
-              if (!Platform.isWindows) ...[
+              if (!exantasNativeDesktop) ...[
                 OutlinedButton(
                   onPressed: () => _showTechnicianLoginDialog(context),
                   child:
