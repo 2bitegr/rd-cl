@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=RustDesk
+Name=Exantas Support
 GenericName=Remote Desktop
-Comment=Remote Desktop
+Comment=Exantas remote support
 Exec=rustdesk %u
 Icon=rustdesk
 Terminal=false

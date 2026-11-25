@@ -6,7 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 
+import 'platform_model.dart';
+
 const String _dpapiPrefix = 'dpapi:v1:';
+// Linux: sealed with a per-user key kept in the desktop keyring (libsecret).
+const String _keyringPrefix = 'secret:v1:';
 
 class ExantasSecureStore {
   const ExantasSecureStore();
@@ -19,12 +23,19 @@ class ExantasSecureStore {
       ? (await _android.invokeMethod<String>('unprotect', value)) ?? (throw StateError('Secure storage unavailable'))
       : unprotect(value);
 
-  bool isProtected(String value) => value.startsWith(_dpapiPrefix) || value.startsWith('keystore:v1:');
+  bool isProtected(String value) => value.startsWith(_dpapiPrefix) || value.startsWith('keystore:v1:') || value.startsWith(_keyringPrefix);
 
   String protect(String value) {
     if (Platform.isAndroid) throw UnsupportedError('Use Android secure storage asynchronously');
     if (value.isEmpty) {
       return '';
+    }
+    if (Platform.isLinux) {
+      final sealed = bind.mainOfficeSecureProtect(value: value);
+      if (!sealed.startsWith(_keyringPrefix)) {
+        throw StateError('Το κλειδί του συστήματος (keyring) δεν είναι διαθέσιμο. Ξεκλειδώστε το και δοκιμάστε ξανά.');
+      }
+      return sealed;
     }
     if (!Platform.isWindows) {
       return value;
@@ -36,6 +47,14 @@ class ExantasSecureStore {
     if (Platform.isAndroid) throw UnsupportedError('Use Android secure storage asynchronously');
     if (storedValue.isEmpty) {
       return '';
+    }
+    if (storedValue.startsWith(_keyringPrefix)) {
+      if (!Platform.isLinux) return '';
+      final plain = bind.mainOfficeSecureUnprotect(value: storedValue);
+      if (plain.isEmpty) {
+        throw StateError('Could not unprotect Exantas Office token.');
+      }
+      return plain;
     }
     if (!storedValue.startsWith(_dpapiPrefix)) {
       return storedValue;

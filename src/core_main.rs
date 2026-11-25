@@ -165,9 +165,12 @@ pub fn core_main() -> Option<Vec<String>> {
     }
     hbb_common::init_log(false, &log_name);
 
-    // linux uni (url) go here.
+    // linux uni (url) go here. The spaced Exantas app name yields an invalid
+    // scheme, so the registered rustdesk:// handler (Office Call Popup) counts too.
     #[cfg(all(target_os = "linux", feature = "flutter"))]
-    if args.len() > 0 && args[0].starts_with(&crate::get_uri_prefix()) {
+    if args.len() > 0
+        && (args[0].starts_with(&crate::get_uri_prefix()) || args[0].starts_with("rustdesk://"))
+    {
         return try_send_by_dbus(args[0].clone());
     }
 

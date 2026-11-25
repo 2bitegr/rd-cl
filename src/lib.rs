@@ -64,8 +64,10 @@ mod office_identity;
 mod office_update;
 mod office_update_policy;
 
-#[cfg(any(windows, target_os = "android"))]
+#[cfg(any(windows, target_os = "android", target_os = "linux"))]
 mod office_native_auth;
+#[cfg(target_os = "linux")]
+mod office_secret_linux;
 mod office_native_policy;
 
 mod ui_cm_interface;
