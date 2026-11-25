@@ -487,7 +487,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
   });
 
   Future<void> ensureNativeReady({bool force = false}) =>
-      _nativeFence.run(() => _ensureNativeReady(force: force));
+      _nativeFence.runWhenIdle(() => _ensureNativeReady(force: force));
 
   Future<void> _ensureNativeReady({bool force = false}) async {
     final before = await _nativeIdentity();

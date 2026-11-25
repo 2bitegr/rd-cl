@@ -2638,6 +2638,9 @@ connectMainDesktop(String id,
       }
     }
   } catch (_) {
+    // A Caller Popup/deep link keeps the main window hidden; show it so the
+    // technician sees why no remote window opened.
+    await windowOnTop(null);
     showToast('Δεν επιβεβαιώθηκε η σύνδεση Office–RustDesk. Ελέγξτε τη σύνδεση τεχνικού στην αρχική οθόνη.');
     return;
   }
