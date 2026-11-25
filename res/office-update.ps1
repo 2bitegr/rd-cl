@@ -256,6 +256,15 @@ function Expand-OfficeUpdatePayload([string]$Installer, [string]$Payload, $Relea
     if($exit -ne 0){throw 'payload_extraction_failed'}
 }
 
+function Test-UpdateTolerableCoreProcess([string]$CommandLine) {
+    # Background helpers never block an update.
+    if ($CommandLine -match '\s--(?:service|server|tray|office-update-probe)(?:\s|$)') { return $true }
+    # The main window started without arguments only hides on close and keeps
+    # running until logoff. While the protected IPC probe reports no session it
+    # is replaced like the tray. Connection, CM and install windows still block.
+    return $CommandLine -match '^\s*(?:"[^"]+"|[^\s"]+)\s*$'
+}
+
 function Get-UpdateReport {
     $health = Invoke-UpdateCore '--office-update-probe'
     # Fail closed on GUI/connection-manager processes or hidden process metadata.
@@ -265,7 +274,7 @@ function Get-UpdateReport {
     $reason=if($idle){'none'}else{'active_sessions'}
     foreach ($process in $processes) {
         if (!$process.ExecutablePath -or !$process.CommandLine) { $idle = $false; $reason='process_visibility_incomplete'; continue }
-        if ($process.ExecutablePath -ieq $script:CorePath -and $process.CommandLine -notmatch '\s--(?:service|server|tray|office-update-probe)(?:\s|$)') { $idle = $false; $reason='rdcl_window_open' }
+        if ($process.ExecutablePath -ieq $script:CorePath -and !(Test-UpdateTolerableCoreProcess $process.CommandLine)) { $idle = $false; $reason='rdcl_window_open' }
     }
     $reboot = (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
         (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') -or

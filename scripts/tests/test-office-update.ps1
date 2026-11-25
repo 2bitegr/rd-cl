@@ -302,6 +302,14 @@ try {
     $code='';try{Expand-OfficeUpdatePayload $script:fixtureInstaller (Join-Path $scratch 'blocked-exit-output') $release}catch{$code=$_.Exception.Message}
     Assert ($code -ceq 'windows_policy_blocked') 'Blocked exit became success'
   }
+  Check 'Hidden main window and helpers are tolerated; session windows still block' {
+    foreach($line in @('"C:\Program Files\rd-cl\rd-cl.exe"','"C:\Program Files\rd-cl\rd-cl.exe" ','C:\rd-cl\rd-cl.exe','"C:\Program Files\rd-cl\rd-cl.exe" --tray','"C:\Program Files\rd-cl\rd-cl.exe" --server')) {
+      Assert (Test-UpdateTolerableCoreProcess $line) "Tolerable process blocked: $line"
+    }
+    foreach($line in @('"C:\Program Files\rd-cl\rd-cl.exe" --cm','"C:\Program Files\rd-cl\rd-cl.exe" --connect 123456789','"C:\Program Files\rd-cl\rd-cl.exe" --install','"C:\Program Files\rd-cl\rd-cl.exe" rustdesk://connection/new/1','"C:\Program Files\rd-cl\rd-cl.exe" --cm-no-ui')) {
+      Assert (!(Test-UpdateTolerableCoreProcess $line)) "Session window accepted: $line"
+    }
+  }
   Check 'Native source has no UAC bypass, upstream-update enable or arbitrary execution endpoint' {
     $text=Get-Content -Raw -LiteralPath $Source
     Assert ($text -notmatch '(?i)Set-ExecutionPolicy|ExecutionPolicy\s+Bypass|Invoke-Expression|Restart-Computer') 'Unapproved bypass/reboot found'
