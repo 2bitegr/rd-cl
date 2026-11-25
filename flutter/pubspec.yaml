@@ -110,8 +110,9 @@ dependencies:
   sqflite: 2.2.0
   google_fonts: ^6.2.1
   vector_math: ^2.1.4
-  local_auth: 2.3.0
+  # Android-only app lock; no desktop local_auth plugin.
   local_auth_android: 1.0.40
+  local_auth_platform_interface: 1.0.10
   # Android-only location for field visits; no desktop location plugin.
   geolocator_android: 4.3.1
   geolocator_platform_interface: 4.4.1
