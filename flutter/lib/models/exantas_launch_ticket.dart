@@ -4,13 +4,17 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 
-import 'platform_model.dart';
+/// Linux reads/deletes go through the FFI bridge, which the caller passes in.
+/// Keeping the bridge out of this file lets its Windows unit test compile.
+typedef ExantasLinuxTicketRead = String Function(String ticket);
+typedef ExantasLinuxTicketDelete = bool Function(String ticket);
 
 // Same Windows user/machine credential store. Only a random lookup ID is public.
-Map<String, dynamic> readExantasLaunchTicket(String ticket, String api, String peer) {
+Map<String, dynamic> readExantasLaunchTicket(String ticket, String api, String peer,
+    {ExantasLinuxTicketRead? linuxRead}) {
   if (Platform.isLinux && RegExp(r'^[a-f0-9]{32}$').hasMatch(ticket)) {
     // Office Call Popup on Ubuntu writes the same JSON to the desktop keyring.
-    final stored = bind.mainOfficeReadLaunchTicket(ticket: ticket);
+    final stored = linuxRead == null ? '' : linuxRead(ticket);
     if (stored.isEmpty) throw StateError('Office launch credential unavailable.');
     return _scopedLaunchTicket(stored, api, peer);
   }
@@ -33,9 +37,9 @@ Map<String, dynamic> _scopedLaunchTicket(String stored, String api, String peer)
   return {for (final key in ['launch_request_id', 'opaque_locator', 'capability']) key: row[key]};
 }
 
-void deleteExantasLaunchTicket(String ticket) {
+void deleteExantasLaunchTicket(String ticket, {ExantasLinuxTicketDelete? linuxDelete}) {
   if (Platform.isLinux && RegExp(r'^[a-f0-9]{32}$').hasMatch(ticket)) {
-    if (!bind.mainOfficeDeleteLaunchTicket(ticket: ticket)) throw StateError('Office launch credential cleanup failed.');
+    if (linuxDelete == null || !linuxDelete(ticket)) throw StateError('Office launch credential cleanup failed.');
     return;
   }
   if (!Platform.isWindows || !RegExp(r'^[a-f0-9]{32}$').hasMatch(ticket)) return;
