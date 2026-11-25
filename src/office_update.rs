@@ -3,7 +3,7 @@ use hbb_common::{bail, config::Config, log, sodiumoxide::base64, ResultType};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::os::windows::{fs::OpenOptionsExt, process::CommandExt};
+use std::os::windows::{ffi::OsStrExt, fs::OpenOptionsExt, process::CommandExt};
 use std::{
     fs,
     io::{Read, Write},
@@ -64,28 +64,56 @@ fn verify_root() -> ResultType<()> {
     Ok(())
 }
 
+fn create_update_root(root: &Path) -> ResultType<()> {
+    use winapi::{
+        shared::{minwindef::LPVOID, sddl::ConvertStringSecurityDescriptorToSecurityDescriptorW},
+        um::{fileapi::CreateDirectoryW, minwinbase::SECURITY_ATTRIBUTES, winbase::LocalFree},
+    };
+
+    let path: Vec<u16> = root
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    // Create the directory with its final DACL. No inherited access is ever
+    // applied to a new update root, even if the service stops during setup.
+    let mut descriptor: LPVOID = std::ptr::null_mut();
+    unsafe {
+        if ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            wide("D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)").as_ptr(),
+            1,
+            &mut descriptor,
+            std::ptr::null_mut(),
+        ) == 0
+        {
+            bail!("update_acl_failed");
+        }
+        let mut attributes = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: descriptor,
+            bInheritHandle: 0,
+        };
+        let error = if CreateDirectoryW(path.as_ptr(), &mut attributes) == 0 {
+            Some(std::io::Error::last_os_error())
+        } else {
+            None
+        };
+        LocalFree(descriptor as _);
+        if let Some(error) = error {
+            // Another registration may have created the directory first.
+            // The caller validates its owner and ACL before using it.
+            if error.kind() != std::io::ErrorKind::AlreadyExists {
+                return Err(error.into());
+            }
+        }
+    }
+    Ok(())
+}
+
 fn initialize_root() -> ResultType<PathBuf> {
     let root = root()?;
     if !root.exists() {
-        fs::create_dir(&root)?;
-        let icacls = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()))
-            .join("System32/icacls.exe");
-        let status = Command::new(icacls)
-            .arg(&root)
-            .args([
-                "/inheritance:r",
-                "/grant:r",
-                "*S-1-5-18:(OI)(CI)F",
-                "*S-1-5-32-544:(OI)(CI)F",
-                "/setowner",
-                "*S-1-5-18",
-            ])
-            .creation_flags(0x08000000)
-            .stdout(Stdio::null())
-            .status()?;
-        if !status.success() {
-            bail!("update_acl_failed");
-        }
+        create_update_root(&root)?;
     }
     verify_root()?;
     Ok(root)
@@ -416,7 +444,7 @@ fn create_barrier() -> ResultType<usize> {
         }
         // CreateEvent ignores the supplied DACL when the object already exists.
         // Reject a pre-created user-owned event before an update can run.
-        let check = r#"$ErrorActionPreference='Stop';$e=[Threading.EventWaitHandle]::OpenExisting('Global\ExantasRdclUpdateBarrier');try{
+        let check = r#"$ErrorActionPreference='Stop';$e=[Threading.EventWaitHandle]::OpenExisting('Global\ExantasRdclUpdateBarrier',[Security.AccessControl.EventWaitHandleRights]::ReadPermissions);try{
           $a=$e.GetAccessControl();if($a.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne 'S-1-5-18'){exit 1};
           foreach($r in $a.Access){if($r.AccessControlType -eq 'Allow' -and ($r.EventWaitHandleRights -band [Security.AccessControl.EventWaitHandleRights]::Modify) -and $r.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin @('S-1-5-18','S-1-5-32-544')){exit 1}}
         }finally{$e.Dispose()}"#;
@@ -439,8 +467,8 @@ pub fn start_service_worker() {
     }
     let handle = match create_barrier() {
         Ok(handle) => handle,
-        Err(_) => {
-            log::error!("Office update barrier unavailable");
+        Err(error) => {
+            log::error!("Office update barrier unavailable: {error}");
             return;
         }
     };

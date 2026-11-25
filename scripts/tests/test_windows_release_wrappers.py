@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import platform
 import shutil
 import subprocess
 import sys
@@ -10,6 +11,7 @@ import unittest
 
 PWSH = os.environ.get('RDCL_TEST_PWSH') or shutil.which('powershell.exe') or shutil.which('pwsh')
 SCRIPTS = Path(__file__).resolve().parents[1]
+HOST_ERROR = 'Run on an approved native Windows codec host'
 
 
 @unittest.skipUnless(PWSH, 'Existing PowerShell required; set RDCL_TEST_PWSH')
@@ -89,6 +91,56 @@ if($InstallerSwitch -eq 'exe'){$coreArgs.WithExe=$true}else{$coreArgs.WithMsi=$t
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('synthetic native core failure', result.stderr)
         self.assertIsNone(value)
+
+
+@unittest.skipUnless(PWSH, 'Existing PowerShell required; set RDCL_TEST_PWSH')
+class BootstrapWrapperHost(unittest.TestCase):
+    def invoke(self, fixture=None):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wrapper = (SCRIPTS / 'windows-codec-bootstrap.ps1')
+            if fixture is not None:
+                wrapper = root / wrapper.name
+                wrapper.write_text(fixture, encoding='utf-8')
+            result = subprocess.run([PWSH, '-NoProfile', '-NonInteractive', '-File', str(wrapper),
+                '-Mode', 'Preflight', '-Toolchain', str(root / 'missing-codec-toolchain.json'),
+                '-SourceCommit', 'a' * 40, '-OutputRoot', str(root / 'unused-output'),
+                '-CodecRoot', str(root / 'unused-codec'), '-ExistingTriplet', 'unused-triplet'],
+                env={**os.environ, 'COMPUTERNAME': 'S2', 'OS': 'Windows_NT'},
+                capture_output=True, text=True, timeout=30)
+            self.assertFalse((root / 'unused-output').exists())
+            self.assertFalse((root / 'unused-codec').exists())
+            return result
+
+    def assert_host_result(self, result, accepted):
+        self.assertNotEqual(result.returncode, 0)
+        if accepted:
+            self.assertIn('missing-codec-toolchain.json', result.stderr)
+            self.assertNotIn(HOST_ERROR, result.stderr)
+        else:
+            self.assertIn(HOST_ERROR, result.stderr)
+
+    def test_actual_wrapper_ignores_environment_hostname(self):
+        self.assert_host_result(self.invoke(), platform.node().upper() in {'S2', 'DESKTOP-5OTBBT7'})
+
+    def test_wrapper_allowlist_and_platform_before_prerequisites(self):
+        source = (SCRIPTS / 'windows-codec-bootstrap.ps1').read_text(encoding='utf-8')
+        for platform_id, machine, wine, accepted in [
+            ('Win32NT', 's2', False, True),
+            ('Win32NT', 'DESKTOP-5OTBBT7', False, True),
+            ('Win32NT', 'DESKTOP-IQ8ORD5', False, False),
+            ('Win32NT', 'OTHER-PC', False, False),
+            ('Win32NT', 'S2', True, False),
+            ('Unix', 'S2', False, False),
+        ]:
+            with self.subTest(platform_id=platform_id, machine=machine, wine=wine):
+                # Replace only the OS probes in a temporary fixture. On Windows
+                # the positive cases also exercise the real ntdll export check.
+                fixture = source.replace('[Environment]::OSVersion.Platform', '[PlatformID]::' + platform_id)
+                fixture = fixture.replace('[Environment]::MachineName', "'" + machine + "'")
+                if wine or os.name != 'nt':
+                    fixture = fixture.replace('[RdClCodecHost]::IsNativeWindows()', '$false' if wine else '$true')
+                self.assert_host_result(self.invoke(fixture), accepted)
 
 
 if __name__ == '__main__':
