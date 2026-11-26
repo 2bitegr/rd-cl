@@ -187,3 +187,37 @@ build or a full candidate regression. SYSTEM probe, product IPC and live NAS
 heartbeat remain unverified. A later build, package, installation, publication
 of binaries or activation requires separate approval. Preserve the published
 3.1.5 installer; do not replace its bytes with a 3.1.6 payload.
+
+## End-to-end silent update working — 3.2.2 to 3.2.9, 2026-11-26
+
+No installed client completed a silent update before 3.2.9. Each failure below
+was found on the enrolled Windows VM pilot. Every change is applied by the
+**installed** worker, so clients older than 3.2.9 need one manual 3.2.9
+installation. A manual installation keeps the peer ID, installation and Office
+enrollment.
+
+| Release | Failure | Fix |
+|---|---|---|
+| 3.2.2 | release verification used `&` on the GUI host: no wait, no stdout (`update_cycle_failed`) | verify through `Invoke-UpdateCore -Executable` |
+| 3.2.4 | packer entries are `.\dir\file`; extraction rejected all 93 (`payload_extraction_failed`) | `office_payload_path` normalization in `bin_reader.rs` |
+| 3.2.5 | `Stop-Process` without `-Force` prompts under `-NonInteractive` SYSTEM for the user's tray (`process_did_not_stop`) | `-Force` |
+| 3.2.7 | stop raced processes already exiting with the service; `Wait-Process` returned at once | PID + CreationDate polling |
+| 3.2.7 | `--office-update-restore-tray` used `run_as_user`, i.e. session 0 | worker records tray sessions; core uses `run_exe_in_session` in that session, rejects 0/unknown |
+| 3.2.9 | a single recorded session was unrolled to a scalar; `.Count` threw in `Complete-UpdateJob` after a verified success | `$sessions=@(if(...){...})` |
+| 3.2.3, 3.2.6, 3.2.8 | (version-only test targets) | — |
+
+Static guards in `scripts/tests/test_windows_office_updates.py` fail on each
+former form. The native core fixture covers the explicit executable. The
+`office_payload_path` unit tests cover accepted and rejected packer paths.
+
+**Results on the VM**
+
+- Silent updates 3.2.7 → 3.2.8 and 3.2.8 → 3.2.9 succeeded, with the tray
+  running and identity preserved.
+- A failed 3.2.2 → 3.2.5 attempt rolled back automatically.
+
+Before building, test each worker phase as SYSTEM in a `-NonInteractive` task by
+dot-sourcing the worker with `-LibraryOnly`. Compile only the core for
+Rust-only changes. Office `docs/rdcl-silent-updates.md` and
+`docs/rdcl-3.2.9-delivery.md` keep the full evidence, hashes, signing key and
+open items.
