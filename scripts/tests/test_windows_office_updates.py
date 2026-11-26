@@ -158,6 +158,14 @@ class OfficeUpdateWorkerStaticContracts(unittest.TestCase):
         self.assertIn('run_exe_in_session', block)
         self.assertIn('session == 0', block)
 
+    def test_tray_session_list_survives_single_session(self):
+        source = SOURCE.read_text(encoding='utf-8')
+        # if/else values are unrolled: one session became a scalar without .Count
+        # under StrictMode, aborting Complete-UpdateJob after a verified update
+        # (VM 3.2.7 -> 3.2.8: no tray restore, retention or recovery promotion).
+        self.assertIn('$sessions=@(if($hasSessions){$script:journal.tray_sessions})', source)
+        self.assertNotRegex(source, r'\$sessions=if\(')
+
 
 if __name__ == '__main__':
     unittest.main()

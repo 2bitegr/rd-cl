@@ -492,7 +492,9 @@ function Complete-UpdateJob([string]$Phase) {
         # The journal is a hashtable in the worker that created it and a
         # PSCustomObject after a reload; older journals have no tray_sessions.
         $hasSessions=if($script:journal -is [Collections.IDictionary]){$script:journal.Contains('tray_sessions')}else{[bool]$script:journal.PSObject.Properties['tray_sessions']}
-        $sessions=if($hasSessions){@($script:journal.tray_sessions)}else{@()}
+        # Wrap the whole expression: an if/else value is unrolled, so a single
+        # session would otherwise become a scalar without .Count (StrictMode).
+        $sessions=@(if($hasSessions){$script:journal.tray_sessions})
         if(!$sessions.Count){[IO.File]::WriteAllText((Join-Path $script:root 'tray-restore-pending.txt'),'Tray session was not recorded; normal tray startup needs review.')}
         try {foreach($session in $sessions){Invoke-UpdateCore '--office-update-restore-tray' @([string][uint32]$session) | Out-Null}} catch {
             [IO.File]::WriteAllText((Join-Path $script:root 'tray-restore-pending.txt'),'Normal tray startup needs review; no elevated GUI launched.')
