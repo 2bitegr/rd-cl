@@ -44,10 +44,8 @@ impl BinaryData {
 
     pub fn write_verified_new(&self, prefix: &Path) -> std::io::Result<()> {
         use std::io::Write;
-        if !self.path.split('/').all(|p| !p.is_empty() && p != "." && p != ".." && p.bytes().all(|c| c.is_ascii_alphanumeric() || b"_. -".contains(&c))) {
-            return Err(std::io::ErrorKind::InvalidInput.into());
-        }
-        let target = prefix.join(&self.path);
+        let relative = office_payload_path(&self.path).ok_or(std::io::ErrorKind::InvalidInput)?;
+        let target = prefix.join(&relative);
         if let Some(parent) = target.parent() { std::fs::create_dir_all(parent)?; }
         let mut content = Vec::new();
         brotli::Decompressor::new(Cursor::new(self.raw), BUF_SIZE).read_to_end(&mut content)?;
@@ -152,6 +150,39 @@ impl BinaryReader {
                     f.set_permissions(permissions).ok();
                 }
             }
+        }
+    }
+}
+
+/// The Windows packer records payload entries as `.\dir\file`. Office update
+/// extraction accepts only that form or plain `dir/file`, returned as a strict
+/// relative `dir/file` path; anything else (absolute, `..`, odd bytes) is None.
+pub(crate) fn office_payload_path(raw: &str) -> Option<String> {
+    let path = raw.replace('\\', "/");
+    let path = path.strip_prefix("./").unwrap_or(&path);
+    if path.split('/').all(|p| !p.is_empty() && p != "." && p != ".." && p.bytes().all(|c| c.is_ascii_alphanumeric() || b"_. -".contains(&c))) {
+        Some(path.to_owned())
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod office_payload_path_tests {
+    use super::office_payload_path;
+
+    #[test]
+    fn windows_packer_entries_are_normalized() {
+        assert_eq!(office_payload_path(".\\librustdesk.dll").as_deref(), Some("librustdesk.dll"));
+        assert_eq!(office_payload_path(".\\data\\flutter_assets\\AssetManifest.json").as_deref(), Some("data/flutter_assets/AssetManifest.json"));
+        assert_eq!(office_payload_path("data/app.so").as_deref(), Some("data/app.so"));
+        assert_eq!(office_payload_path("Uninstall Exantas Support.lnk").as_deref(), Some("Uninstall Exantas Support.lnk"));
+    }
+
+    #[test]
+    fn unsafe_entries_are_rejected() {
+        for raw in ["", ".", "./", "..\\x.dll", ".\\..\\x.dll", "C:\\x.dll", "\\x.dll", "/x.dll", "a//b", "a/./b", "a/../b", "a:b", "a\u{0394}b", ".\\.\\x"] {
+            assert_eq!(office_payload_path(raw), None, "{raw:?}");
         }
     }
 }
