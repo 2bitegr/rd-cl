@@ -125,6 +125,16 @@ class OfficeUpdateWorkerStaticContracts(unittest.TestCase):
         self.assertIn('[string]$Executable = $script:CorePath', source)
         self.assertIn('$start.FileName = $Executable', source)
 
+    def test_worker_stops_user_processes_non_interactively(self):
+        source = SOURCE.read_text(encoding='utf-8')
+        # The SYSTEM worker runs -NonInteractive; Stop-Process without -Force on a
+        # process of the signed-in user (tray) fails with a prompt error and the
+        # replacement never starts (VM pilot 3.2.2 -> 3.2.4: process_did_not_stop).
+        stops = re.findall(r'Stop-Process\b[^\n]*', source)
+        self.assertTrue(stops)
+        for line in stops:
+            self.assertIn('-Force', line)
+
 
 if __name__ == '__main__':
     unittest.main()

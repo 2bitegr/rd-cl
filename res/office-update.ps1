@@ -375,7 +375,10 @@ function Stop-UpdateProcesses {
     foreach ($process in $processes) {
         if (!$process.ExecutablePath) { throw 'process_visibility_incomplete' }
         if ($process.ExecutablePath -ieq $script:CorePath) {
-            Stop-Process -Id $process.ProcessId -ErrorAction Stop
+            # SYSTEM worker is non-interactive: without -Force, stopping a process
+            # owned by the signed-in user (tray/main window) needs a confirmation
+            # prompt that cannot be shown, and the process keeps running.
+            Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
             Wait-Process -Id $process.ProcessId -Timeout 30 -ErrorAction SilentlyContinue
             if(Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue){throw 'process_did_not_stop'}
         }
