@@ -23,6 +23,21 @@ class ExantasOfficeRejection implements Exception {
   String toString() => 'Exception: $message';
 }
 
+/// Office no longer has an active pairing for the companion token that was
+/// sent: an administrator revoked it, or it was replaced/removed. The server
+/// interval is already closed, so the local sign-in can be cleared safely.
+class ExantasCompanionPairingGone extends ExantasOfficeRejection {
+  ExantasCompanionPairingGone(int statusCode, String? code, Map<String, dynamic>? details)
+      : super(statusCode, code,
+            'Η σύνδεση τεχνικού ακυρώθηκε στο Office. Συνδεθείτε ξανά με τον λογαριασμό σας.',
+            details: details);
+}
+
+// Exact companion-auth contract of Office `resolveSessions`; the RustDesk
+// device route uses the same reasons with a different message.
+const _companionSessionMessage = 'Invalid companion session.';
+const _companionPairingGoneReasons = {'device_revoked', 'device_not_found'};
+
 /// Proxies can return plain text/HTML. Never present it as a JSON parse error
 /// or accept an unsuccessful/invalid response as an authenticated Office reply.
 Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
@@ -41,6 +56,20 @@ Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
       'native_installation_conflict': 'Η ταυτότητα ή η έγκριση της εγκατάστασης άλλαξε. Απαιτείται έλεγχος διαχειριστή Office.',
       'native_installation_busy': 'Η προηγούμενη συνεδρία σε αυτόν τον υπολογιστή δεν έχει λήξει ακόμη. Περιμένετε πριν αλλάξετε τεχνικό.',
     };
+    final details = decoded?['details'] is Map
+        ? Map<String, dynamic>.from(decoded!['details'] as Map)
+        : null;
+    if (statusCode == 401 && decoded?['status'] == 'access_denied' &&
+        message == _companionSessionMessage) {
+      if (_companionPairingGoneReasons.contains(details?['reason'])) {
+        throw ExantasCompanionPairingGone(statusCode, 'access_denied', details);
+      }
+      if (details?['reason'] == 'admin_inactive') {
+        throw ExantasOfficeRejection(statusCode, 'access_denied',
+            'Ο λογαριασμός σας στο Office είναι ανενεργός. Επικοινωνήστε με τον διαχειριστή.',
+            details: details);
+      }
+    }
     if (installationErrors.containsKey(decoded?['status'])) {
       throw Exception(installationErrors[decoded?['status']]);
     }

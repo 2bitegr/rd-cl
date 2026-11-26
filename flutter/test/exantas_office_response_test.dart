@@ -54,4 +54,42 @@ void main() {
             e.toString().contains('ταυτότητα της συσκευής') &&
             !e.toString().contains('private provider'))));
   });
+  test('revoked or missing companion pairing asks for a new technician login', () {
+    for (final reason in ['device_revoked', 'device_not_found']) {
+      expect(
+          () => decodeExantasOfficeResponse(401,
+              '{"status":"access_denied","message":"Invalid companion session.","details":{"reason":"$reason"}}'),
+          throwsA(predicate((e) =>
+              e is ExantasCompanionPairingGone &&
+              e.statusCode == 401 &&
+              !e.definitive &&
+              e.toString().contains('Συνδεθείτε ξανά') &&
+              !e.toString().contains('Invalid companion'))));
+    }
+  });
+  test('inactive Office account is explained but is not a revoked pairing', () {
+    expect(
+        () => decodeExantasOfficeResponse(401,
+            '{"status":"access_denied","message":"Invalid companion session.","details":{"reason":"admin_inactive"}}'),
+        throwsA(predicate((e) =>
+            e is ExantasOfficeRejection &&
+            e is! ExantasCompanionPairingGone &&
+            e.toString().contains('ανενεργός'))));
+  });
+  test('other 401 rejections never clear a technician sign-in', () {
+    for (final body in [
+      '{"status":"access_denied","message":"Invalid RustDesk device session.","details":{"reason":"device_revoked"}}',
+      '{"status":"access_denied","message":"Invalid admin session.","details":{"reason":"session_revoked"}}',
+      '{"status":"access_denied","message":"Invalid companion session.","details":{"reason":"other"}}',
+      '{"status":"unauthorized","message":"Missing bearer token.","details":null}',
+      'error code: 401',
+    ]) {
+      expect(() => decodeExantasOfficeResponse(401, body),
+          throwsA(predicate((e) => e is! ExantasCompanionPairingGone)));
+    }
+    expect(
+        () => decodeExantasOfficeResponse(403,
+            '{"status":"access_denied","message":"Invalid companion session.","details":{"reason":"device_revoked"}}'),
+        throwsA(predicate((e) => e is! ExantasCompanionPairingGone)));
+  });
 }

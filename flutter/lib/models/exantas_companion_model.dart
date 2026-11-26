@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -441,10 +442,20 @@ class ExantasCompanionService implements ExantasIdentityActions {
       // Clearing only local storage leaves a live server-side pairing interval.
       final hasLease = bind.mainGetLocalOption(key: kExantasNativeLease).isNotEmpty ||
           bind.mainGetLocalOption(key: kExantasNativeConfirm).isNotEmpty;
-      await _post(hasLease ? '/rustdesk-companion/native-logout' : '/rustdesk-companion/logout',
-          hasLease && exantasNativeDesktop ? {'contract_version': 2} : {},
-          bearerToken: status.companionToken).timeout(const Duration(seconds: 12));
+      try {
+        await _post(hasLease ? '/rustdesk-companion/native-logout' : '/rustdesk-companion/logout',
+            hasLease && exantasNativeDesktop ? {'contract_version': 2} : {},
+            bearerToken: status.companionToken).timeout(const Duration(seconds: 12));
+      } on ExantasCompanionPairingGone {
+        // Office already closed this exact pairing (e.g. administrator
+        // revocation), so there is no live interval left to protect. Without
+        // this, a revoked sign-in could never be replaced on this computer.
+      }
     }
+    await _clearTechnicianLocal();
+  }
+
+  Future<void> _clearTechnicianLocal() async {
     if (Platform.isAndroid) await _setSecretLocalOption(kExantasAndroidStaffLease, '');
     await _setSecretLocalOption(kExantasNativeLease, '');
     await bind.mainSetLocalOption(key: kExantasNativeExpiry, value: '');
@@ -658,7 +669,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
         for (final key in ['peer_id', 'from_peer', 'rustdesk_session_id']) key: record[key],
       })).timeout(const Duration(seconds: 15));
     _requireSameCompanion(before, await loadStatus());
-    return _decodeResponse(response.statusCode, response.body);
+    return _decodeCompanion(response.statusCode, response.body, before.companionToken);
   }
 
   Future<Map<String, dynamic>> submitSessionClose(Map<String, dynamic> record) async {
@@ -669,7 +680,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
         for (final key in ['event_id', 'peer_id', 'from_peer', 'rustdesk_session_id', 'ended_at']) key: record[key],
       })).timeout(const Duration(seconds: 15));
     _requireSameCompanion(before, await loadStatus());
-    return _decodeResponse(response.statusCode, response.body);
+    return _decodeCompanion(response.statusCode, response.body, before.companionToken);
   }
 
   Future<List<Map<String, dynamic>>> pendingSessions({
@@ -935,7 +946,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
       Uri.parse('$apiBase$path'),
       headers: _headers(bearerToken),
     );
-    return _decodeResponse(response.statusCode, response.body);
+    return _decodeCompanion(response.statusCode, response.body, bearerToken);
   }
 
   Future<Map<String, dynamic>?> _getOptional404(String path,
@@ -946,7 +957,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
     );
     return decodeExantasOptional404(
       response.statusCode,
-      () => _decodeResponse(response.statusCode, response.body),
+      () => _decodeCompanion(response.statusCode, response.body, bearerToken),
     );
   }
 
@@ -957,7 +968,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
       headers: _headers(bearerToken),
       body: jsonEncode(body),
     );
-    return _decodeResponse(response.statusCode, response.body);
+    return _decodeCompanion(response.statusCode, response.body, bearerToken);
   }
 
   Map<String, String> _headers(String? bearerToken) {
@@ -971,6 +982,35 @@ class ExantasCompanionService implements ExantasIdentityActions {
   Map<String, dynamic> _decodeResponse(int statusCode, String body) {
     return decodeExantasOfficeResponse(statusCode, body, androidSupport: Platform.isAndroid);
   }
+
+  /// Decodes a reply to a request sent with [bearerToken]. When Office reports
+  /// that this exact companion pairing no longer exists, the local technician
+  /// sign-in is cleared so the app asks for a new login instead of repeating
+  /// the rejection. The clear waits for any in-flight login/logout and then
+  /// rechecks the token, so a newer sign-in is never removed.
+  Map<String, dynamic> _decodeCompanion(int statusCode, String body, String? bearerToken) {
+    try {
+      return _decodeResponse(statusCode, body);
+    } on ExantasCompanionPairingGone {
+      final token = bearerToken?.trim() ?? '';
+      if (token.isNotEmpty) unawaited(forgetRevokedPairing(token));
+      rethrow;
+    }
+  }
+
+  @visibleForTesting
+  Future<bool> forgetRevokedPairing(String token) =>
+      _nativeFence.runWhenIdle(() async {
+        try {
+          final current = await _getSecretLocalOption(kExantasCompanionToken);
+          if (current.isEmpty || current != token) return false;
+          await _clearTechnicianLocal();
+          return true;
+        } catch (_) {
+          debugPrint('Office technician sign-in cleanup pending');
+          return false;
+        }
+      });
 
   Map<String, dynamic> _decodeMap(dynamic value) {
     if (value is Map) {
