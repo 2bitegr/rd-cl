@@ -33,10 +33,21 @@ class ExantasCompanionPairingGone extends ExantasOfficeRejection {
             details: details);
 }
 
-// Exact companion-auth contract of Office `resolveSessions`; the RustDesk
-// device route uses the same reasons with a different message.
+/// Office revoked or removed the customer device enrollment whose device token
+/// was sent. The server no longer accepts that token, so the stale local
+/// enrollment can be cleared and a new installation link can be used.
+class ExantasDeviceEnrollmentGone extends ExantasOfficeRejection {
+  ExantasDeviceEnrollmentGone(int statusCode, String? code, Map<String, dynamic>? details)
+      : super(statusCode, code,
+            'Η σύνδεση αυτού του υπολογιστή με το Office ακυρώθηκε. Για νέα σύνδεση χρησιμοποιήστε νέο link εγκατάστασης από το Office.',
+            details: details);
+}
+
+// Exact companion/device auth contracts of Office `resolveSessions`: both use
+// the same reasons, so the message selects which credential was rejected.
 const _companionSessionMessage = 'Invalid companion session.';
-const _companionPairingGoneReasons = {'device_revoked', 'device_not_found'};
+const _deviceSessionMessage = 'Invalid RustDesk device session.';
+const _pairingGoneReasons = {'device_revoked', 'device_not_found'};
 
 /// Proxies can return plain text/HTML. Never present it as a JSON parse error
 /// or accept an unsuccessful/invalid response as an authenticated Office reply.
@@ -61,7 +72,7 @@ Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
         : null;
     if (statusCode == 401 && decoded?['status'] == 'access_denied' &&
         message == _companionSessionMessage) {
-      if (_companionPairingGoneReasons.contains(details?['reason'])) {
+      if (_pairingGoneReasons.contains(details?['reason'])) {
         throw ExantasCompanionPairingGone(statusCode, 'access_denied', details);
       }
       if (details?['reason'] == 'admin_inactive') {
@@ -69,6 +80,11 @@ Map<String, dynamic> decodeExantasOfficeResponse(int statusCode, String body,
             'Ο λογαριασμός σας στο Office είναι ανενεργός. Επικοινωνήστε με τον διαχειριστή.',
             details: details);
       }
+    }
+    if (statusCode == 401 && decoded?['status'] == 'access_denied' &&
+        message == _deviceSessionMessage &&
+        _pairingGoneReasons.contains(details?['reason'])) {
+      throw ExantasDeviceEnrollmentGone(statusCode, 'access_denied', details);
     }
     if (installationErrors.containsKey(decoded?['status'])) {
       throw Exception(installationErrors[decoded?['status']]);

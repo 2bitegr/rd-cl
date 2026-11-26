@@ -78,7 +78,6 @@ void main() {
   });
   test('other 401 rejections never clear a technician sign-in', () {
     for (final body in [
-      '{"status":"access_denied","message":"Invalid RustDesk device session.","details":{"reason":"device_revoked"}}',
       '{"status":"access_denied","message":"Invalid admin session.","details":{"reason":"session_revoked"}}',
       '{"status":"access_denied","message":"Invalid companion session.","details":{"reason":"other"}}',
       '{"status":"unauthorized","message":"Missing bearer token.","details":null}',
@@ -90,6 +89,44 @@ void main() {
     expect(
         () => decodeExantasOfficeResponse(403,
             '{"status":"access_denied","message":"Invalid companion session.","details":{"reason":"device_revoked"}}'),
+        throwsA(predicate((e) => e is! ExantasCompanionPairingGone)));
+  });
+
+  test('revoked or missing customer enrollment is classified for a new installation link', () {
+    for (final reason in ['device_revoked', 'device_not_found']) {
+      expect(
+          () => decodeExantasOfficeResponse(401,
+              '{"status":"access_denied","message":"Invalid RustDesk device session.","details":{"reason":"$reason"}}'),
+          throwsA(predicate((e) =>
+              e is ExantasDeviceEnrollmentGone &&
+              e is! ExantasCompanionPairingGone &&
+              e.statusCode == 401 &&
+              !e.definitive &&
+              e.toString().contains('νέο link εγκατάστασης') &&
+              !e.toString().contains('Invalid RustDesk'))));
+    }
+  });
+  test('inactive customer and other device rejections keep the enrollment', () {
+    for (final body in [
+      '{"status":"access_denied","message":"Invalid RustDesk device session.","details":{"reason":"customer_inactive"}}',
+      '{"status":"access_denied","message":"Invalid RustDesk device session.","details":{"reason":"other"}}',
+      '{"status":"access_denied","message":"Invalid RustDesk device session.","details":null}',
+      '{"status":"access_denied","message":"Invalid companion session.","details":{"reason":"device_revoked"}}',
+      '{"status":"unauthorized","message":"Missing bearer token.","details":null}',
+      'error code: 401',
+    ]) {
+      expect(() => decodeExantasOfficeResponse(401, body),
+          throwsA(predicate((e) => e is! ExantasDeviceEnrollmentGone)));
+    }
+    expect(
+        () => decodeExantasOfficeResponse(403,
+            '{"status":"access_denied","message":"Invalid RustDesk device session.","details":{"reason":"device_revoked"}}'),
+        throwsA(predicate((e) => e is! ExantasDeviceEnrollmentGone)));
+  });
+  test('a device rejection never clears a technician sign-in', () {
+    expect(
+        () => decodeExantasOfficeResponse(401,
+            '{"status":"access_denied","message":"Invalid RustDesk device session.","details":{"reason":"device_revoked"}}'),
         throwsA(predicate((e) => e is! ExantasCompanionPairingGone)));
   });
 }

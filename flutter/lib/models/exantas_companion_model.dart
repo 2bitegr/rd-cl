@@ -186,7 +186,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
   }
 
   Future<String> installerBootstrapCode(String launchCode) => _nativeFence.run(() async {
-    final status = await loadStatus();
+    final status = await _withoutRevokedEnrollment(await loadStatus());
     nativeApiOrigin(status.apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
     if (status.enrolled || status.technicianLoggedIn || status.enrollmentPending ||
         bind.mainGetLocalOption(key: 'access_token').isNotEmpty) {
@@ -230,7 +230,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
       _nativeFence.run(() => _enrollDevice(preview));
 
   Future<ExantasCompanionStatus> _enrollDevice(ExantasDeviceEnrollmentPreview preview) async {
-    final before = await loadStatus();
+    final before = await _withoutRevokedEnrollment(await loadStatus());
     nativeApiOrigin(before.apiBase.replaceFirst(RegExp(r'/api/v1/?$'), ''));
     if (preview.apiBase != null && preview.apiBase != before.apiBase) throw const ExantasEnrollmentFailure('Η σύνδεση με το Office άλλαξε. Κάντε νέα λήψη από την επαφή.');
     if (before.enrolled || before.technicianLoggedIn || before.enrollmentPending ||
@@ -576,7 +576,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
     readPolicy: (scope) async {
       final response = await http.get(Uri.parse('${scope.apiBase}/rustdesk-devices/policy'),
         headers: _headers(scope.deviceToken));
-      return _decodeResponse(response.statusCode, response.body);
+      return _decodeAuthorized(response.statusCode, response.body, scope.deviceToken);
     },
   );
 
@@ -669,7 +669,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
         for (final key in ['peer_id', 'from_peer', 'rustdesk_session_id']) key: record[key],
       })).timeout(const Duration(seconds: 15));
     _requireSameCompanion(before, await loadStatus());
-    return _decodeCompanion(response.statusCode, response.body, before.companionToken);
+    return _decodeAuthorized(response.statusCode, response.body, before.companionToken);
   }
 
   Future<Map<String, dynamic>> submitSessionClose(Map<String, dynamic> record) async {
@@ -680,7 +680,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
         for (final key in ['event_id', 'peer_id', 'from_peer', 'rustdesk_session_id', 'ended_at']) key: record[key],
       })).timeout(const Duration(seconds: 15));
     _requireSameCompanion(before, await loadStatus());
-    return _decodeCompanion(response.statusCode, response.body, before.companionToken);
+    return _decodeAuthorized(response.statusCode, response.body, before.companionToken);
   }
 
   Future<List<Map<String, dynamic>>> pendingSessions({
@@ -946,7 +946,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
       Uri.parse('$apiBase$path'),
       headers: _headers(bearerToken),
     );
-    return _decodeCompanion(response.statusCode, response.body, bearerToken);
+    return _decodeAuthorized(response.statusCode, response.body, bearerToken);
   }
 
   Future<Map<String, dynamic>?> _getOptional404(String path,
@@ -957,7 +957,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
     );
     return decodeExantasOptional404(
       response.statusCode,
-      () => _decodeCompanion(response.statusCode, response.body, bearerToken),
+      () => _decodeAuthorized(response.statusCode, response.body, bearerToken),
     );
   }
 
@@ -968,7 +968,7 @@ class ExantasCompanionService implements ExantasIdentityActions {
       headers: _headers(bearerToken),
       body: jsonEncode(body),
     );
-    return _decodeCompanion(response.statusCode, response.body, bearerToken);
+    return _decodeAuthorized(response.statusCode, response.body, bearerToken);
   }
 
   Map<String, String> _headers(String? bearerToken) {
@@ -984,18 +984,66 @@ class ExantasCompanionService implements ExantasIdentityActions {
   }
 
   /// Decodes a reply to a request sent with [bearerToken]. When Office reports
-  /// that this exact companion pairing no longer exists, the local technician
-  /// sign-in is cleared so the app asks for a new login instead of repeating
-  /// the rejection. The clear waits for any in-flight login/logout and then
-  /// rechecks the token, so a newer sign-in is never removed.
-  Map<String, dynamic> _decodeCompanion(int statusCode, String body, String? bearerToken) {
+  /// that this exact companion pairing or customer device enrollment no longer
+  /// exists, the matching local credential is cleared so the app asks for a new
+  /// login or accepts a new installation link instead of repeating the
+  /// rejection. The clear waits for any in-flight login/logout/enrollment and
+  /// then rechecks the token, so newer credentials are never removed.
+  Map<String, dynamic> _decodeAuthorized(int statusCode, String body, String? bearerToken) {
     try {
       return _decodeResponse(statusCode, body);
     } on ExantasCompanionPairingGone {
       final token = bearerToken?.trim() ?? '';
       if (token.isNotEmpty) unawaited(forgetRevokedPairing(token));
       rethrow;
+    } on ExantasDeviceEnrollmentGone {
+      final token = bearerToken?.trim() ?? '';
+      if (token.isNotEmpty) unawaited(forgetRevokedEnrollment(token));
+      rethrow;
     }
+  }
+
+  @visibleForTesting
+  Future<bool> forgetRevokedEnrollment(String token) =>
+      _nativeFence.runWhenIdle(() => _clearRevokedEnrollment(token));
+
+  /// Clears a customer enrollment only when [token] is still the stored device
+  /// token and no enrollment attempt is pending (a pending attempt has its own
+  /// fenced recovery). The RustDesk ID, password and update registration are
+  /// left untouched; a new installation link replaces the enrollment.
+  Future<bool> _clearRevokedEnrollment(String token) async {
+    try {
+      final current = await _getSecretLocalOption(kExantasDeviceToken);
+      if (current.isEmpty || current != token ||
+          bind.mainGetLocalOption(key: kExantasEnrollmentPending).isNotEmpty) return false;
+      await _setSecretLocalOption(kExantasDeviceToken, '');
+      await bind.mainSetLocalOption(key: kExantasDeviceId, value: '');
+      await bind.mainSetLocalOption(key: kExantasDevicePolicy, value: '');
+      await bind.mainSetLocalOption(key: kExantasDeviceCustomerName, value: '');
+      notifyAccountChanged();
+      return true;
+    } catch (_) {
+      debugPrint('Office customer enrollment cleanup pending');
+      return false;
+    }
+  }
+
+  /// Before a new installation link is applied, confirms with Office that a
+  /// stored customer enrollment is still valid. Only Office's explicit
+  /// revoked/not-found answer clears it; offline or other errors keep it.
+  /// Runs inside the enrollment fence.
+  Future<ExantasCompanionStatus> _withoutRevokedEnrollment(ExantasCompanionStatus status) async {
+    if (!status.enrolled || status.technicianLoggedIn || status.enrollmentPending) return status;
+    try {
+      final response = await http.get(Uri.parse('${status.apiBase}/rustdesk-devices/policy'),
+        headers: _headers(status.deviceToken)).timeout(const Duration(seconds: 12));
+      _decodeResponse(response.statusCode, response.body);
+    } on ExantasDeviceEnrollmentGone {
+      if (await _clearRevokedEnrollment(status.deviceToken)) return loadStatus();
+    } catch (_) {
+      // Unconfirmed: keep the existing enrollment.
+    }
+    return status;
   }
 
   @visibleForTesting
