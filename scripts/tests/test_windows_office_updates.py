@@ -135,6 +135,29 @@ class OfficeUpdateWorkerStaticContracts(unittest.TestCase):
         for line in stops:
             self.assertIn('-Force', line)
 
+    def test_stop_waits_for_exact_process_without_wait_process(self):
+        source = SOURCE.read_text(encoding='utf-8')
+        body = source[source.index('function Stop-UpdateProcesses {'):source.index('function Start-UpdateService {')]
+        body = '\n'.join(l for l in body.splitlines() if not l.lstrip().startswith('#'))
+        # Stopping the service tears down --server/--tray; Wait-Process returned
+        # at once on those exiting processes (VM: process_did_not_stop in 274 ms).
+        self.assertNotIn('Wait-Process', body)
+        self.assertIn('CreationDate', body)
+        self.assertIn("throw 'process_did_not_stop'", body)
+
+    def test_tray_is_restored_in_its_user_session(self):
+        source = SOURCE.read_text(encoding='utf-8')
+        self.assertIn('tray_sessions', source)
+        self.assertIn("Invoke-UpdateCore '--office-update-restore-tray' @([string][uint32]$session)", source)
+        native = (SCRIPTS.parent / 'src' / 'office_update.rs').read_text(encoding='utf-8')
+        block = native[native.index('"--office-update-restore-tray"'):]
+        block = block[:block.index('return Ok(')]
+        block = '\n'.join(l for l in block.splitlines() if not l.lstrip().startswith('//'))
+        # The worker runs in session 0: run_as_user would target session 0.
+        self.assertNotIn('run_as_user', block)
+        self.assertIn('run_exe_in_session', block)
+        self.assertIn('session == 0', block)
+
 
 if __name__ == '__main__':
     unittest.main()

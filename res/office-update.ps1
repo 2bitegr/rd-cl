@@ -371,18 +371,27 @@ function Send-UpdateAction([string]$Action, $Report, [string]$Code = '') {
 function Stop-UpdateProcesses {
     Stop-Service -Name $script:ServiceName -ErrorAction Stop
     (Get-Service -Name $script:ServiceName).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(30))
-    $processes = @(Get-CimInstance Win32_Process -Filter "Name='$([IO.Path]::GetFileName($script:CorePath))'")
-    foreach ($process in $processes) {
-        if (!$process.ExecutablePath) { throw 'process_visibility_incomplete' }
-        if ($process.ExecutablePath -ieq $script:CorePath) {
-            # SYSTEM worker is non-interactive: without -Force, stopping a process
-            # owned by the signed-in user (tray/main window) needs a confirmation
-            # prompt that cannot be shown, and the process keeps running.
-            Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
-            Wait-Process -Id $process.ProcessId -Timeout 30 -ErrorAction SilentlyContinue
-            if(Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue){throw 'process_did_not_stop'}
-        }
-    }
+    # Identify each core process by PID + creation time. Stopping the service
+    # already tears down its --server/--tray children, so a target may be
+    # exiting (or gone) by the time it is stopped: force-stop without failing
+    # on that, then poll until that exact process is gone. Polling needs no
+    # process handle, unlike Wait-Process, which returns at once on an exiting
+    # process and made a successful stop look like process_did_not_stop.
+    $targets=@(Get-CimInstance Win32_Process -Filter "Name='$([IO.Path]::GetFileName($script:CorePath))'" | ForEach-Object {
+        if (!$_.ExecutablePath) { throw 'process_visibility_incomplete' }
+        if ($_.ExecutablePath -ieq $script:CorePath) { [pscustomobject]@{Id=$_.ProcessId;Created=$_.CreationDate} }
+    })
+    # SYSTEM worker is non-interactive: without -Force, stopping a process
+    # owned by the signed-in user (tray/main window) needs a confirmation
+    # prompt that cannot be shown, and the process keeps running.
+    foreach ($target in $targets) { Stop-Process -Id $target.Id -Force -ErrorAction SilentlyContinue }
+    $deadline=[DateTime]::UtcNow.AddSeconds(30)
+    do {
+        $alive=@($targets | Where-Object { $current=Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)"; $current -and $current.CreationDate -eq $_.Created })
+        if (!$alive.Count) { return }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw 'process_did_not_stop'
 }
 
 function Start-UpdateService {
@@ -478,7 +487,14 @@ function Complete-UpdateJob([string]$Phase) {
     Write-UpdateState $script:journalPath $script:journal
     $script:barrier.Reset() | Out-Null
     if($Phase -in @('complete','rolled_back') -and $script:journal.tray_was_running) {
-        try {Invoke-UpdateCore '--office-update-restore-tray' | Out-Null} catch {
+        # The worker runs in session 0: restore the tray in each user session
+        # it was running in (as the RustDesk updater does), never in session 0.
+        # The journal is a hashtable in the worker that created it and a
+        # PSCustomObject after a reload; older journals have no tray_sessions.
+        $hasSessions=if($script:journal -is [Collections.IDictionary]){$script:journal.Contains('tray_sessions')}else{[bool]$script:journal.PSObject.Properties['tray_sessions']}
+        $sessions=if($hasSessions){@($script:journal.tray_sessions)}else{@()}
+        if(!$sessions.Count){[IO.File]::WriteAllText((Join-Path $script:root 'tray-restore-pending.txt'),'Tray session was not recorded; normal tray startup needs review.')}
+        try {foreach($session in $sessions){Invoke-UpdateCore '--office-update-restore-tray' @([string][uint32]$session) | Out-Null}} catch {
             [IO.File]::WriteAllText((Join-Path $script:root 'tray-restore-pending.txt'),'Normal tray startup needs review; no elevated GUI launched.')
         }
     }
@@ -610,7 +626,7 @@ function Invoke-UpdateCycle {
             Retire-PreviousUpdateAttempt
             Write-UpdateState (Join-Path $script:root 'previous-attempt.json') (Seal-UpdateAttempt $script:journal)
         }
-        $script:journal = @{job=$job;phase='offered';pending_action=$null;release=$null;backup=(Join-Path $attempt 'previous');old_files=@();new_files=@();tray_was_running=$false;recovery_attempts=0}
+        $script:journal = @{job=$job;phase='offered';pending_action=$null;release=$null;backup=(Join-Path $attempt 'previous');old_files=@();new_files=@();tray_was_running=$false;tray_sessions=@();recovery_attempts=0}
         Write-UpdateState $script:journalPath $script:journal
     }
     $script:journal.job=$job
@@ -708,7 +724,9 @@ function Invoke-UpdateCycle {
     if(Test-Path -LiteralPath (Join-Path $script:root 'stop-requested')){Send-UpdateAction 'defer' @{} 'local_uninstall_requested'|Out-Null;Complete-UpdateJob 'cancelled';return}
     # Barrier blocks new incoming/outgoing sessions before the second idle check.
     $script:barrier.Set() | Out-Null
-    $script:journal.tray_was_running=@(Get-CimInstance Win32_Process -Filter "Name='$([IO.Path]::GetFileName($script:CorePath))'" | Where-Object {$_.ExecutablePath -ieq $script:CorePath -and $_.CommandLine -match '\s--tray(?:\s|$)'}).Count -gt 0
+    $trays=@(Get-CimInstance Win32_Process -Filter "Name='$([IO.Path]::GetFileName($script:CorePath))'" | Where-Object {$_.ExecutablePath -ieq $script:CorePath -and $_.CommandLine -match '\s--tray(?:\s|$)'})
+    $script:journal.tray_was_running=$trays.Count -gt 0
+    $script:journal.tray_sessions=@($trays | ForEach-Object {[uint32]$_.SessionId} | Where-Object {$_ -ne 0} | Sort-Object -Unique)
     $report=Get-UpdateReport
     if (!$report.idle -or $report.pending_reboot) { $script:barrier.Reset() | Out-Null; Send-UpdateAction 'defer' $report 'device_busy' | Out-Null; return }
     if (!(Test-Path -LiteralPath $script:journal.backup)) { New-Item -ItemType Directory -Path $script:journal.backup | Out-Null }

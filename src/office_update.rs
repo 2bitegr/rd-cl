@@ -622,12 +622,31 @@ pub fn command(args: &[String]) -> Option<i32> {
             }
             return Ok(json!({"registered":true}));
         }
-        if mode == "--office-update-restore-tray" {
+        if mode == "--office-update-restore-tray" && args.len() == 2 {
             if blocked() {
                 bail!("update_still_fenced");
             }
-            crate::platform::run_as_user(vec!["--tray"])?;
-            return Ok(json!({"restored":true}));
+            // The worker runs in session 0; run_as_user would target that
+            // session. Launch the tray in the user session it was running in,
+            // as the RustDesk updater restores it (run_exe_in_session).
+            let session: u32 = args[1]
+                .parse()
+                .map_err(|_| hbb_common::anyhow::anyhow!("invalid_tray_session"))?;
+            if session == 0
+                || !crate::platform::get_available_sessions(false)
+                    .iter()
+                    .any(|s| s.sid == session)
+            {
+                bail!("invalid_tray_session");
+            }
+            let exe = std::env::current_exe()?;
+            crate::platform::run_exe_in_session(
+                exe.to_str().unwrap_or_default(),
+                vec!["--tray"],
+                session,
+                true,
+            )?;
+            return Ok(json!({"restored":true,"session":session}));
         }
         if mode == "--office-update-probe" {
             let runtime = hbb_common::tokio::runtime::Builder::new_current_thread()
