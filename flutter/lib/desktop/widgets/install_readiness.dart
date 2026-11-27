@@ -22,6 +22,7 @@ class _InstallReadinessPanelState extends State<InstallReadinessPanel> {
   late final InstallReadinessClient _client = widget.client ?? InstallReadinessClient();
   InstallReadinessReport? _report;
   bool _busy = false;
+  bool _confirming = false;
   String? _message;
   int _generation = 0;
   Timer? _expiry;
@@ -81,7 +82,7 @@ class _InstallReadinessPanelState extends State<InstallReadinessPanel> {
         : check.action == 'start_service'
             ? 'Θα ζητηθούν δικαιώματα διαχειριστή για εκκίνηση μόνο της υφιστάμενης επαληθευμένης υπηρεσίας Exantas Support.\n${report.repairTarget ?? ''}'
             : 'Θα ζητηθούν δικαιώματα διαχειριστή για αυτόματη εκκίνηση μόνο της υφιστάμενης επαληθευμένης υπηρεσίας Exantas Support με τα Windows.\n${report.repairTarget ?? ''}';
-    setState(() { _busy = true; });
+    setState(() { _busy = true; _confirming = true; });
     widget.onBusy?.call(true);
     final generation = _generation;
     final approved = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
@@ -89,6 +90,7 @@ class _InstallReadinessPanelState extends State<InstallReadinessPanel> {
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Ακύρωση')),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Επιβεβαίωση')),
       ]));
+    if (mounted) setState(() { _confirming = false; });
     if (!mounted || generation != _generation) return;
     if (approved != true) { setState(() { _busy = false; }); widget.onBusy?.call(false); return; }
     var applied = false;
@@ -120,7 +122,7 @@ class _InstallReadinessPanelState extends State<InstallReadinessPanel> {
       crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Έλεγχος αυτόματων ενημερώσεων', style: TextStyle(fontWeight: FontWeight.bold)),
         const Text('Η εγκατάσταση και η ετοιμότητα μελλοντικών ενημερώσεων ελέγχονται ξεχωριστά. Η κατάσταση μπορεί να αλλάξει.'),
-        if (_busy) const LinearProgressIndicator(),
+        if (_busy && !_confirming) const LinearProgressIndicator(),
         if (report != null) ...[
           Text(report.ready ? 'Έτοιμος για αυτόματες ενημερώσεις'
               : report.unsupported ? 'Η αυτόματη διαδικασία δεν υποστηρίζεται σε αυτή την εγκατάσταση'
