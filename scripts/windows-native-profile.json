@@ -95,8 +95,8 @@
     "src/office_install_readiness.rs": "119f4154336861b8db2ffe1af3a7ebc0b947d5934cd0482e629dbdff4895992c",
     "res/office-readiness.ps1": "0cc166c90d9d6e32815facbaa5292900bf2c03d145772d8033722fed6b5c637c",
     "flutter/lib/models/exantas_install_readiness.dart": "ccaeb74bc255f9d7ec4dc4735e83a48df8079d178849761af6d273c0c8723355",
-    "flutter/lib/desktop/widgets/install_readiness.dart": "67ab55b7c6291e080a32ec360715fd3015f1320989e9ec712631a9fd1755c751",
-    "flutter/lib/desktop/pages/install_page.dart": "0e583941f6450c2968c3ac2c99a66bb6e1506052e6b5228c7ead5b5be225ffbe",
+    "flutter/lib/desktop/widgets/install_readiness.dart": "82dae1bce7478d183e391819198ee7a09306f839dd8d879ab2dfafec832cd450",
+    "flutter/lib/desktop/pages/install_page.dart": "21d2664f70b932562257416571b859d1dd245087ada873da655a244c06123dec",
     "flutter/test/exantas_install_readiness_test.dart": "aba47690ea7e1b4a8605b16433ee4c06a62bb2e9effcfb5f0e52484095c87d0c",
     "scripts/tests/test-office-readiness.ps1": "fca6439ccab508135c4a29b236a8c20ba1e75cf98d29a0f59e45b14128e52d96",
     "scripts/tests/test_windows_install_readiness.py": "30e61fa3d278742b920bb939c3954af60155495e229e406e79c2dd2498febdc7"
