@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/widgets/overlay.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/desktop/pages/install_page.dart';
+import 'package:flutter_hbb/desktop/widgets/install_readiness.dart';
 import 'package:flutter_hbb/desktop/pages/server_page.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_file_transfer_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_view_camera_screen.dart';
@@ -180,6 +181,11 @@ void runMainApp(bool startService) async {
     // Do not use `windowManager.setResizable()` here.
     setResizable(!bind.isIncomingOnly());
     if (isWindows) await activateInstallerEnrollment(Platform.environment['EXANTAS_OFFICE_ENROLLMENT_CODE'] ?? '');
+    if (isWindows && kBootArgs.contains('--office-install-check') && Get.context != null) {
+      await windowManager.show();
+      await windowManager.focus();
+      await showInstalledReadiness(Get.context!, bind.installInstallPath());
+    }
   });
 }
 

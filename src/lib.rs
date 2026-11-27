@@ -62,6 +62,8 @@ mod updater;
 mod office_identity;
 #[cfg(windows)]
 mod office_update;
+#[cfg(windows)]
+mod office_install_readiness;
 mod office_update_policy;
 
 #[cfg(any(windows, target_os = "android", target_os = "linux"))]

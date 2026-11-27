@@ -1,4 +1,8 @@
 param([string]$CorePath, [string]$ServiceName, [switch]$LibraryOnly)
+# OFFICE_READINESS_LIBRARY
+if (!(Get-Command Get-OfficeRebootReasons -ErrorAction SilentlyContinue)) {
+    . (Join-Path $PSScriptRoot 'office-readiness.ps1')
+}
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $script:reportedAcceptedPoll = $false
@@ -129,16 +133,7 @@ public static class ExantasUpdateAtomicFile {
 }
 
 function Assert-ProtectedInstallation([string]$Path) {
-    # Windows servicing may retain TrustedInstaller write access on Program Files.
-    # Trust its exact service SID independently of localized account names.
-    Assert-UpdatePath $Path
-    $acl=Get-Acl -LiteralPath $Path
-    foreach($rule in $acl.Access) {
-        if($rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band 0xD0156) -ne 0 -and
-          ($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and
-          $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin @('S-1-5-18','S-1-5-32-544',
-            'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')) {throw 'install_directory_not_protected'}
-    }
+    Assert-OfficeInstalledPath $Path
 }
 
 function ConvertTo-UpdateCoreArgument([string]$Value) {
@@ -262,7 +257,7 @@ function Test-UpdateTolerableCoreProcess([string]$CommandLine) {
     # The main window started without arguments only hides on close and keeps
     # running until logoff. While the protected IPC probe reports no session it
     # is replaced like the tray. Connection, CM and install windows still block.
-    return $CommandLine -match '^\s*(?:"[^"]+"|[^\s"]+)\s*$'
+    return $CommandLine -match '^\s*(?:"[^"]+"|[^\s"]+)(?:\s+--office-install-check)?\s*$'
 }
 
 function Get-UpdateReport {
@@ -276,9 +271,7 @@ function Get-UpdateReport {
         if (!$process.ExecutablePath -or !$process.CommandLine) { $idle = $false; $reason='process_visibility_incomplete'; continue }
         if ($process.ExecutablePath -ieq $script:CorePath -and !(Test-UpdateTolerableCoreProcess $process.CommandLine)) { $idle = $false; $reason='rdcl_window_open' }
     }
-    $reboot = (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
-        (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') -or
-        $null -ne (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name PendingFileRenameOperations -ErrorAction SilentlyContinue)
+    $reboot = @(Get-OfficeRebootReasons).Count -gt 0
     if($reboot){$reason='pending_restart'}
     if($health.install_mode -ne 'exe'){$reason='unsupported_install_mode'}
     $service=Get-CimInstance Win32_Service -Filter "Name='$script:ServiceName'"

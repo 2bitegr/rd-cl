@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Office ecosystem regression hook v1; preserve other repository release gates.
+set -euo pipefail
+office_component_root="$(git rev-parse --show-toplevel)"
+for office_candidate in "${OFFICE_REPOSITORY_ROOT:-}" "$office_component_root/../Office" "$office_component_root/../../Office"; do
+  if [[ -n "$office_candidate" && -f "$office_candidate/scripts/office-regression.mjs" ]]; then
+    exec node "$office_candidate/scripts/office-regression.mjs" --repository "$office_component_root" --verify-push "$@"
+  fi
+done
+echo 'Publication BLOCKED: verified Office regression tooling is unavailable. Set OFFICE_REPOSITORY_ROOT to the actual Office checkout.' >&2
+exit 1

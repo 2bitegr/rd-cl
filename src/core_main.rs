@@ -80,6 +80,11 @@ pub fn core_main() -> Option<Vec<String>> {
         i += 1;
     }
     #[cfg(windows)]
+    if args.first().map(String::as_str) == Some("--office-install-check") {
+        args.remove(0);
+        flutter_args.push("--office-install-check".to_owned());
+    }
+    #[cfg(windows)]
     if crate::office_update::blocked() && (args.is_empty() || _is_flutter_invoke_new_connection
         || args.first().map(|s| ["--install", "--silent-install", "--update", "--uninstall", "--tray", "--import-config"].contains(&s.as_str())).unwrap_or(false)) {
         return None;
@@ -229,6 +234,8 @@ pub fn core_main() -> Option<Vec<String>> {
                     log::error!("Failed to uninstall: {}", err);
                 }
                 return None;
+            } else if let Some(code) = crate::office_install_readiness::command(&args) {
+                std::process::exit(code);
             } else if let Some(code) = crate::office_update::command(&args) {
                 std::process::exit(code);
             } else if args[0] == "--update" {

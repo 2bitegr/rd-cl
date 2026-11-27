@@ -87,8 +87,10 @@ Then translate that source into the file's target language (infer the language f
 
 ## Office workstation roles
 
-Development, source/version/build-tooling corrections, commits and pushes belong
-to S1 (Windows DESKTOP-IQ8ORD5). Ubuntu Exantas-S2 coordinates only production
+Source implementation, tests, documentation and source/version/build-tooling
+corrections belong to the current Codex cloud environment (user instruction,
+2026-11-26). S1 retains its existing Git publication role; cloud development is
+not standing permission to commit/push, install or deploy. Ubuntu Exantas-S2 coordinates only production
 of the published rd-cl Windows x64 EXE. Run the native build inside the
 Windows11-Development VirtualBox guest (UUID 8c15378e-e71b-4c78-bf41-e77ba3915205,
 Windows hostname DESKTOP-5OTBBT7). Keep build work on guest-local NTFS and pass
@@ -97,12 +99,16 @@ retain compatibility with the previously approved native Windows S2 hostname.
 
 Use S2 communication and authenticated remote access only for this build and
 its build prerequisites. S2 may prepare pinned inputs and the scoped build
-workspace, run tests and packaging, verify maintenance and transfer. S1 handles
+workspace, run tests and packaging, verify maintenance and transfer. Cloud handles
 source fixes. Other application builds, Git commits/pushes, migrations, production
 access, hosting, product installation/acceptance and Dokploy are outside S2's role.
 The user performs final Dokploy deployment manually from S1. For a separately
 authorized production operation, follow the current Office instructions.
 Historical delivery records do not grant current authority.
+
+The 2026-11-26 cloud-development assignment supersedes historical S1 source-author
+references below. It does not move Git publication or native delivery builds to
+cloud or grant standing production authority.
 
 ## One complete S2 build handoff
 

@@ -461,6 +461,8 @@ pub enum Data {
     #[cfg(windows)]
     OfficeUpdateProbe,
     #[cfg(windows)]
+    OfficeInstallReadiness,
+    #[cfg(windows)]
     OfficeUpdateReply(serde_json::Value),
     #[cfg(windows)]
     OfficeIdentityResetResult(crate::office_identity::Outcome),
@@ -840,7 +842,7 @@ async fn handle(data: Data, stream: &mut Connection) {
             allow_err!(stream.send(&Data::OfficeUpdateReply(reply)).await);
         }
         #[cfg(windows)]
-        Data::OfficeUpdateRegister(_) | Data::OfficeUpdateReply(_) => {}
+        Data::OfficeUpdateRegister(_) | Data::OfficeUpdateReply(_) | Data::OfficeInstallReadiness => {}
         #[cfg(windows)]
         Data::OfficeIdentityReset(request) => {
             let result = crate::office_identity::reset(request).await;

@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
+import '../../models/exantas_install_readiness.dart';
+import '../widgets/install_readiness.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +71,8 @@ class _InstallPageBodyState extends State<_InstallPageBody>
   final RxBool printer = false.obs;
   final RxBool showProgress = false.obs;
   final RxBool btnEnabled = true.obs;
+  InstallReadinessReport? _readiness;
+  final RxBool _readinessBusy = false.obs;
 
   // todo move to theme.
   final buttonStyle = OutlinedButton.styleFrom(
@@ -166,6 +171,11 @@ class _InstallPageBodyState extends State<_InstallPageBody>
               Option(desktopicon, label: 'Create desktop icon')
                   .marginOnly(bottom: 7),
               Option(printer, label: 'Install {$appName} Printer'),
+              if (Platform.isWindows) InstallReadinessPanel(
+                target: controller.text,
+                onReport: (report) { _readiness = report; },
+                onBusy: (busy) { _readinessBusy.value = busy; },
+              ),
               Container(
                   padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -226,7 +236,7 @@ class _InstallPageBodyState extends State<_InstallPageBody>
                     () => ElevatedButton.icon(
                       icon: Icon(Icons.done_rounded, size: 16),
                       label: Text(translate('Accept and Install')),
-                      onPressed: btnEnabled.value ? install : null,
+                      onPressed: btnEnabled.value && !_readinessBusy.value ? install : null,
                       style: buttonStyle,
                     ),
                   ),
@@ -250,7 +260,24 @@ class _InstallPageBodyState extends State<_InstallPageBody>
         ));
   }
 
-  void install() {
+  void install() async {
+    if (Platform.isWindows && _readiness?.unsupported == true) {
+      await showDialog<void>(context: context, builder: (context) => AlertDialog(
+        title: const Text('Μη υποστηριζόμενη εγκατάσταση'),
+        content: const Text('Ελέγξτε τα ευρήματα πριν συνεχίσετε. Η εγκατάσταση MSI ακολουθεί τη δική της διαχείριση.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Κλείσιμο'))],
+      ));
+      return;
+    }
+    if (Platform.isWindows && _readiness?.ready != true) {
+      final proceed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+        title: const Text('Οι αυτόματες ενημερώσεις δεν έχουν επιβεβαιωθεί'),
+        content: const Text('Μπορείτε να συνεχίσετε την εγκατάσταση, αλλά οι εκκρεμότητες πρέπει να ελεγχθούν. Μετά την εγκατάσταση και τη σύνδεση στο Office θα εμφανιστεί νέος έλεγχος.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Επιστροφή')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Συνέχιση εγκατάστασης'))],
+      ));
+      if (!mounted || proceed != true) return;
+    }
     do_install() {
       btnEnabled.value = false;
       showProgress.value = true;
@@ -265,10 +292,12 @@ class _InstallPageBodyState extends State<_InstallPageBody>
   }
 
   void selectInstallPath() async {
+    if (_readinessBusy.value) return;
     String? install_path = await FilePicker.platform
         .getDirectoryPath(initialDirectory: controller.text);
     if (install_path != null) {
-      controller.text = join(install_path, await bind.mainGetAppName());
+      final path = join(install_path, await bind.mainGetAppName());
+      if (mounted) setState(() { _readiness = null; controller.text = path; });
     }
   }
 }

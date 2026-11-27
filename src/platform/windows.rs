@@ -721,6 +721,13 @@ async fn run_service(_arguments: Vec<OsString>) -> ResultType<()> {
                                     let _ = stream.send(&ipc::Data::OfficeUpdateReply(serde_json::json!({"registered":ok}))).await;
                                 });
                             }
+                            ipc::Data::OfficeInstallReadiness => {
+                                hbb_common::tokio::spawn(async move {
+                                    let reply = crate::office_install_readiness::service().await
+                                        .unwrap_or_else(|_| serde_json::json!({"schema":1,"checks":[{"code":"readiness_unconfirmed","status":"unknown","action":null}]}));
+                                    let _ = stream.send(&ipc::Data::OfficeUpdateReply(reply)).await;
+                                });
+                            }
                             ipc::Data::SAS => {
                                 send_sas();
                             }
@@ -3738,6 +3745,7 @@ fn run_after_run_cmds(silent: bool) {
         log::debug!("Spawn new window");
         const ENROLLMENT_ENV: &str = "EXANTAS_OFFICE_ENROLLMENT_CODE";
         let mut command = std::process::Command::new(&exe);
+        command.arg("--office-install-check");
         command.creation_flags(winapi::um::winbase::CREATE_NO_WINDOW);
         command.env_remove(ENROLLMENT_ENV);
         // This runs only after successful install/update commands. No key is

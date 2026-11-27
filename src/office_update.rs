@@ -184,6 +184,132 @@ fn encrypt_machine(token: &str) -> ResultType<String> {
     }
 }
 
+/// Read-only server eligibility query. Does not poll, reserve a job, alter the
+/// machine credential or advance the worker's immutable request sequence.
+pub fn readiness() -> ResultType<Value> {
+    if !system() {
+        bail!("system_service_required");
+    }
+    let root = root()?;
+    if !root.join("machine.json").exists() {
+        return Ok(json!({"schema":1,"state":"blocked","reasons":["registration_required"]}));
+    }
+    verify_root()?;
+    let mut bytes = Vec::new();
+    fs::File::open(root.join("machine.json"))?
+        .take(65537)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() > 65536 {
+        bail!("machine_configuration_invalid");
+    }
+    let machine: Value = serde_json::from_slice(&bytes)?;
+    if machine["registered"] != true || machine["peer_id"] != Config::get_id() {
+        return Ok(
+            json!({"schema":1,"state":"blocked","reasons":["registration_binding_unconfirmed"]}),
+        );
+    }
+    if root.join("stop-requested").exists() {
+        return Ok(json!({"schema":1,"state":"blocked","reasons":["updater_stopped"]}));
+    }
+    use winapi::um::{
+        dpapi::{CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN},
+        winbase::LocalFree,
+        wincrypt::DATA_BLOB,
+    };
+    let mut protected = base64::decode(
+        machine["encrypted_token"].as_str().unwrap_or(""),
+        base64::Variant::Original,
+    )
+    .map_err(|_| hbb_common::anyhow::anyhow!("machine_protection_encoding_invalid"))?;
+    let mut input = DATA_BLOB {
+        cbData: protected.len() as u32,
+        pbData: protected.as_mut_ptr(),
+    };
+    let mut output: DATA_BLOB = unsafe { std::mem::zeroed() };
+    let token = unsafe {
+        if CryptUnprotectData(
+            &mut input,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            CRYPTPROTECT_UI_FORBIDDEN,
+            &mut output,
+        ) == 0
+            || output.pbData.is_null()
+        {
+            bail!("machine_protection_failed");
+        }
+        let token = String::from_utf8(
+            std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec(),
+        );
+        LocalFree(output.pbData as _);
+        token?
+    };
+    let client = reqwest::blocking::Client::builder()
+        .https_only(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(3))
+        .timeout(Duration::from_secs(8))
+        .build()?;
+    let response = client
+        .get(format!("{API}/readiness"))
+        .bearer_auth(token)
+        .query(&[
+            (
+                "installation_id",
+                machine["installation_id"].as_str().unwrap_or(""),
+            ),
+            ("peer_id", machine["peer_id"].as_str().unwrap_or("")),
+        ])
+        .send()?;
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Ok(
+            json!({"schema":1,"state":"blocked","reasons":["registration_binding_unconfirmed"]}),
+        );
+    }
+    if !response.status().is_success() {
+        bail!("office_readiness_rejected");
+    }
+    let bytes = response
+        .take(65537)
+        .bytes()
+        .collect::<Result<Vec<_>, _>>()?;
+    if bytes.len() > 65536 {
+        bail!("office_response_too_large");
+    }
+    let mut reply: Value = serde_json::from_slice(&bytes)?;
+    if reply["schema"] != 1
+        || reply["installation_id"] != machine["installation_id"]
+        || reply["device_id"] != machine["device_id"]
+    {
+        bail!("office_readiness_mismatch");
+    }
+    if reply["state"] == "ready" && reply["worker_version"] != crate::VERSION {
+        reply["state"] = json!("waiting");
+        reply["reasons"]
+            .as_array_mut()
+            .ok_or_else(|| hbb_common::anyhow::anyhow!("invalid_readiness_reply"))?
+            .push(json!("worker_version_unconfirmed"));
+    }
+    if reply["state"] == "ready" && reply["signer_key_id"].as_str().is_none() {
+        bail!("office_signer_unconfirmed");
+    }
+    if let Some(signer) = reply["signer_key_id"].as_str() {
+        let key = machine["trusted_keys"][signer].as_str().unwrap_or("");
+        let raw = base64::decode(key, base64::Variant::Original).unwrap_or_default();
+        let fingerprint = format!("{:x}", Sha256::digest(&raw));
+        if raw.len() != 32 || reply["signer_key_sha256"] != fingerprint {
+            reply["state"] = json!("blocked");
+            reply["reasons"]
+                .as_array_mut()
+                .ok_or_else(|| hbb_common::anyhow::anyhow!("invalid_readiness_reply"))?
+                .push(json!("update_signer_not_pinned"));
+        }
+    }
+    Ok(reply)
+}
+
 pub fn register(request: Registration) -> ResultType<()> {
     if !system()
         || !crate::platform::is_installed()
@@ -482,7 +608,7 @@ pub fn start_service_worker() {
                 }
                 verify_root()?;
                 let script = root.join("worker.ps1");
-                fs::write(&script, SCRIPT)?;
+                fs::write(&script, SCRIPT.replace("# OFFICE_READINESS_LIBRARY", crate::office_install_readiness::LIBRARY))?;
                 crate::platform::set_private_runtime_file_permissions(&script)?;
                 let (_, _, _, executable) = crate::platform::get_install_info();
                 let entry = "& ([scriptblock]::Create([IO.File]::ReadAllText((Join-Path $env:ProgramData 'ExantasRdclUpdates\\worker.ps1'))))";
