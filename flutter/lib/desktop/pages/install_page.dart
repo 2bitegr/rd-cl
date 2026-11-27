@@ -262,7 +262,7 @@ class _InstallPageBodyState extends State<_InstallPageBody>
 
   void install() async {
     if (Platform.isWindows && _readiness?.unsupported == true) {
-      await showDialog<void>(context: context, builder: (context) => AlertDialog(
+      await showDialog<void>(context: this.context, builder: (context) => AlertDialog(
         title: const Text('Μη υποστηριζόμενη εγκατάσταση'),
         content: const Text('Ελέγξτε τα ευρήματα πριν συνεχίσετε. Η εγκατάσταση MSI ακολουθεί τη δική της διαχείριση.'),
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Κλείσιμο'))],
@@ -270,7 +270,7 @@ class _InstallPageBodyState extends State<_InstallPageBody>
       return;
     }
     if (Platform.isWindows && _readiness?.ready != true) {
-      final proceed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      final proceed = await showDialog<bool>(context: this.context, builder: (context) => AlertDialog(
         title: const Text('Οι αυτόματες ενημερώσεις δεν έχουν επιβεβαιωθεί'),
         content: const Text('Μπορείτε να συνεχίσετε την εγκατάσταση, αλλά οι εκκρεμότητες πρέπει να ελεγχθούν. Μετά την εγκατάσταση και τη σύνδεση στο Office θα εμφανιστεί νέος έλεγχος.'),
         actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Επιστροφή')),
